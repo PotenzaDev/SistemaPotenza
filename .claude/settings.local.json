@@ -9,7 +9,31 @@
       "Bash(npm install *)",
       "Bash(npm run *)",
       "Bash(npm list *)",
-      "PowerShell($env:ECC_GATEGUARD = \"off\"; echo \"GateGuard desabilitado\")"
+      "PowerShell($env:ECC_GATEGUARD = \"off\"; echo \"GateGuard desabilitado\")",
+      "Bash(php artisan *)",
+      "Bash(powershell -Command \"\\(Get-Content backend/app/Services/ApontamentoService.php | Measure-Object -Line\\).Lines\")",
+      "Bash(powershell -Command \"Get-Content app/Services/ApontamentoService.php | Select-Object -Last 30\")",
+      "Bash(xargs cat)",
+      "Bash(php -l app/Repositories/ApontamentoRepository.php)",
+      "Bash(php -l app/Repositories/Contracts/ApontamentoRepositoryInterface.php)",
+      "Bash(php -l app/Services/ApontamentoService.php)",
+      "Bash(php -l app/Http/Controllers/Api/ApontamentoController.php)",
+      "Bash(php -l routes/api.php)",
+      "Bash(npx tsc *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Gustavo\\\\Potenza\\\\SistemaApontamento\")",
+      "Bash(Select-Object Name)",
+      "Bash(xargs grep -l \"FichaApontamento\\\\|pilha\")",
+      "Bash(ls app/Console)",
+      "Bash(ls app/Console/Commands)",
+      "Bash(php -l app/Models/Turno.php)",
+      "Bash(php -l app/Models/EventoSessao.php)",
+      "Bash(php -l app/Models/SessaoTrabalho.php)",
+      "Bash(php -l app/Repositories/Contracts/SessaoTrabalhoRepositoryInterface.php)",
+      "Bash(php -l app/Repositories/SessaoTrabalhoRepository.php)",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs -I{} sh -c 'stat -c \"%Y %n\" \"{}\" 2>/dev/null')",
+      "Bash(php -l app/Services/RelatorioProducaoService.php)",
+      "Bash(php -l app/Http/Controllers/Api/RelatorioMaquinaController.php)"
     ]
   }
 }

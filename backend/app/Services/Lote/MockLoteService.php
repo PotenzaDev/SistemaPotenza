@@ -6,7 +6,7 @@ namespace App\Services\Lote;
 
 class MockLoteService implements LoteServiceInterface
 {
-    public function buscarPorOrdemLote(string $ordemLote): array
+    public function buscarPorOrdemLote(string $ordemLote, string $codPeca = ''): array
     {
         return [
             'lote'              => $ordemLote,
@@ -28,5 +28,10 @@ class MockLoteService implements LoteServiceInterface
             'qtde_prod'         => 300,
             'qtde_semi'         => 300,
         ];
+    }
+
+    public function buscarFtecPecaPilha(string $codPeca): ?int
+    {
+        return 50;
     }
 }

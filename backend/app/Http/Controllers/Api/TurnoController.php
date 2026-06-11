@@ -1,0 +1,65 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Traits\ApiResponseTrait;
+use App\Models\Turno;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class TurnoController extends Controller
+{
+    use ApiResponseTrait;
+
+    private const DIAS_SEMANA = [1, 2, 3, 4, 5, 6, 7];
+
+    /** Lista o turno configurado para cada dia da semana (1=segunda...7=domingo). */
+    public function index(): JsonResponse
+    {
+        $turnos = Turno::orderBy('dia_semana')->get()->keyBy('dia_semana');
+
+        $resultado = collect(self::DIAS_SEMANA)->map(function (int $dia) use ($turnos) {
+            $turno = $turnos->get($dia);
+
+            return [
+                'dia_semana'                      => $dia,
+                'hora_inicio'                     => $turno?->hora_inicio,
+                'hora_fim'                        => $turno?->hora_fim,
+                'tolerancia_finalizacao_minutos'  => $turno?->tolerancia_finalizacao_minutos ?? 10,
+                'ativo'                           => $turno?->ativo ?? false,
+            ];
+        })->values();
+
+        return $this->successResponse($resultado);
+    }
+
+    /** Cria ou atualiza o turno de um dia da semana (1=segunda...7=domingo). */
+    public function update(Request $request, int $diaSemana): JsonResponse
+    {
+        if (! in_array($diaSemana, self::DIAS_SEMANA, true)) {
+            return $this->errorResponse('Dia da semana inválido.', 422);
+        }
+
+        $data = $request->validate([
+            'hora_inicio'                    => ['required', 'date_format:H:i'],
+            'hora_fim'                       => ['required', 'date_format:H:i', 'after:hora_inicio'],
+            'tolerancia_finalizacao_minutos' => ['required', 'integer', 'min:0', 'max:120'],
+            'ativo'                          => ['boolean'],
+        ]);
+
+        $turno = Turno::updateOrCreate(
+            ['dia_semana' => $diaSemana],
+            [
+                'hora_inicio'                     => $data['hora_inicio'],
+                'hora_fim'                        => $data['hora_fim'],
+                'tolerancia_finalizacao_minutos'  => $data['tolerancia_finalizacao_minutos'],
+                'ativo'                           => $data['ativo'] ?? true,
+            ]
+        );
+
+        return $this->successResponse($turno->fresh(), 'Turno atualizado.');
+    }
+}

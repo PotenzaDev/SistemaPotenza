@@ -21,11 +21,9 @@ class KanbanService
             ->with(['historicoLotes' => fn ($q) => $q->where('status', 'em_andamento')])
             ->get()
             ->map(fn (EtapaFluxo $etapa) => [
-                'etapa' => [
-                    'id'    => $etapa->id,
-                    'nome'  => $etapa->nome,
-                    'ordem' => $etapa->ordem,
-                ],
+                'id'    => $etapa->id,
+                'nome'  => $etapa->nome,
+                'ordem' => $etapa->ordem,
                 'lotes' => $etapa->historicoLotes->map(fn ($h) => $this->formatarLote($h)),
             ]);
     }

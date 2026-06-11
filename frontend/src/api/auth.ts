@@ -5,6 +5,7 @@ export interface User {
   name: string
   email: string
   role: 'operario' | 'gestor' | 'admin'
+  must_change_password: boolean
 }
 
 export interface LoginPayload {
@@ -39,4 +40,15 @@ export async function logout(): Promise<void> {
 export async function getMe(): Promise<User> {
   const response = await apiClient.get<ApiEnvelope<User>>('/auth/me')
   return response.data.data
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await apiClient.post('/auth/change-password', {
+    current_password:      currentPassword,
+    password:              newPassword,
+    password_confirmation: newPassword,
+  })
 }

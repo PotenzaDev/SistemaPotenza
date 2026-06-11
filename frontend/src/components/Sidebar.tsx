@@ -1,11 +1,15 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Cpu, Users, ClipboardList, LogOut } from 'lucide-react'
+import { Cpu, Users, ClipboardList, LogOut, PauseCircle, LayoutDashboard, Clock, FileBarChart } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
 const NAV_ITEMS = [
-  { to: '/admin/maquinas',     label: 'Máquinas',     icon: Cpu },
-  { to: '/admin/operarios',    label: 'Operários',    icon: Users },
-  { to: '/admin/apontamentos', label: 'Apontamentos', icon: ClipboardList },
+  { to: '/admin/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
+  { to: '/admin/maquinas',      label: 'Máquinas',      icon: Cpu },
+  { to: '/admin/operarios',     label: 'Operários',     icon: Users },
+  { to: '/admin/apontamentos',  label: 'Apontamentos',  icon: ClipboardList },
+  { to: '/admin/motivos-pausa', label: 'Mot. de Pausa', icon: PauseCircle },
+  { to: '/admin/turnos',        label: 'Turnos',        icon: Clock },
+  { to: '/admin/relatorios',    label: 'Relatórios',    icon: FileBarChart },
 ]
 
 interface SidebarProps {

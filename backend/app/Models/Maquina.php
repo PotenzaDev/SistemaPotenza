@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 
 class Maquina extends Model
@@ -44,5 +45,10 @@ class Maquina extends Model
     public function sessoesTrabalho(): HasMany
     {
         return $this->hasMany(SessaoTrabalho::class);
+    }
+
+    public function sessaoAtiva(): HasOne
+    {
+        return $this->hasOne(SessaoTrabalho::class)->whereNull('fim');
     }
 }

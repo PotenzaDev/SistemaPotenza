@@ -16,10 +16,17 @@ export interface Maquina {
   foto_url: string | null
   etapa_fluxo_id: number
   etapa_fluxo: EtapaFluxo | null
+  tem_pendencia?: boolean
 }
 
 export async function getMaquinas(signal?: AbortSignal): Promise<Maquina[]> {
   const res = await apiClient.get<ApiEnvelope<Maquina[]>>('/maquinas', { signal })
+  return res.data.data
+}
+
+/** Máquinas ativas do setor do operário autenticado */
+export async function getMaquinasDisponiveis(signal?: AbortSignal): Promise<Maquina[]> {
+  const res = await apiClient.get<ApiEnvelope<Maquina[]>>('/maquinas/disponiveis', { signal })
   return res.data.data
 }
 

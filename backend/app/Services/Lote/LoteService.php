@@ -9,35 +9,66 @@ use Illuminate\Support\Facades\DB;
 
 class LoteService implements LoteServiceInterface
 {
-    public function buscarPorOrdemLote(string $ordemLote): array
+    public function buscarPorOrdemLote(string $ordemLote, string $codPeca): array
     {
-        $row = DB::connection('terceirizado')
-            ->selectOne(
+        // Barcode entrega '06854'; o banco armazena '6854' — remove zeros à esquerda
+        $ordemLote = ltrim($ordemLote, '0') ?: '0';
+
+        $rows = DB::connection('terceirizado')
+            ->select(
                 'SELECT
                     Empresa, Lote, DataEmbalagem, Prod_Codi, CodiSemiAcabado,
                     DenoSemiAcabado, SubgSemiAcabado, TipoMate, Espess, Comp,
                     Larg, QtdBorComp, QtdBorLarg, Pintura, CorCopo,
                     Qtde_Prod, QtdeSemi, Qtde_Total
                  FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
-                 WHERE Lote = ?',
-                [$ordemLote]
+                 WHERE CodiSemiAcabado = ? AND Lote = ?',
+                [$codPeca, $ordemLote]
+            );
+
+        if (empty($rows)) {
+            throw new BusinessException(
+                "Produto '{$codPeca}' não encontrado no lote '{$ordemLote}'.",
+                422
+            );
+        }
+
+        // Dados descritivos vêm da primeira linha; qtde_total é a soma de todas as linhas
+        $first     = (array) $rows[0];
+        $qtdeTotal = (int) array_sum(
+            array_column(array_map(fn ($r) => (array) $r, $rows), 'Qtde_Total')
+        );
+
+        return $this->mapear($first, $qtdeTotal);
+    }
+
+    public function buscarFtecPecaPilha(string $codPeca): ?int
+    {
+        $row = DB::connection('terceirizado')
+            ->selectOne(
+                'SELECT TOP 1 FtecpecaPilha FROM [db1Fabri].[dbo].[FbmFichatecnica] WHERE CodiSemiAcabado = ?',
+                [$codPeca]
             );
 
         if (! $row) {
-            throw new BusinessException("Lote '{$ordemLote}' não encontrado no sistema.", 422);
+            return null;
         }
 
-        return $this->mapear((array) $row);
+        $valor = (array) $row;
+
+        return isset($valor['FtecpecaPilha']) && $valor['FtecpecaPilha'] > 0
+            ? (int) $valor['FtecpecaPilha']
+            : null;
     }
 
-    private function mapear(array $row): array
+    private function mapear(array $row, int $qtdeTotal): array
     {
         return [
             'lote'              => $row['Lote'],
             'cod_produto'       => (string) ($row['Prod_Codi'] ?? ''),
             'cod_peca'          => (string) ($row['CodiSemiAcabado'] ?? ''),
             'desc_peca'         => (string) ($row['DenoSemiAcabado'] ?? ''),
-            'qtde_total'        => (int) ($row['Qtde_Total'] ?? 0),
+            'qtde_total'        => $qtdeTotal,
             'empresa'           => $row['Empresa'] ?? null,
             'data_embalagem'    => $row['DataEmbalagem'] ?? null,
             'subg_semi_acabado' => $row['SubgSemiAcabado'] ?? null,

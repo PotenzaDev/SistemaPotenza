@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Apontamento extends Model
 {
@@ -19,13 +18,38 @@ class Apontamento extends Model
         'etapa_fluxo_id',
         'cod_peca',
         'ordem_lote',
-        'qtd_peca',
-        'pilha',
         'desc_peca',
         'cod_produto',
-        'qtd_produzida',
+        'qtde_total',
+        'ftec_peca_pilha',
         'status',
+        'setup_inicio',
+        'setup_fim',
+        'setup_duracao_segundos',
+        'producao_inicio',
+        'producao_fim',
+        'producao_duracao_segundos',
+        'total_pausa_segundos',
     ];
+
+    protected $casts = [
+        'qtde_total'                => 'integer',
+        'ftec_peca_pilha'           => 'integer',
+        'setup_inicio'              => 'datetime',
+        'setup_fim'                 => 'datetime',
+        'setup_duracao_segundos'    => 'integer',
+        'producao_inicio'           => 'datetime',
+        'producao_fim'              => 'datetime',
+        'producao_duracao_segundos' => 'integer',
+        'total_pausa_segundos'      => 'integer',
+    ];
+
+    public const STATUS_EM_SETUP            = 'em_setup';
+    public const STATUS_AGUARDANDO_PRODUCAO = 'aguardando_producao';
+    public const STATUS_EM_PRODUCAO         = 'em_producao';
+    public const STATUS_EM_PAUSA_SETUP      = 'em_pausa_setup';
+    public const STATUS_EM_PAUSA_PRODUCAO   = 'em_pausa_producao';
+    public const STATUS_FINALIZADO          = 'finalizado';
 
     public function sessaoTrabalho(): BelongsTo
     {
@@ -37,23 +61,24 @@ class Apontamento extends Model
         return $this->belongsTo(EtapaFluxo::class);
     }
 
-    public function etapasProducao(): HasMany
+    public function fichas(): HasMany
     {
-        return $this->hasMany(EtapaProducao::class);
+        return $this->hasMany(FichaApontamento::class)->orderBy('pilha');
     }
 
-    public function etapaSetup(): HasOne
+    public function pausas(): HasMany
     {
-        return $this->hasOne(EtapaProducao::class)->where('tipo', 'setup');
-    }
-
-    public function etapaProducao(): HasOne
-    {
-        return $this->hasOne(EtapaProducao::class)->where('tipo', 'producao');
+        return $this->hasMany(Pausa::class)->orderBy('inicio');
     }
 
     public function isAtivo(): bool
     {
-        return in_array($this->status, ['em_setup', 'em_producao'], true);
+        return in_array($this->status, [
+            self::STATUS_EM_SETUP,
+            self::STATUS_AGUARDANDO_PRODUCAO,
+            self::STATUS_EM_PRODUCAO,
+            self::STATUS_EM_PAUSA_SETUP,
+            self::STATUS_EM_PAUSA_PRODUCAO,
+        ], true);
     }
 }

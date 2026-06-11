@@ -16,9 +16,22 @@ interface ApontamentoRepositoryInterface
 
     public function buscarApontamentoAtivo(SessaoTrabalho $sessao): ?Apontamento;
 
-    public function pilhaJaBipada(int $etapaFluxoId, string $codPeca, string $ordemLote, int $pilha): bool;
-
     public function somarQtdProduzida(int $etapaFluxoId, string $ordemLote): int;
 
+    /**
+     * Apontamentos iniciados hoje ou ainda em aberto (status ativo), ou — quando
+     * filtros são informados — apontamentos no período/critérios solicitados.
+     *
+     * Filtros aceitos (todos opcionais): data_inicio, data_fim (Y-m-d),
+     * operario_id, maquina_id, ordem_lote.
+     */
+    public function apontamentosDoDia(array $filtros = []): Collection;
+
     public function historicoPorOperario(int $operarioId): Collection;
+
+    /** Busca apontamento em pausa (sessão encerrada) na máquina, do mesmo operário. */
+    public function buscarApontamentoPendentePorMaquina(int $maquinaId, int $operarioId): ?Apontamento;
+
+    /** Reatribui o apontamento a uma nova sessão de trabalho. */
+    public function atualizarSessao(Apontamento $apontamento, int $sessaoId): Apontamento;
 }

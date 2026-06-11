@@ -2,10 +2,14 @@ import { apiClient } from './client'
 import type { ApiEnvelope } from './auth'
 
 export interface LoteKanban {
+  id: number
   ordem_lote: string
-  produto: string
-  quantidade: number
+  cod_peca: string
+  total_pilhas: number
+  pilhas_concluidas: number
+  percentual: number
   status: string
+  entrada: string | null
 }
 
 export interface EtapaKanban {

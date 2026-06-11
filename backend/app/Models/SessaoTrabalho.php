@@ -21,12 +21,24 @@ class SessaoTrabalho extends Model
         'maquina_id',
         'inicio',
         'fim',
+        'fim_turno',
+        'status',
     ];
 
     protected $casts = [
-        'inicio' => 'datetime',
-        'fim'    => 'datetime',
+        'inicio'    => 'datetime',
+        'fim'       => 'datetime',
+        'fim_turno' => 'boolean',
     ];
+
+    public const STATUS_ATIVA              = 'ativa';
+    public const STATUS_INTERROMPIDA_TURNO = 'interrompida_turno';
+    public const STATUS_ENCERRADA          = 'encerrada';
+
+    public function eventos(): HasMany
+    {
+        return $this->hasMany(EventoSessao::class)->orderBy('ocorrido_em');
+    }
 
     public function operario(): BelongsTo
     {
@@ -50,6 +62,6 @@ class SessaoTrabalho extends Model
 
     public function isAtiva(): bool
     {
-        return $this->fim === null;
+        return $this->status === self::STATUS_ATIVA;
     }
 }

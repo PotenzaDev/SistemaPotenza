@@ -35,7 +35,7 @@ export function LoginPage() {
       } else if (result.user.role === 'admin' || result.user.role === 'gestor') {
         navigate('/admin/maquinas')
       } else {
-        navigate('/dashboard')
+        navigate('/operario')
       }
     } catch {
       // erro tratado pelo hook
@@ -109,7 +109,8 @@ export function LoginPage() {
                   autoComplete="current-password"
                   placeholder="••••••••"
                   className="bg-white/10 border-white/20 text-white placeholder:text-white/30
-                             focus-visible:ring-[#00aa84] focus-visible:border-[#00aa84] pr-10"
+                             focus-visible:ring-[#00aa84] focus-visible:border-[#00aa84] pr-10
+                             [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
                   {...register('password')}
                 />
                 <button

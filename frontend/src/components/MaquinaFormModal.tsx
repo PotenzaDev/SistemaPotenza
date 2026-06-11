@@ -64,7 +64,7 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
     getEtapasFluxo(controller.signal)
       .then(setEtapas)
       .catch((err: unknown) => {
-        if (!axios.isCancel(err)) setError('Não foi possível carregar as etapas.')
+        if (!axios.isCancel(err)) setError('Não foi possível carregar os grupos.')
       })
 
     return () => controller.abort()
@@ -100,7 +100,7 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
     setError(null)
 
     if (!form.nome.trim())    { setError('O campo Modelo é obrigatório.'); return }
-    if (!form.etapa_fluxo_id) { setError('Selecione uma etapa.'); return }
+    if (!form.etapa_fluxo_id) { setError('Selecione um grupo.'); return }
     if (foto && !foto.type.startsWith('image/')) {
       setError('O arquivo selecionado não é uma imagem. Use PNG, JPG ou WEBP.')
       return
@@ -234,10 +234,10 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
             </div>
           </div>
 
-          {/* etapa */}
+          {/* grupo */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              Etapa <span className="text-red-400">*</span>
+              Grupo <span className="text-red-400">*</span>
             </label>
             <select
               name="etapa_fluxo_id"
@@ -245,7 +245,7 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
               onChange={handleField}
               className="w-full px-3 py-2 text-sm bg-[#0f1923] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#00aa84]/60 transition-colors"
             >
-              <option value="">Selecione uma etapa</option>
+              <option value="">Selecione um grupo</option>
               {etapas.map(e => (
                 <option key={e.id} value={String(e.id)}>{e.nome}</option>
               ))}

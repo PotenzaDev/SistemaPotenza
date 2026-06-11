@@ -12,7 +12,6 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             EtapaFluxoSeeder::class,
-            MaquinaSeeder::class,
             UserSeeder::class,
         ]);
     }

@@ -92,15 +92,20 @@ return [
         ],
 
         'terceirizado' => [
-            'driver'         => 'sqlsrv',
-            'host'           => env('DB_TERCEIRIZADO_HOST'),
-            'port'           => env('DB_TERCEIRIZADO_PORT', '1433'),
-            'database'       => env('DB_TERCEIRIZADO_DATABASE', 'db1Fabri'),
-            'username'       => env('DB_TERCEIRIZADO_USERNAME'),
-            'password'       => env('DB_TERCEIRIZADO_PASSWORD'),
-            'charset'        => 'utf8',
-            'prefix'         => '',
-            'prefix_indexes' => true,
+            'driver'                   => 'sqlsrv',
+            'host'                     => env('DB_TERCEIRIZADO_HOST'),
+            'port'                     => env('DB_TERCEIRIZADO_PORT') ?: null,
+            'database'                 => env('DB_TERCEIRIZADO_DATABASE', 'db1Fabri'),
+            'username'                 => env('DB_TERCEIRIZADO_USERNAME'),
+            'password'                 => env('DB_TERCEIRIZADO_PASSWORD'),
+            'charset'                  => 'utf8',
+            'prefix'                   => '',
+            'prefix_indexes'           => true,
+            'read_only'                => true,
+            // Desabilita SSL — ODBC Driver 18 encripta por padrão, mas o certificado
+            // do SQL Server interno não é assinado por CA confiável.
+            'encrypt'                  => 'no',
+            'trust_server_certificate' => true,
         ],
 
     ],

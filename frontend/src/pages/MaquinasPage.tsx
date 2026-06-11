@@ -139,7 +139,7 @@ export function MaquinasPage() {
                 <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Modelo</th>
                 <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Código</th>
                 <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Ano</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Etapa</th>
+                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Grupo</th>
                 <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
                 {canCreate && (
                   <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-16"></th>
