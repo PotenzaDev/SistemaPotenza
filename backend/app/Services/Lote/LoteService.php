@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Lote;
 
 use App\Exceptions\BusinessException;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
 
 class LoteService implements LoteServiceInterface
 {
@@ -14,74 +16,48 @@ class LoteService implements LoteServiceInterface
         // Barcode entrega '06854'; o banco armazena '6854' — remove zeros à esquerda
         $ordemLote = ltrim($ordemLote, '0') ?: '0';
 
-        $rows = DB::connection('terceirizado')
-            ->select(
-                'SELECT
-                    Empresa, Lote, DataEmbalagem, Prod_Codi, CodiSemiAcabado,
-                    DenoSemiAcabado, SubgSemiAcabado, TipoMate, Espess, Comp,
-                    Larg, QtdBorComp, QtdBorLarg, Pintura, CorCopo,
-                    Qtde_Prod, QtdeSemi, Qtde_Total
-                 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
-                 WHERE CodiSemiAcabado = ? AND Lote = ?',
-                [$codPeca, $ordemLote]
-            );
+        $response = $this->get('ficha-tecnica/lote', [
+            'lote'     => $ordemLote,
+            'cod_peca' => $codPeca,
+        ]);
 
-        if (empty($rows)) {
+        if ($response->notFound()) {
             throw new BusinessException(
                 "Produto '{$codPeca}' não encontrado no lote '{$ordemLote}'.",
                 422
             );
         }
 
-        // Dados descritivos vêm da primeira linha; qtde_total é a soma de todas as linhas
-        $first     = (array) $rows[0];
-        $qtdeTotal = (int) array_sum(
-            array_column(array_map(fn ($r) => (array) $r, $rows), 'Qtde_Total')
-        );
+        if ($response->failed()) {
+            throw new BusinessException('Falha ao consultar a ficha técnica do lote.', 503);
+        }
 
-        return $this->mapear($first, $qtdeTotal);
+        return $response->json();
     }
 
     public function buscarFtecPecaPilha(string $codPeca): ?int
     {
-        $row = DB::connection('terceirizado')
-            ->selectOne(
-                'SELECT TOP 1 FtecpecaPilha FROM [db1Fabri].[dbo].[FbmFichatecnica] WHERE CodiSemiAcabado = ?',
-                [$codPeca]
-            );
+        $response = $this->get('ficha-tecnica/pilha', [
+            'cod_peca' => $codPeca,
+        ]);
 
-        if (! $row) {
-            return null;
+        if ($response->failed()) {
+            throw new BusinessException('Falha ao consultar a ficha técnica da peça.', 503);
         }
 
-        $valor = (array) $row;
-
-        return isset($valor['FtecpecaPilha']) && $valor['FtecpecaPilha'] > 0
-            ? (int) $valor['FtecpecaPilha']
-            : null;
+        return $response->json('ftec_peca_pilha');
     }
 
-    private function mapear(array $row, int $qtdeTotal): array
+    private function get(string $uri, array $query): Response
     {
-        return [
-            'lote'              => $row['Lote'],
-            'cod_produto'       => (string) ($row['Prod_Codi'] ?? ''),
-            'cod_peca'          => (string) ($row['CodiSemiAcabado'] ?? ''),
-            'desc_peca'         => (string) ($row['DenoSemiAcabado'] ?? ''),
-            'qtde_total'        => $qtdeTotal,
-            'empresa'           => $row['Empresa'] ?? null,
-            'data_embalagem'    => $row['DataEmbalagem'] ?? null,
-            'subg_semi_acabado' => $row['SubgSemiAcabado'] ?? null,
-            'tipo_mate'         => $row['TipoMate'] ?? null,
-            'espess'            => $row['Espess'] ?? null,
-            'comp'              => $row['Comp'] ?? null,
-            'larg'              => $row['Larg'] ?? null,
-            'qtd_bor_comp'      => $row['QtdBorComp'] ?? null,
-            'qtd_bor_larg'      => $row['QtdBorLarg'] ?? null,
-            'pintura'           => $row['Pintura'] ?? null,
-            'cor_copo'          => $row['CorCopo'] ?? null,
-            'qtde_prod'         => isset($row['Qtde_Prod']) ? (int) $row['Qtde_Prod'] : null,
-            'qtde_semi'         => isset($row['QtdeSemi']) ? (int) $row['QtdeSemi'] : null,
-        ];
+        try {
+            return Http::baseUrl((string) config('services.bridge.url'))
+                ->withHeader('X-Bridge-Token', (string) config('services.bridge.token'))
+                ->acceptJson()
+                ->timeout(5)
+                ->get($uri, $query);
+        } catch (ConnectionException) {
+            throw new BusinessException('Serviço de ficha técnica indisponível.', 503);
+        }
     }
 }

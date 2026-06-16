@@ -248,10 +248,15 @@ Usar **Laravel Policies** para autorização, nunca verificar role direto no con
 - Migrations versionadas no repositório
 
 ### SQL Server (legado — servidor interno `192.168.0.x`)
-- Banco `terceirizado` — dados do ERP legado
-- Acesso via **API Bridge** (padrão adotado): o Laravel expõe endpoints que
-  consultam o SQL Server internamente, nunca expondo a conexão diretamente
-- Conexão configurada em `config/database.php` como `sqlsrv`
+- Banco `db1Fabri` (ERP legado) — **não há conexão direta** a partir do `backend/`
+- Acesso exclusivamente via **API Bridge** (projeto `bridge/`, rede interna):
+  o `backend/` faz requisições HTTP autenticadas (`X-Bridge-Token`) para a
+  Bridge, que consulta o SQL Server e retorna os dados já mapeados
+- Configuração em `config/services.php` (`bridge.url`, `bridge.token`),
+  via `BRIDGE_API_URL`/`BRIDGE_API_TOKEN` no `.env`
+- `App\Services\Lote\LoteService` implementa `LoteServiceInterface` como
+  cliente HTTP da Bridge; `MockLoteService` é usado em testes/local quando
+  `BRIDGE_API_URL` não está configurado
 
 ### Conventions de Migration
 ```php

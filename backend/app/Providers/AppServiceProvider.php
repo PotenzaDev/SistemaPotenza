@@ -14,7 +14,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(LoteServiceInterface::class, function () {
-            if (empty(env('DB_TERCEIRIZADO_HOST'))) {
+            if (empty(env('BRIDGE_API_URL'))) {
                 return new MockLoteService();
             }
 

@@ -5,15 +5,14 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import { getDashboard, type DashboardData, type MaquinaDashboard } from '@/api/dashboard'
-import { KpiCard } from '@/components/dashboard/KpiCard'
 
 const STATUS_CONFIG: Record<MaquinaDashboard['status'], { label: string; dot: string; text: string }> = {
-  livre:               { label: 'Livre',        dot: 'bg-slate-500',  text: 'text-slate-400'  },
-  em_setup:            { label: 'Setup',         dot: 'bg-blue-500',   text: 'text-blue-400'   },
-  aguardando_producao: { label: 'Aguardando',    dot: 'bg-yellow-500', text: 'text-yellow-400' },
-  em_producao:         { label: 'Produção',      dot: 'bg-[#00aa84]',  text: 'text-[#00aa84]'  },
-  em_pausa_setup:      { label: 'Pausa Setup',   dot: 'bg-orange-500', text: 'text-orange-400' },
-  em_pausa_producao:   { label: 'Pausa Prod.',   dot: 'bg-orange-500', text: 'text-orange-400' },
+  livre: { label: 'Livre', dot: 'bg-slate-500', text: 'text-slate-400' },
+  em_setup: { label: 'Setup', dot: 'bg-blue-500', text: 'text-blue-400' },
+  aguardando_producao: { label: 'Aguardando', dot: 'bg-yellow-500', text: 'text-yellow-400' },
+  em_producao: { label: 'Produção', dot: 'bg-[#00aa84]', text: 'text-[#00aa84]' },
+  em_pausa_setup: { label: 'Pausa Setup', dot: 'bg-orange-500', text: 'text-orange-400' },
+  em_pausa_producao: { label: 'Pausa Prod.', dot: 'bg-orange-500', text: 'text-orange-400' },
 }
 
 const PIE_COLORS = ['#00aa84', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
@@ -25,9 +24,21 @@ function fmt(min: number | null): string {
 }
 
 
+function KpiCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3">
+      <div className={`${color} opacity-80`}>{icon}</div>
+      <div>
+        <p className="text-2xl font-bold text-white">{value}</p>
+        <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+      </div>
+    </div>
+  )
+}
+
 export function DashboardPage() {
-  const [data, setData]           = useState<DashboardData | null>(null)
-  const [loading, setLoading]     = useState(true)
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
   const load = useCallback(async () => {
@@ -79,10 +90,10 @@ export function DashboardPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={<Package className="w-5 h-5" />}    label="Peças hoje"               value={kpis.pecas_hoje.toLocaleString('pt-BR')} color="text-[#00aa84]"  />
-        <KpiCard icon={<Cpu className="w-5 h-5" />}         label="Máquinas ativas"           value={String(kpis.maquinas_ativas)}            color="text-blue-400"   />
-        <KpiCard icon={<Clock className="w-5 h-5" />}       label="Apontamentos finalizados"  value={String(kpis.apontamentos_finalizados_hoje)} color="text-purple-400" />
-        <KpiCard icon={<PauseCircle className="w-5 h-5" />} label="Total em pausa hoje"       value={fmt(kpis.total_pausa_minutos_hoje)}       color="text-orange-400" />
+        <KpiCard icon={<Package className="w-5 h-5" />} label="Peças hoje" value={kpis.pecas_hoje.toLocaleString('pt-BR')} color="text-[#00aa84]" />
+        <KpiCard icon={<Cpu className="w-5 h-5" />} label="Máquinas ativas" value={String(kpis.maquinas_ativas)} color="text-blue-400" />
+        <KpiCard icon={<Clock className="w-5 h-5" />} label="Apontamentos finalizados" value={String(kpis.apontamentos_finalizados_hoje)} color="text-purple-400" />
+        <KpiCard icon={<PauseCircle className="w-5 h-5" />} label="Total em pausa hoje" value={fmt(kpis.total_pausa_minutos_hoje)} color="text-orange-400" />
       </div>
 
       {/* Tabela de máquinas */}
@@ -166,14 +177,13 @@ export function DashboardPage() {
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: '#0f1923', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={(v) => [`${Number(v ?? 0)}min`, 'Tempo']} />
+                <Tooltip contentStyle={{ background: '#0f1923', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={(v: number) => [`${v}min`, 'Tempo']} />
                 <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
               </PieChart>
             </ResponsiveContainer>
           )}
         </div>
       </div>
-
     </div>
   )
 }
