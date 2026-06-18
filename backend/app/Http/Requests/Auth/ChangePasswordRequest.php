@@ -15,9 +15,11 @@ class ChangePasswordRequest extends FormRequest
 
     public function rules(): array
     {
+        $mustChange = $this->user()?->must_change_password ?? false;
+
         return [
-            'current_password' => ['required', 'string'],
-            'password'         => ['required', 'string', 'min:8', 'confirmed'],
+            'current_password' => $mustChange ? [] : ['required', 'string'],
+            'password'         => ['required', 'string', 'min:6', 'confirmed'],
         ];
     }
 
@@ -26,7 +28,7 @@ class ChangePasswordRequest extends FormRequest
         return [
             'current_password.required' => 'A senha atual é obrigatória.',
             'password.required'         => 'A nova senha é obrigatória.',
-            'password.min'              => 'A nova senha deve ter pelo menos 8 caracteres.',
+            'password.min'              => 'A nova senha deve ter pelo menos 6 caracteres.',
             'password.confirmed'        => 'A confirmação da nova senha não confere.',
         ];
     }

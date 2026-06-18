@@ -208,6 +208,7 @@ export function ApontamentoOperarioPage() {
       recarregarFichasRecentes()
     } catch (err) {
       setErroApi(apiMsg(err))
+      setBarcode('')
     } finally {
       setAtualizando(false)
     }

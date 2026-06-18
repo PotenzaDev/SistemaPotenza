@@ -9,6 +9,8 @@ export function ChangePasswordPage() {
   const navigate = useNavigate()
   const { user, clearPasswordChangeFlag } = useAuth()
 
+  const isFirstAccess = user?.must_change_password ?? false
+
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword]         = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -18,11 +20,11 @@ export function ChangePasswordPage() {
   const [error, setError]                     = useState<string | null>(null)
 
   function validate(): string | null {
-    if (!currentPassword)                return 'Informe a senha atual.'
-    if (!newPassword)                    return 'Informe a nova senha.'
-    if (newPassword.length < 8)          return 'A nova senha deve ter pelo menos 8 caracteres.'
-    if (newPassword !== confirmPassword) return 'As senhas não coincidem.'
-    if (newPassword === currentPassword) return 'A nova senha deve ser diferente da atual.'
+    if (!isFirstAccess && !currentPassword)  return 'Informe a senha atual.'
+    if (!newPassword)                        return 'Informe a nova senha.'
+    if (newPassword.length < 6)              return 'A nova senha deve ter pelo menos 6 caracteres.'
+    if (!isFirstAccess && newPassword !== confirmPassword) return 'As senhas não coincidem.'
+    if (!isFirstAccess && newPassword === currentPassword) return 'A nova senha deve ser diferente da atual.'
     return null
   }
 
@@ -35,7 +37,7 @@ export function ChangePasswordPage() {
     setLoading(true)
 
     try {
-      await changePassword(currentPassword, newPassword)
+      await changePassword(isFirstAccess ? '' : currentPassword, newPassword)
       clearPasswordChangeFlag()
 
       if (user?.role === 'operario') {
@@ -94,27 +96,29 @@ export function ChangePasswordPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
 
-            {/* Senha atual */}
-            <div className="space-y-1.5">
-              <label className="text-white/70 text-sm block">Senha atual</label>
-              <div className="relative">
-                <input
-                  type={showCurrent ? 'text' : 'password'}
-                  value={currentPassword}
-                  onChange={e => setCurrentPassword(e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  className="w-full px-3 py-2 pr-10 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-[#00aa84] focus:ring-1 focus:ring-[#00aa84] transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrent(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors"
-                >
-                  {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+            {/* Senha atual — oculta no primeiro acesso */}
+            {!isFirstAccess && (
+              <div className="space-y-1.5">
+                <label className="text-white/70 text-sm block">Senha atual</label>
+                <div className="relative">
+                  <input
+                    type={showCurrent ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={e => setCurrentPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    className="w-full px-3 py-2 pr-10 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-[#00aa84] focus:ring-1 focus:ring-[#00aa84] transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrent(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors"
+                  >
+                    {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Nova senha */}
             <div className="space-y-1.5">
@@ -124,7 +128,7 @@ export function ChangePasswordPage() {
                   type={showNew ? 'text' : 'password'}
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 6 caracteres"
                   autoComplete="new-password"
                   className="w-full px-3 py-2 pr-10 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-[#00aa84] focus:ring-1 focus:ring-[#00aa84] transition-colors"
                 />
@@ -138,18 +142,20 @@ export function ChangePasswordPage() {
               </div>
             </div>
 
-            {/* Confirmar */}
-            <div className="space-y-1.5">
-              <label className="text-white/70 text-sm block">Confirmar nova senha</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                placeholder="Repita a nova senha"
-                autoComplete="new-password"
-                className="w-full px-3 py-2 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-[#00aa84] focus:ring-1 focus:ring-[#00aa84] transition-colors"
-              />
-            </div>
+            {/* Confirmar — oculta no primeiro acesso */}
+            {!isFirstAccess && (
+              <div className="space-y-1.5">
+                <label className="text-white/70 text-sm block">Confirmar nova senha</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Repita a nova senha"
+                  autoComplete="new-password"
+                  className="w-full px-3 py-2 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-[#00aa84] focus:ring-1 focus:ring-[#00aa84] transition-colors"
+                />
+              </div>
+            )}
 
             {/* Erro */}
             {error && (

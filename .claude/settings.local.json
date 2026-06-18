@@ -62,7 +62,10 @@
       "Bash(grep -n -B2 -A10 \"sessao/ativa\\\\|ativa\\(\" src/services/sessao.ts)",
       "Bash(grep -n -B2 -A10 \"apontamento/ativo\\\\|ativo\\(\" src/services/apontamento.ts)",
       "Bash(Remove-Item *)",
-      "PowerShell(Remove-Item *)"
+      "PowerShell(Remove-Item *)",
+      "PowerShell(netstat *)",
+      "PowerShell(curl.exe \"http://127.0.0.1:8001/api/ficha-tecnica/lote?lote=6854&cod_peca=ABC\" -H \"X-Bridge-Token: 60f3e20062ea029e53211fb56309d1db13d6c5532c9eaeca6b947db3a60c24f0\" -s -o - -w \"`nStatus: %{http_code}\")",
+      "Bash(xargs grep -l \"wrong\\\\|invalid\\\\|error.*barcode\\\\|barcodeOk\")"
     ]
   }
 }

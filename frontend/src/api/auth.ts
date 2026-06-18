@@ -46,9 +46,12 @@ export async function changePassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<void> {
-  await apiClient.post('/auth/change-password', {
-    current_password:      currentPassword,
+  const body: Record<string, string> = {
     password:              newPassword,
     password_confirmation: newPassword,
-  })
+  }
+  if (currentPassword) {
+    body.current_password = currentPassword
+  }
+  await apiClient.post('/auth/change-password', body)
 }

@@ -43,8 +43,10 @@ class AuthService
 
     public function changePassword(User $user, string $currentPassword, string $newPassword): void
     {
-        if (! Hash::check($currentPassword, $user->password)) {
-            throw new BusinessException('Senha atual incorreta.', 422);
+        if (! $user->must_change_password) {
+            if (! Hash::check($currentPassword, $user->password)) {
+                throw new BusinessException('Senha atual incorreta.', 422);
+            }
         }
 
         $user->update([
