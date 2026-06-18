@@ -9,6 +9,8 @@ import { MotivoPausaPage }         from '@/pages/MotivoPausaPage'
 import { TurnosPage }              from '@/pages/TurnosPage'
 import { RelatoriosPage }          from '@/pages/RelatoriosPage'
 import { RelatorioProducaoMaquinasPage } from '@/pages/RelatorioProducaoMaquinasPage'
+import { AdminPerfilPage }          from '@/pages/AdminPerfilPage'
+import { ActivityLogPage }          from '@/pages/ActivityLogPage'
 import { MaquinasDisponiveisPage }  from '@/pages/MaquinasDisponiveisPage'
 import { ApontamentoOperarioPage }  from '@/pages/ApontamentoOperarioPage'
 import { AdminLayout }              from '@/layouts/AdminLayout'
@@ -51,6 +53,8 @@ function App() {
             <Route index element={<RelatoriosPage />} />
             <Route path="producao-maquinas" element={<RelatorioProducaoMaquinasPage />} />
           </Route>
+          <Route path="perfil" element={<AdminPerfilPage />} />
+          <Route path="logs"   element={<ActivityLogPage />} />
         </Route>
 
         {/* Área do operário */}

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Cpu, Users, ClipboardList, LogOut, PauseCircle, LayoutDashboard, Clock, FileBarChart } from 'lucide-react'
+import { Cpu, Users, ClipboardList, LogOut, PauseCircle, LayoutDashboard, Clock, FileBarChart, UserCircle, History } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
 const NAV_ITEMS = [
@@ -10,6 +10,8 @@ const NAV_ITEMS = [
   { to: '/admin/motivos-pausa', label: 'Mot. de Pausa', icon: PauseCircle },
   { to: '/admin/turnos',        label: 'Turnos',        icon: Clock },
   { to: '/admin/relatorios',    label: 'Relatórios',    icon: FileBarChart },
+  { to: '/admin/logs',          label: 'Log de Atividades', icon: History },
+  { to: '/admin/perfil',        label: 'Meu Perfil',    icon: UserCircle },
 ]
 
 interface SidebarProps {

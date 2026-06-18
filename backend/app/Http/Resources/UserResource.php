@@ -12,11 +12,12 @@ class UserResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'         => $this->id,
-            'name'       => $this->name,
-            'email'      => $this->email,
-            'role'       => $this->role,
-            'operario'   => $this->when(
+            'id'                   => $this->id,
+            'name'                 => $this->name,
+            'email'                => $this->email,
+            'role'                 => $this->role,
+            'must_change_password' => (bool) $this->must_change_password,
+            'operario'             => $this->when(
                 $this->relationLoaded('operario') && $this->operario,
                 fn () => [
                     'id'        => $this->operario->id,

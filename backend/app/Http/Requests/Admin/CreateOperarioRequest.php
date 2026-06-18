@@ -18,7 +18,7 @@ class CreateOperarioRequest extends FormRequest
         return [
             'name'           => ['required', 'string', 'max:255'],
             'email'          => ['required', 'email', 'unique:users,email'],
-            'password'       => ['required', 'string', 'min:8'],
+            'password'       => ['required', 'string', 'min:6'],
             'etapa_fluxo_id' => ['required', 'integer', 'exists:etapas_fluxo,id'],
         ];
     }
@@ -31,7 +31,7 @@ class CreateOperarioRequest extends FormRequest
             'email.email'             => 'Informe um e-mail válido.',
             'email.unique'            => 'Este e-mail já está cadastrado.',
             'password.required'       => 'A senha é obrigatória.',
-            'password.min'            => 'A senha deve ter pelo menos 8 caracteres.',
+            'password.min'            => 'A senha deve ter pelo menos 6 caracteres.',
             'etapa_fluxo_id.required' => 'Selecione o setor do operário.',
             'etapa_fluxo_id.exists'   => 'Setor inválido.',
         ];

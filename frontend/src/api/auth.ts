@@ -42,6 +42,17 @@ export async function getMe(): Promise<User> {
   return response.data.data
 }
 
+export interface UpdateProfilePayload {
+  name: string
+  current_password?: string
+  new_password?: string
+}
+
+export async function updateProfile(payload: UpdateProfilePayload): Promise<User> {
+  const response = await apiClient.put<ApiEnvelope<User>>('/auth/profile', payload)
+  return response.data.data
+}
+
 export async function changePassword(
   currentPassword: string,
   newPassword: string,

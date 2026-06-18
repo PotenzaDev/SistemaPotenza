@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\CreateOperarioRequest;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\Operario;
 use App\Models\User;
+use App\Services\ActivityLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\Hash;
 class OperarioController extends Controller
 {
     use ApiResponseTrait;
+
+    public function __construct(private readonly ActivityLogService $activityLog) {}
 
     public function index(): JsonResponse
     {
@@ -44,6 +47,8 @@ class OperarioController extends Controller
             'etapa_fluxo_id' => $data['etapa_fluxo_id'],
         ]);
 
+        $this->activityLog->record($request->user(), 'criar_operario', "Criou o operário {$data['name']} ({$data['email']}).", $request);
+
         return $this->successResponse(
             $operario->load(['user', 'etapaFluxo']),
             'Operário cadastrado.',
@@ -71,7 +76,7 @@ class OperarioController extends Controller
         $data = $request->validate([
             'name'           => ['sometimes', 'string', 'max:255'],
             'email'          => ['sometimes', 'email', 'unique:users,email,' . $operario->user_id],
-            'password'       => ['sometimes', 'nullable', 'string', 'min:8'],
+            'password'       => ['sometimes', 'nullable', 'string', 'min:6'],
             'etapa_fluxo_id' => ['sometimes', 'integer', 'exists:etapas_fluxo,id'],
             'ativo'          => ['sometimes', 'boolean'],
         ]);
@@ -93,6 +98,8 @@ class OperarioController extends Controller
             $operario->update(['etapa_fluxo_id' => $data['etapa_fluxo_id']]);
         }
 
+        $this->activityLog->record($request->user(), 'editar_operario', "Editou o operário #{$id}.", $request);
+
         return $this->successResponse(
             $operario->fresh()->load(['user', 'etapaFluxo']),
             'Operário atualizado.'
@@ -107,7 +114,10 @@ class OperarioController extends Controller
             return $this->errorResponse('Operário não encontrado.', 404);
         }
 
+        $nomeSalvo = $operario->user->name;
         $operario->user->delete();
+
+        $this->activityLog->record($request->user(), 'remover_operario', "Removeu o operário {$nomeSalvo}.", $request);
 
         return $this->successResponse(null, 'Operário removido.');
     }

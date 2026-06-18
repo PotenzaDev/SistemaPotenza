@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\ApontamentoController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\AuthController;
@@ -23,6 +24,7 @@ Route::prefix('auth')->group(function () {
         Route::post('/logout',          [AuthController::class, 'logout']);
         Route::get('/me',               [AuthController::class, 'me']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
+        Route::put('/profile',          [AuthController::class, 'updateProfile']);
     });
 });
 
@@ -78,6 +80,8 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:admin'])->grou
     Route::apiResource('etapas-fluxo',  EtapaFluxoController::class);
     Route::apiResource('motivos-pausa', MotivoPausaController::class)->except(['show']);
 
-    Route::get('/turnos',          [TurnoController::class, 'index']);
+    Route::get('/turnos',             [TurnoController::class, 'index']);
     Route::put('/turnos/{diaSemana}', [TurnoController::class, 'update']);
+
+    Route::get('/admin/activity-logs', [ActivityLogController::class, 'index']);
 });

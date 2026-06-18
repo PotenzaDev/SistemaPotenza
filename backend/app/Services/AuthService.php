@@ -41,6 +41,23 @@ class AuthService
         $user->currentAccessToken()->delete();
     }
 
+    public function updateProfile(User $user, string $name, ?string $currentPassword, ?string $newPassword): void
+    {
+        $updates = ['name' => $name];
+
+        if ($newPassword !== null && $newPassword !== '') {
+            if (! Hash::check($currentPassword ?? '', $user->password)) {
+                throw new BusinessException('Senha atual incorreta.', 422);
+            }
+            if (strlen($newPassword) < 6) {
+                throw new BusinessException('A nova senha deve ter pelo menos 6 caracteres.', 422);
+            }
+            $updates['password'] = Hash::make($newPassword);
+        }
+
+        $user->update($updates);
+    }
+
     public function changePassword(User $user, string $currentPassword, string $newPassword): void
     {
         if (! $user->must_change_password) {

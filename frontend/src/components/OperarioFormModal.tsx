@@ -78,9 +78,9 @@ export function OperarioFormModal({ open, onClose, onSuccess, initialData }: Pro
 
     if (!isEdit) {
       if (!form.password)           { setError('A senha é obrigatória.'); return }
-      if (form.password.length < 8) { setError('A senha deve ter pelo menos 8 caracteres.'); return }
-    } else if (form.password && form.password.length < 8) {
-      setError('A nova senha deve ter pelo menos 8 caracteres.')
+      if (form.password.length < 6) { setError('A senha deve ter pelo menos 6 caracteres.'); return }
+    } else if (form.password && form.password.length < 6) {
+      setError('A nova senha deve ter pelo menos 6 caracteres.')
       return
     }
 
@@ -186,7 +186,7 @@ export function OperarioFormModal({ open, onClose, onSuccess, initialData }: Pro
                 type={showPass ? 'text' : 'password'}
                 value={form.password}
                 onChange={handleField}
-                placeholder="Mínimo 8 caracteres"
+                placeholder="Mínimo 6 caracteres"
                 autoComplete="new-password"
                 className="w-full px-3 py-2 pr-10 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors"
               />
