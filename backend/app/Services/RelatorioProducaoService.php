@@ -22,7 +22,9 @@ class RelatorioProducaoService
      * pelo "Fim de Turno" e retomado no dia seguinte às 8h): o intervalo de
      * cada fase (setup/produção) é recortado para dentro da janela
      * [hora_inicio, hora_fim] do turno do dia, então cada dia recebe apenas a
-     * sua fatia.
+     * sua fatia. Se o turno tiver um intervalo de almoço configurado, essa
+     * janela é removida do cálculo (não conta como tempo de turno nem como
+     * tempo trabalhado).
      *
      * Retorna [] se não houver turno ativo configurado para o dia da semana.
      *
@@ -36,9 +38,10 @@ class RelatorioProducaoService
             return [];
         }
 
-        $diaInicio          = $data->copy()->setTimeFromTimeString($turno->hora_inicio);
-        $diaFim             = $data->copy()->setTimeFromTimeString($turno->hora_fim);
-        $tempoTurnoSegundos = (int) $diaInicio->diffInSeconds($diaFim);
+        $janelas            = $this->janelasUteis($turno, $data);
+        $diaInicio          = $janelas[0]['inicio'];
+        $diaFim             = $janelas[array_key_last($janelas)]['fim'];
+        $tempoTurnoSegundos = $this->somaDuracaoJanelas($janelas);
         $agora              = Carbon::now();
 
         $sessoes = SessaoTrabalho::with(['operario.user', 'maquina', 'apontamentos.pausas.motivoPausa'])
@@ -50,13 +53,13 @@ class RelatorioProducaoService
             ->when($maquinaId, fn ($query) => $query->where('maquina_id', $maquinaId))
             ->get();
 
-        return $sessoes->map(function (SessaoTrabalho $sessao) use ($diaInicio, $diaFim, $tempoTurnoSegundos, $agora) {
+        return $sessoes->map(function (SessaoTrabalho $sessao) use ($janelas, $tempoTurnoSegundos, $agora) {
             $trabalhadoSegundos = 0;
             $pausasPorMotivo    = [];
 
             foreach ($sessao->apontamentos as $apontamento) {
                 foreach (['setup', 'producao'] as $fase) {
-                    [$trabalhado, $pausas] = $this->calcularFaseNoDia($apontamento, $fase, $diaInicio, $diaFim, $agora);
+                    [$trabalhado, $pausas] = $this->calcularFaseNoDia($apontamento, $fase, $janelas, $agora);
 
                     $trabalhadoSegundos += $trabalhado;
 
@@ -149,9 +152,10 @@ class RelatorioProducaoService
             if ($turno) {
                 $diasConsiderados++;
 
-                $diaInicio          = $cursor->copy()->setTimeFromTimeString($turno->hora_inicio);
-                $diaFimDia          = $cursor->copy()->setTimeFromTimeString($turno->hora_fim);
-                $tempoTurnoSegundos = (int) $diaInicio->diffInSeconds($diaFimDia);
+                $janelas            = $this->janelasUteis($turno, $cursor);
+                $diaInicio          = $janelas[0]['inicio'];
+                $diaFimDia          = $janelas[array_key_last($janelas)]['fim'];
+                $tempoTurnoSegundos = $this->somaDuracaoJanelas($janelas);
 
                 foreach ($maquinas as $maquina) {
                     $acumulado[$maquina->id]['tempo_turno_segundos'] += $tempoTurnoSegundos;
@@ -162,7 +166,7 @@ class RelatorioProducaoService
                     foreach ($sessoes as $sessao) {
                         foreach ($sessao->apontamentos as $apontamento) {
                             foreach (['setup', 'producao'] as $fase) {
-                                [$trabalhado] = $this->calcularFaseNoDia($apontamento, $fase, $diaInicio, $diaFimDia, $agora);
+                                [$trabalhado] = $this->calcularFaseNoDia($apontamento, $fase, $janelas, $agora);
 
                                 $chave = $fase === 'setup' ? 'tempo_setup_segundos' : 'tempo_producao_segundos';
                                 $acumulado[$maquina->id][$chave] += $trabalhado;
@@ -232,11 +236,14 @@ class RelatorioProducaoService
 
     /**
      * Calcula, para uma fase (setup|producao) de um apontamento, o tempo
-     * trabalhado e as pausas que caem dentro de [diaInicio, diaFim].
+     * trabalhado e as pausas que caem dentro das janelas úteis do turno
+     * (o turno inteiro, ou o turno menos o intervalo de almoço, quando
+     * configurado).
      *
+     * @param array<int, array{inicio: Carbon, fim: Carbon}> $janelas
      * @return array{0: int, 1: array<string, int>} [trabalhadoSegundos, pausasPorMotivo]
      */
-    private function calcularFaseNoDia(Apontamento $apontamento, string $fase, Carbon $diaInicio, Carbon $diaFim, Carbon $agora): array
+    private function calcularFaseNoDia(Apontamento $apontamento, string $fase, array $janelas, Carbon $agora): array
     {
         $inicio = $fase === 'setup' ? $apontamento->setup_inicio : $apontamento->producao_inicio;
 
@@ -245,6 +252,9 @@ class RelatorioProducaoService
         }
 
         $fim = ($fase === 'setup' ? $apontamento->setup_fim : $apontamento->producao_fim) ?? $agora;
+
+        $diaInicio = $janelas[0]['inicio'];
+        $diaFim    = $janelas[array_key_last($janelas)]['fim'];
 
         if ($fim->lessThanOrEqualTo($diaInicio) || $inicio->greaterThanOrEqualTo($diaFim)) {
             return [0, []];
@@ -256,7 +266,7 @@ class RelatorioProducaoService
         $trabalhado = 0;
 
         foreach ($ativos as $intervalo) {
-            $trabalhado += $this->intersecaoSegundos($intervalo['inicio'], $intervalo['fim'], $diaInicio, $diaFim);
+            $trabalhado += $this->intersecaoComJanelas($intervalo['inicio'], $intervalo['fim'], $janelas);
         }
 
         $pausasPorMotivo = [];
@@ -268,7 +278,7 @@ class RelatorioProducaoService
                 continue;
             }
 
-            $segundos = $this->intersecaoSegundos($pausa->inicio, $pausa->fim ?? $agora, $diaInicio, $diaFim);
+            $segundos = $this->intersecaoComJanelas($pausa->inicio, $pausa->fim ?? $agora, $janelas);
 
             if ($segundos > 0) {
                 $motivo = $pausa->motivoPausa?->nome ?? 'Outro';
@@ -277,6 +287,53 @@ class RelatorioProducaoService
         }
 
         return [$trabalhado, $pausasPorMotivo];
+    }
+
+    /**
+     * Janelas de tempo do turno que contam como tempo útil de turno: o dia
+     * inteiro [hora_inicio, hora_fim], ou esse período recortado pelo
+     * intervalo de almoço [intervalo_inicio, intervalo_fim] quando o turno
+     * tiver um intervalo configurado.
+     *
+     * @return array<int, array{inicio: Carbon, fim: Carbon}>
+     */
+    private function janelasUteis(Turno $turno, Carbon $data): array
+    {
+        $inicio = $data->copy()->setTimeFromTimeString($turno->hora_inicio);
+        $fim    = $data->copy()->setTimeFromTimeString($turno->hora_fim);
+
+        if (! $turno->intervalo_inicio || ! $turno->intervalo_fim) {
+            return [['inicio' => $inicio, 'fim' => $fim]];
+        }
+
+        $intervaloInicio = $data->copy()->setTimeFromTimeString($turno->intervalo_inicio);
+        $intervaloFim    = $data->copy()->setTimeFromTimeString($turno->intervalo_fim);
+
+        return [
+            ['inicio' => $inicio, 'fim' => $intervaloInicio],
+            ['inicio' => $intervaloFim, 'fim' => $fim],
+        ];
+    }
+
+    /** @param array<int, array{inicio: Carbon, fim: Carbon}> $janelas */
+    private function somaDuracaoJanelas(array $janelas): int
+    {
+        return array_sum(array_map(
+            fn (array $janela): int => (int) $janela['inicio']->diffInSeconds($janela['fim']),
+            $janelas
+        ));
+    }
+
+    /** @param array<int, array{inicio: Carbon, fim: Carbon}> $janelas */
+    private function intersecaoComJanelas(Carbon $inicio, Carbon $fim, array $janelas): int
+    {
+        $segundos = 0;
+
+        foreach ($janelas as $janela) {
+            $segundos += $this->intersecaoSegundos($inicio, $fim, $janela['inicio'], $janela['fim']);
+        }
+
+        return $segundos;
     }
 
     /**

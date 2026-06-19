@@ -25,6 +25,8 @@ export function TurnosPage() {
   const [editForm, setEditForm]       = useState<AtualizarTurnoData>({
     hora_inicio: '08:00',
     hora_fim: '17:00',
+    intervalo_inicio: null,
+    intervalo_fim: null,
     tolerancia_finalizacao_minutos: 10,
     ativo: true,
   })
@@ -48,6 +50,8 @@ export function TurnosPage() {
     setEditForm({
       hora_inicio: paraInputHora(turno.hora_inicio) || '08:00',
       hora_fim: paraInputHora(turno.hora_fim) || '17:00',
+      intervalo_inicio: paraInputHora(turno.intervalo_inicio) || null,
+      intervalo_fim: paraInputHora(turno.intervalo_fim) || null,
       tolerancia_finalizacao_minutos: turno.tolerancia_finalizacao_minutos,
       ativo: turno.ativo,
     })
@@ -95,10 +99,11 @@ export function TurnosPage() {
           </div>
         ) : (
           <div className="divide-y divide-white/5">
-            <div className="hidden sm:grid grid-cols-[1.5fr_1fr_1fr_1fr_80px_80px] gap-4 px-5 py-3 border-b border-white/5">
+            <div className="hidden sm:grid grid-cols-[1.3fr_0.8fr_0.8fr_1.4fr_1fr_80px_80px] gap-4 px-5 py-3 border-b border-white/5">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Dia</p>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Início</p>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Fim</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Almoço</p>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tolerância (min)</p>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Status</p>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</p>
@@ -111,7 +116,7 @@ export function TurnosPage() {
               return (
                 <div
                   key={turno.dia_semana}
-                  className="grid grid-cols-2 sm:grid-cols-[1.5fr_1fr_1fr_1fr_80px_80px] gap-4 items-center px-5 py-3.5"
+                  className="grid grid-cols-2 sm:grid-cols-[1.3fr_0.8fr_0.8fr_1.4fr_1fr_80px_80px] gap-4 items-center px-5 py-3.5"
                 >
                   <p className="text-sm font-medium text-white col-span-2 sm:col-span-1">
                     {NOMES_DIA[turno.dia_semana]}
@@ -131,6 +136,21 @@ export function TurnosPage() {
                         onChange={e => setEditForm(f => ({ ...f, hora_fim: e.target.value }))}
                         className="px-2 py-1 bg-white/5 border border-[#00aa84]/40 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#00aa84]/30 transition"
                       />
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="time"
+                          value={editForm.intervalo_inicio ?? ''}
+                          onChange={e => setEditForm(f => ({ ...f, intervalo_inicio: e.target.value || null }))}
+                          className="px-2 py-1 bg-white/5 border border-[#00aa84]/40 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#00aa84]/30 transition w-full"
+                        />
+                        <span className="text-slate-500 text-xs">–</span>
+                        <input
+                          type="time"
+                          value={editForm.intervalo_fim ?? ''}
+                          onChange={e => setEditForm(f => ({ ...f, intervalo_fim: e.target.value || null }))}
+                          className="px-2 py-1 bg-white/5 border border-[#00aa84]/40 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#00aa84]/30 transition w-full"
+                        />
+                      </div>
                       <input
                         type="number"
                         min={0}
@@ -176,6 +196,11 @@ export function TurnosPage() {
                     <>
                       <p className="text-sm text-slate-300">{paraInputHora(turno.hora_inicio) || '—'}</p>
                       <p className="text-sm text-slate-300">{paraInputHora(turno.hora_fim) || '—'}</p>
+                      <p className="text-sm text-slate-300">
+                        {turno.intervalo_inicio && turno.intervalo_fim
+                          ? `${paraInputHora(turno.intervalo_inicio)} – ${paraInputHora(turno.intervalo_fim)}`
+                          : '—'}
+                      </p>
                       <p className="text-sm text-slate-300">{turno.tolerancia_finalizacao_minutos}</p>
                       <div className="flex justify-center">
                         {turno.ativo ? (
@@ -210,6 +235,7 @@ export function TurnosPage() {
       <p className="text-xs text-slate-600">
         Dias marcados como <strong className="text-slate-400">Inativo</strong> não permitem que operadores iniciem setup ou produção.
         A tolerância define quantos minutos antes do fim do turno o operador já pode finalizá-lo.
+        O intervalo de almoço, quando configurado, não conta como tempo útil de turno nos relatórios — deixe os campos vazios para não ter intervalo.
       </p>
     </div>
   )

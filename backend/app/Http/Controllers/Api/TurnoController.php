@@ -28,6 +28,8 @@ class TurnoController extends Controller
                 'dia_semana'                      => $dia,
                 'hora_inicio'                     => $turno?->hora_inicio,
                 'hora_fim'                        => $turno?->hora_fim,
+                'intervalo_inicio'                => $turno?->intervalo_inicio,
+                'intervalo_fim'                   => $turno?->intervalo_fim,
                 'tolerancia_finalizacao_minutos'  => $turno?->tolerancia_finalizacao_minutos ?? 10,
                 'ativo'                           => $turno?->ativo ?? false,
             ];
@@ -46,6 +48,8 @@ class TurnoController extends Controller
         $data = $request->validate([
             'hora_inicio'                    => ['required', 'date_format:H:i'],
             'hora_fim'                       => ['required', 'date_format:H:i', 'after:hora_inicio'],
+            'intervalo_inicio'                => ['nullable', 'date_format:H:i', 'required_with:intervalo_fim', 'after:hora_inicio', 'before:hora_fim'],
+            'intervalo_fim'                   => ['nullable', 'date_format:H:i', 'required_with:intervalo_inicio', 'after:intervalo_inicio', 'before:hora_fim'],
             'tolerancia_finalizacao_minutos' => ['required', 'integer', 'min:0', 'max:120'],
             'ativo'                          => ['boolean'],
         ]);
@@ -55,6 +59,8 @@ class TurnoController extends Controller
             [
                 'hora_inicio'                     => $data['hora_inicio'],
                 'hora_fim'                        => $data['hora_fim'],
+                'intervalo_inicio'                => $data['intervalo_inicio'] ?? null,
+                'intervalo_fim'                   => $data['intervalo_fim'] ?? null,
                 'tolerancia_finalizacao_minutos'  => $data['tolerancia_finalizacao_minutos'],
                 'ativo'                           => $data['ativo'] ?? true,
             ]

@@ -108,6 +108,77 @@ class TurnoControllerTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_admin_pode_configurar_intervalo_de_almoco(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/turnos/1', [
+                'hora_inicio'                     => '07:00',
+                'hora_fim'                        => '17:00',
+                'intervalo_inicio'                => '12:00',
+                'intervalo_fim'                   => '13:00',
+                'tolerancia_finalizacao_minutos'  => 10,
+                'ativo'                           => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.intervalo_inicio', '12:00:00')
+            ->assertJsonPath('data.intervalo_fim', '13:00:00');
+
+        $this->assertDatabaseHas('turnos', [
+            'dia_semana'       => 1,
+            'intervalo_inicio' => '12:00:00',
+            'intervalo_fim'    => '13:00:00',
+        ]);
+    }
+
+    public function test_atualizar_turno_rejeita_intervalo_fora_da_janela_do_turno(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/turnos/1', [
+                'hora_inicio'                     => '08:00',
+                'hora_fim'                        => '17:00',
+                'intervalo_inicio'                => '07:00',
+                'intervalo_fim'                   => '08:30',
+                'tolerancia_finalizacao_minutos'  => 10,
+                'ativo'                           => true,
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_atualizar_turno_rejeita_intervalo_fim_antes_do_intervalo_inicio(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/turnos/1', [
+                'hora_inicio'                     => '08:00',
+                'hora_fim'                        => '17:00',
+                'intervalo_inicio'                => '13:00',
+                'intervalo_fim'                   => '12:00',
+                'tolerancia_finalizacao_minutos'  => 10,
+                'ativo'                           => true,
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_atualizar_turno_rejeita_apenas_um_dos_campos_de_intervalo(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/turnos/1', [
+                'hora_inicio'                     => '08:00',
+                'hora_fim'                        => '17:00',
+                'intervalo_inicio'                => '12:00',
+                'tolerancia_finalizacao_minutos'  => 10,
+                'ativo'                           => true,
+            ])
+            ->assertStatus(422);
+    }
+
     public function test_operario_nao_pode_acessar_turnos(): void
     {
         $operario = User::factory()->operario()->create();

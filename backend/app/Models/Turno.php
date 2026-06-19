@@ -15,6 +15,8 @@ class Turno extends Model
         'dia_semana',
         'hora_inicio',
         'hora_fim',
+        'intervalo_inicio',
+        'intervalo_fim',
         'tolerancia_finalizacao_minutos',
         'ativo',
     ];

@@ -185,6 +185,44 @@ class RelatorioTurnoTest extends TestCase
         $this->assertSame(18000, $linha['tempo_ocioso_segundos']);
     }
 
+    public function test_intervalo_de_almoco_nao_conta_como_tempo_util(): void
+    {
+        $segunda = Carbon::parse('2026-06-08 00:00:00'); // segunda-feira, turno 08:00-17:00
+
+        \App\Models\Turno::where('dia_semana', 1)->update([
+            'intervalo_inicio' => '12:00:00',
+            'intervalo_fim'    => '13:00:00',
+        ]);
+
+        [$operario, , $sessao] = $this->criarSessao($segunda->copy()->setTime(7, 30));
+
+        Apontamento::create([
+            'sessao_trabalho_id'        => $sessao->id,
+            'etapa_fluxo_id'            => $sessao->maquina->etapa_fluxo_id,
+            'cod_peca'                  => '2223334',
+            'ordem_lote'                => '00004',
+            'desc_peca'                 => 'Peça Almoço',
+            'cod_produto'               => 'PROD-0004',
+            'qtde_total'                => 10,
+            'status'                    => Apontamento::STATUS_FINALIZADO,
+            'producao_inicio'           => $segunda->copy()->setTime(10, 0),
+            'producao_fim'              => $segunda->copy()->setTime(15, 0),
+            'producao_duracao_segundos' => 18000,
+        ]);
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioPorDia($segunda, $operario->id);
+
+        $this->assertCount(1, $relatorio);
+        $linha = $relatorio[0];
+
+        // Turno (8h) menos 1h de almoço = 28800s.
+        $this->assertSame(28800, $linha['tempo_turno_segundos']);
+        // Apontamento das 10h às 15h (5h), menos a 1h de almoço dentro desse intervalo = 4h trabalhadas.
+        $this->assertSame(14400, $linha['tempo_trabalhado_segundos']);
+        $this->assertSame(0, $linha['tempo_pausa_segundos']);
+        $this->assertSame(14400, $linha['tempo_ocioso_segundos']);
+    }
+
     public function test_abrir_turno_nao_reabre_sessao_finalizada_manualmente_no_mesmo_dia(): void
     {
         $segunda = Carbon::parse('2026-06-08 00:00:00');
