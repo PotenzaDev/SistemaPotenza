@@ -37,7 +37,7 @@ function fromRotina(r: Rotina): FormState {
   return {
     nome:      r.nome,
     slug:      r.slug,
-    pagina:    r.pagina,
+    pagina:    r.pagina ?? '',
     icone:     r.icone,
     parent_id: r.parent_id ? String(r.parent_id) : '',
     ordem:     String(r.ordem),
@@ -71,7 +71,7 @@ export function RotinaFormModal({ open, onClose, onSuccess, initialData, paisDis
 
     if (!form.nome.trim())   { setError('O nome é obrigatório.'); return }
     if (!form.slug.trim())   { setError('O slug é obrigatório.'); return }
-    if (!form.pagina.trim()) { setError('Selecione uma página.'); return }
+    if (form.parent_id && !form.pagina.trim()) { setError('Selecione uma página.'); return }
     if (!form.icone.trim())  { setError('Selecione um ícone.'); return }
     if (!/^[a-z0-9_]+$/.test(form.slug.trim())) {
       setError('O slug deve conter apenas letras minúsculas, números e underline.')
@@ -81,7 +81,7 @@ export function RotinaFormModal({ open, onClose, onSuccess, initialData, paisDis
     const payload = {
       nome:      form.nome.trim(),
       slug:      form.slug.trim(),
-      pagina:    form.pagina.trim(),
+      pagina:    form.pagina.trim() || null,
       icone:     form.icone.trim(),
       parent_id: form.parent_id ? Number(form.parent_id) : null,
       ordem:     form.ordem.trim() ? Number(form.ordem) : undefined,
@@ -167,7 +167,7 @@ export function RotinaFormModal({ open, onClose, onSuccess, initialData, paisDis
           {/* pagina */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              Página <span className="text-red-400">*</span>
+              Página {form.parent_id && <span className="text-red-400">*</span>}
             </label>
             <select
               name="pagina"
@@ -175,11 +175,14 @@ export function RotinaFormModal({ open, onClose, onSuccess, initialData, paisDis
               onChange={handleField}
               className="w-full px-3 py-2 text-sm bg-[#0f1923] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#00aa84]/60 transition-colors"
             >
-              <option value="">Selecione uma página</option>
+              <option value="">Nenhuma (grupo apenas)</option>
               {PAGE_REGISTRY.map((p) => (
                 <option key={p.value} value={p.value}>{p.label}</option>
               ))}
             </select>
+            <p className="text-xs text-slate-600 mt-1">
+              Deixe em branco para criar uma rotina pai (grupo) — ela só expande os submenus, sem abrir página.
+            </p>
           </div>
 
           {/* icone */}

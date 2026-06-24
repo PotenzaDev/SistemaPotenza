@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { LogOut, UserCircle, ShieldCheck, ChevronDown, Loader2, LayoutGrid } from 'lucide-react'
+import { LogOut, UserCircle, ChevronDown, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { getMenu, type Rotina } from '@/api/rotinas'
 import { getIcon } from '@/lib/iconRegistry'
@@ -85,7 +85,7 @@ export function Sidebar({ onClose }: SidebarProps) {
             return (
               <NavLink
                 key={rotina.id}
-                to={rotina.pagina}
+                to={rotina.pagina ?? '#'}
                 onClick={onClose}
                 className={({ isActive }) =>
                   [
@@ -123,7 +123,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                     return (
                       <NavLink
                         key={filho.id}
-                        to={filho.pagina}
+                        to={filho.pagina ?? '#'}
                         onClick={onClose}
                         className={({ isActive }) =>
                           [
@@ -144,42 +144,6 @@ export function Sidebar({ onClose }: SidebarProps) {
             </div>
           )
         })}
-
-        {user?.role === 'admin' && (
-          <NavLink
-            to="/admin/usuarios"
-            onClick={onClose}
-            className={({ isActive }) =>
-              [
-                'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-[#00aa84]/15 text-[#00aa84]'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-white',
-              ].join(' ')
-            }
-          >
-            <ShieldCheck className="w-4 h-4 shrink-0" />
-            Usuários do Sistema
-          </NavLink>
-        )}
-
-        {user?.role === 'admin' && (
-          <NavLink
-            to="/admin/rotinas"
-            onClick={onClose}
-            className={({ isActive }) =>
-              [
-                'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-[#00aa84]/15 text-[#00aa84]'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-white',
-              ].join(' ')
-            }
-          >
-            <LayoutGrid className="w-4 h-4 shrink-0" />
-            Rotinas
-          </NavLink>
-        )}
 
         <NavLink
           to="/admin/perfil"

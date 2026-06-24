@@ -19,7 +19,12 @@ class CreateRotinaRequest extends FormRequest
         return [
             'nome'      => ['required', 'string', 'max:100'],
             'slug'      => ['required', 'string', 'max:100', 'regex:/^[a-z0-9_]+$/', 'unique:rotinas,slug'],
-            'pagina'    => ['required', 'string', 'max:255', 'starts_with:/'],
+            'pagina'    => [
+                $this->filled('parent_id') ? 'required' : 'nullable',
+                'string',
+                'max:255',
+                'starts_with:/',
+            ],
             'icone'     => ['required', 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9]*$/'],
             'parent_id' => [
                 'nullable',
@@ -49,7 +54,7 @@ class CreateRotinaRequest extends FormRequest
             'slug.required'      => 'O slug é obrigatório.',
             'slug.regex'         => 'O slug deve conter apenas letras minúsculas, números e underline.',
             'slug.unique'        => 'Este slug já está em uso.',
-            'pagina.required'    => 'A página é obrigatória.',
+            'pagina.required'    => 'A página é obrigatória para sub-rotinas.',
             'pagina.starts_with' => 'A página deve começar com "/".',
             'icone.required'     => 'O ícone é obrigatório.',
             'icone.regex'        => 'Ícone inválido — use o nome do componente lucide-react (ex: Users).',

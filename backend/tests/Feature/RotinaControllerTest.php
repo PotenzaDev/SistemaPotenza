@@ -62,6 +62,37 @@ class RotinaControllerTest extends TestCase
             ->assertJsonPath('data.parent_id', $pai->id);
     }
 
+    public function test_admin_pode_cadastrar_rotina_pai_sem_pagina(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/rotinas', [
+                'nome'  => 'Cadastro',
+                'slug'  => 'cadastro_grupo',
+                'icone' => 'Boxes',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.pagina', null);
+
+        $this->assertDatabaseHas('rotinas', ['slug' => 'cadastro_grupo', 'pagina' => null]);
+    }
+
+    public function test_cadastro_rejeita_sub_rotina_sem_pagina(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $pai = Rotina::factory()->create(['parent_id' => null]);
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/rotinas', [
+                'nome'      => 'Sem Página',
+                'slug'      => 'sem_pagina',
+                'icone'     => 'Users',
+                'parent_id' => $pai->id,
+            ])
+            ->assertStatus(422);
+    }
+
     public function test_cadastro_rejeita_sub_rotina_como_pai_de_outra_sub_rotina(): void
     {
         $admin = User::factory()->admin()->create();

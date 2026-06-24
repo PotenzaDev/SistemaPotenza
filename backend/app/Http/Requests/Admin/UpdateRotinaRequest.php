@@ -21,7 +21,13 @@ class UpdateRotinaRequest extends FormRequest
         return [
             'nome'      => ['sometimes', 'string', 'max:100'],
             'slug'      => ['sometimes', 'string', 'max:100', 'regex:/^[a-z0-9_]+$/', 'unique:rotinas,slug,' . $id],
-            'pagina'    => ['sometimes', 'string', 'max:255', 'starts_with:/'],
+            'pagina'    => [
+                $this->filled('parent_id') ? 'required' : 'sometimes',
+                'nullable',
+                'string',
+                'max:255',
+                'starts_with:/',
+            ],
             'icone'     => ['sometimes', 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9]*$/'],
             'parent_id' => [
                 'sometimes',
@@ -56,6 +62,7 @@ class UpdateRotinaRequest extends FormRequest
         return [
             'slug.regex'         => 'O slug deve conter apenas letras minúsculas, números e underline.',
             'slug.unique'        => 'Este slug já está em uso.',
+            'pagina.required'    => 'A página é obrigatória para sub-rotinas.',
             'pagina.starts_with' => 'A página deve começar com "/".',
             'icone.regex'        => 'Ícone inválido — use o nome do componente lucide-react (ex: Users).',
             'parent_id.exists'   => 'Rotina pai inválida.',

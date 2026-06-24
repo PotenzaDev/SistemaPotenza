@@ -13,4 +13,6 @@ export const PAGE_REGISTRY: PageOption[] = [
   { value: '/admin/relatorios',                     label: 'Relatórios' },
   { value: '/admin/relatorios/producao-maquinas',   label: 'Relatório de Produção por Máquina' },
   { value: '/admin/logs',                           label: 'Log de Atividades' },
+  { value: '/admin/usuarios',                       label: 'Usuários do Sistema' },
+  { value: '/admin/rotinas',                        label: 'Rotinas' },
 ]

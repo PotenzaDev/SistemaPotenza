@@ -5,7 +5,7 @@ export interface Rotina {
   id: number
   nome: string
   slug: string
-  pagina: string
+  pagina: string | null
   icone: string
   parent_id: number | null
   ordem: number
@@ -16,7 +16,7 @@ export interface Rotina {
 export interface CreateRotinaPayload {
   nome: string
   slug: string
-  pagina: string
+  pagina: string | null
   icone: string
   parent_id?: number | null
   ordem?: number
@@ -26,7 +26,7 @@ export interface CreateRotinaPayload {
 export interface UpdateRotinaPayload {
   nome?: string
   slug?: string
-  pagina?: string
+  pagina?: string | null
   icone?: string
   parent_id?: number | null
   ordem?: number
