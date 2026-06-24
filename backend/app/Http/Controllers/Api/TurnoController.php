@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\Turno;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,10 +20,8 @@ class TurnoController extends Controller
     /** Lista o turno configurado para cada dia da semana (1=segunda...7=domingo). */
     public function index(): JsonResponse
     {
-        $turnos = Turno::orderBy('dia_semana')->get()->keyBy('dia_semana');
-
-        $resultado = collect(self::DIAS_SEMANA)->map(function (int $dia) use ($turnos) {
-            $turno = $turnos->get($dia);
+        $resultado = collect(self::DIAS_SEMANA)->map(function (int $dia) {
+            $turno = Turno::versaoAtual($dia);
 
             return [
                 'dia_semana'                      => $dia,
@@ -54,17 +53,32 @@ class TurnoController extends Controller
             'ativo'                          => ['boolean'],
         ]);
 
-        $turno = Turno::updateOrCreate(
-            ['dia_semana' => $diaSemana],
-            [
-                'hora_inicio'                     => $data['hora_inicio'],
-                'hora_fim'                        => $data['hora_fim'],
-                'intervalo_inicio'                => $data['intervalo_inicio'] ?? null,
-                'intervalo_fim'                   => $data['intervalo_fim'] ?? null,
-                'tolerancia_finalizacao_minutos'  => $data['tolerancia_finalizacao_minutos'],
-                'ativo'                           => $data['ativo'] ?? true,
-            ]
-        );
+        $campos = [
+            'hora_inicio'                     => $data['hora_inicio'],
+            'hora_fim'                        => $data['hora_fim'],
+            'intervalo_inicio'                => $data['intervalo_inicio'] ?? null,
+            'intervalo_fim'                   => $data['intervalo_fim'] ?? null,
+            'tolerancia_finalizacao_minutos'  => $data['tolerancia_finalizacao_minutos'],
+            'ativo'                           => $data['ativo'] ?? true,
+        ];
+
+        $hoje         = Carbon::today();
+        $versaoAtual  = Turno::versaoAtual($diaSemana);
+
+        // Se a versão atual ainda não esteve em vigor em nenhum dia passado
+        // (foi criada hoje, ou é o primeiro cadastro), editá-la no lugar não
+        // afeta relatório nenhum. Caso contrário, preserva-se a versão antiga
+        // (usada pelos relatórios de dias já ocorridos) e cria-se uma nova,
+        // em vigor a partir de hoje.
+        if ($versaoAtual && $versaoAtual->vigente_desde->greaterThanOrEqualTo($hoje)) {
+            $versaoAtual->update($campos);
+            $turno = $versaoAtual;
+        } else {
+            $turno = Turno::create($campos + [
+                'dia_semana'    => $diaSemana,
+                'vigente_desde' => $hoje->toDateString(),
+            ]);
+        }
 
         return $this->successResponse($turno->fresh(), 'Turno atualizado.');
     }

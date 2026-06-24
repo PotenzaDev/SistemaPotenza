@@ -4,8 +4,10 @@ export interface User {
   id: number
   name: string
   email: string
-  role: 'operario' | 'gestor' | 'admin'
+  role: 'operario' | 'gestor' | 'admin' | 'funcionario'
   must_change_password: boolean
+  ativo?: boolean
+  modulos_permitidos?: string[] | null
 }
 
 export interface LoginPayload {

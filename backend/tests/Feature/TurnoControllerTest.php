@@ -6,12 +6,20 @@ namespace Tests\Feature;
 
 use App\Models\Turno;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class TurnoControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_admin_pode_listar_turnos_dos_7_dias_da_semana(): void
     {
@@ -177,6 +185,67 @@ class TurnoControllerTest extends TestCase
                 'ativo'                           => true,
             ])
             ->assertStatus(422);
+    }
+
+    public function test_editar_turno_em_dias_diferentes_preserva_a_versao_anterior(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        Carbon::setTestNow('2026-06-10');
+        $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/turnos/1', [
+                'hora_inicio'                     => '07:00',
+                'hora_fim'                        => '16:00',
+                'tolerancia_finalizacao_minutos'  => 10,
+                'ativo'                           => true,
+            ])
+            ->assertOk();
+
+        Carbon::setTestNow('2026-06-12');
+        $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/turnos/1', [
+                'hora_inicio'                     => '09:00',
+                'hora_fim'                        => '18:00',
+                'tolerancia_finalizacao_minutos'  => 10,
+                'ativo'                           => true,
+            ])
+            ->assertOk();
+
+        // Versão original do seeder + 2 novas versões (uma por dia de edição).
+        $this->assertSame(3, Turno::where('dia_semana', 1)->count());
+
+        $this->assertSame('08:00:00', Turno::doDia(1, Carbon::parse('2026-06-01'))->hora_inicio);
+        $this->assertSame('07:00:00', Turno::doDia(1, Carbon::parse('2026-06-11'))->hora_inicio);
+        $this->assertSame('09:00:00', Turno::doDia(1, Carbon::parse('2026-06-12'))->hora_inicio);
+    }
+
+    public function test_editar_turno_duas_vezes_no_mesmo_dia_nao_cria_versao_extra(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        Carbon::setTestNow('2026-06-10');
+
+        $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/turnos/1', [
+                'hora_inicio'                     => '07:00',
+                'hora_fim'                        => '16:00',
+                'tolerancia_finalizacao_minutos'  => 10,
+                'ativo'                           => true,
+            ])
+            ->assertOk();
+
+        $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/turnos/1', [
+                'hora_inicio'                     => '09:00',
+                'hora_fim'                        => '18:00',
+                'tolerancia_finalizacao_minutos'  => 10,
+                'ativo'                           => true,
+            ])
+            ->assertOk();
+
+        // Apenas 1 versão nova (a segunda edição atualizou a primeira no lugar).
+        $this->assertSame(2, Turno::where('dia_semana', 1)->count());
+        $this->assertSame('09:00:00', Turno::doDia(1, Carbon::parse('2026-06-10'))->hora_inicio);
     }
 
     public function test_operario_nao_pode_acessar_turnos(): void

@@ -20,6 +20,13 @@ class RelatorioMaquinaTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
+
     public function test_relatorio_agrega_setup_producao_parado_e_pecas_em_um_periodo_de_dois_dias(): void
     {
         $segunda = Carbon::parse('2026-06-08 00:00:00'); // turno 08:00-17:00
@@ -122,6 +129,62 @@ class RelatorioMaquinaTest extends TestCase
 
         $this->assertSame(1, $relatorio['dias_considerados']);
         $this->assertSame(30600, $relatorio['maquinas'][0]['tempo_turno_segundos']); // só sexta: 8h30
+    }
+
+    public function test_alterar_turno_hoje_nao_altera_relatorio_de_dia_passado(): void
+    {
+        Carbon::setTestNow('2026-06-15'); // "hoje" — depois do dia que será reportado
+
+        $segundaPassada = Carbon::parse('2026-06-08 00:00:00'); // turno original: 08:00-17:00
+
+        $etapa   = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+
+        $sessao = $this->criarSessao($maquina, $segundaPassada->copy()->setTime(7, 30));
+
+        Apontamento::create([
+            'sessao_trabalho_id'        => $sessao->id,
+            'etapa_fluxo_id'            => $etapa->id,
+            'cod_peca'                  => '1234567',
+            'ordem_lote'                => '00001',
+            'desc_peca'                 => 'Peça Teste',
+            'cod_produto'               => 'PROD-0001',
+            'qtde_total'                => 100,
+            'status'                    => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio'              => $segundaPassada->copy()->setTime(8, 0),
+            'setup_fim'                 => $segundaPassada->copy()->setTime(9, 0),
+            'setup_duracao_segundos'    => 3600,
+            'producao_inicio'           => $segundaPassada->copy()->setTime(9, 0),
+            'producao_fim'              => $segundaPassada->copy()->setTime(13, 0),
+            'producao_duracao_segundos' => 14400,
+            'total_pausa_segundos'      => 0,
+        ]);
+
+        $relatorioAntes = app(RelatorioProducaoService::class)
+            ->relatorioMaquinasPorPeriodo($segundaPassada, $segundaPassada);
+
+        // Admin muda o turno de segunda-feira "hoje" (06:00-20:00).
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin, 'sanctum')
+            ->putJson('/api/turnos/1', [
+                'hora_inicio'                     => '06:00',
+                'hora_fim'                        => '20:00',
+                'tolerancia_finalizacao_minutos'  => 10,
+                'ativo'                           => true,
+            ])
+            ->assertOk();
+
+        $relatorioDepois = app(RelatorioProducaoService::class)
+            ->relatorioMaquinasPorPeriodo($segundaPassada, $segundaPassada);
+
+        // O relatório do dia passado não pode mudar com a edição de hoje.
+        $this->assertSame($relatorioAntes, $relatorioDepois);
+        $this->assertSame(32400, $relatorioDepois['maquinas'][0]['tempo_turno_segundos']); // 9h, turno original
+
+        // Mas o turno vigente a partir de hoje já reflete o novo horário.
+        $relatorioHoje = app(RelatorioProducaoService::class)
+            ->relatorioMaquinasPorPeriodo(Carbon::today(), Carbon::today());
+        $this->assertSame(50400, $relatorioHoje['maquinas'][0]['tempo_turno_segundos']); // 14h, turno novo
     }
 
     public function test_relatorio_nao_inclui_maquina_inativa(): void

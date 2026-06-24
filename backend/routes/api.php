@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\RelatorioMaquinaController;
 use App\Http\Controllers\Api\RelatorioTurnoController;
 use App\Http\Controllers\Api\SessaoTrabalhoController;
 use App\Http\Controllers\Api\TurnoController;
+use App\Http\Controllers\Api\UsuarioSistemaController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -60,29 +61,33 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->g
     });
 });
 
-Route::middleware(['auth:sanctum', 'check_password_change', 'role:gestor,admin'])->group(function () {
-    Route::get('/admin/dashboard',          [DashboardController::class, 'index']);
-    Route::get('/admin/relatorio-turno',    [RelatorioTurnoController::class, 'index']);
-    Route::get('/admin/relatorio-maquinas', [RelatorioMaquinaController::class, 'index']);
-    Route::get('/admin/relatorio-maquinas/filtros', [RelatorioMaquinaController::class, 'filtros']);
-    Route::get('/apontamentos/hoje',     [ApontamentoController::class, 'doDia']);
-    Route::get('/apontamentos/{id}',     [ApontamentoController::class, 'show']);
+Route::middleware(['auth:sanctum', 'check_password_change', 'role:gestor,admin,funcionario'])->group(function () {
+    Route::get('/admin/dashboard',          [DashboardController::class, 'index'])->middleware('module:dashboard');
+    Route::get('/admin/relatorio-turno',    [RelatorioTurnoController::class, 'index'])->middleware('module:relatorios');
+    Route::get('/admin/relatorio-maquinas', [RelatorioMaquinaController::class, 'index'])->middleware('module:relatorios');
+    Route::get('/admin/relatorio-maquinas/filtros', [RelatorioMaquinaController::class, 'filtros'])->middleware('module:relatorios');
+    Route::get('/apontamentos/hoje',     [ApontamentoController::class, 'doDia'])->middleware('module:apontamentos');
+    Route::get('/apontamentos/{id}',     [ApontamentoController::class, 'show'])->middleware('module:apontamentos');
 });
 
-Route::middleware(['auth:sanctum', 'check_password_change', 'role:gestor,admin'])->prefix('kanban')->group(function () {
+Route::middleware(['auth:sanctum', 'check_password_change', 'role:gestor,admin,funcionario', 'module:kanban'])->prefix('kanban')->group(function () {
     Route::get('/',                           [KanbanController::class, 'index']);
     Route::get('/{etapaFluxoId}/lotes',       [KanbanController::class, 'lotesEtapa']);
     Route::get('/lote/{ordemLote}/historico', [KanbanController::class, 'historicoLote']);
 });
 
 Route::middleware(['auth:sanctum', 'check_password_change', 'role:admin'])->group(function () {
-    Route::apiResource('maquinas',      MaquinaController::class);
-    Route::apiResource('operarios',     OperarioController::class);
-    Route::apiResource('etapas-fluxo',  EtapaFluxoController::class);
-    Route::apiResource('motivos-pausa', MotivoPausaController::class)->except(['show']);
+    Route::apiResource('etapas-fluxo', EtapaFluxoController::class);
+    Route::apiResource('usuarios',     UsuarioSistemaController::class);
+});
 
-    Route::get('/turnos',             [TurnoController::class, 'index']);
-    Route::put('/turnos/{diaSemana}', [TurnoController::class, 'update']);
+Route::middleware(['auth:sanctum', 'check_password_change', 'role:admin,funcionario'])->group(function () {
+    Route::apiResource('maquinas',      MaquinaController::class)->middleware('module:maquinas');
+    Route::apiResource('operarios',     OperarioController::class)->middleware('module:operarios');
+    Route::apiResource('motivos-pausa', MotivoPausaController::class)->except(['show'])->middleware('module:motivos_pausa');
 
-    Route::get('/admin/activity-logs', [ActivityLogController::class, 'index']);
+    Route::get('/turnos',             [TurnoController::class, 'index'])->middleware('module:turnos');
+    Route::put('/turnos/{diaSemana}', [TurnoController::class, 'update'])->middleware('module:turnos');
+
+    Route::get('/admin/activity-logs', [ActivityLogController::class, 'index'])->middleware('module:logs');
 });

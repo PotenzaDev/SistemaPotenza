@@ -45,4 +45,12 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => ['role' => 'operario']);
     }
+
+    public function funcionario(array $modulosPermitidos = []): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role'               => 'funcionario',
+            'modulos_permitidos' => $modulosPermitidos,
+        ]);
+    }
 }

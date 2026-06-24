@@ -21,6 +21,7 @@ class User extends Authenticatable
         'role',
         'must_change_password',
         'ativo',
+        'modulos_permitidos',
     ];
 
     protected $hidden = [
@@ -32,6 +33,7 @@ class User extends Authenticatable
         'email_verified_at'    => 'datetime',
         'must_change_password' => 'boolean',
         'ativo'                => 'boolean',
+        'modulos_permitidos'   => 'array',
     ];
 
     public function operario(): HasOne
@@ -52,5 +54,23 @@ class User extends Authenticatable
     public function isOperario(): bool
     {
         return $this->role === 'operario';
+    }
+
+    public function isFuncionario(): bool
+    {
+        return $this->role === 'funcionario';
+    }
+
+    public function podeAcessarModulo(string $modulo): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        if (! $this->isFuncionario()) {
+            return true;
+        }
+
+        return in_array($modulo, $this->modulos_permitidos ?? [], true);
     }
 }

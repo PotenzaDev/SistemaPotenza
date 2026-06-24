@@ -17,6 +17,8 @@ class UserResource extends JsonResource
             'email'                => $this->email,
             'role'                 => $this->role,
             'must_change_password' => (bool) $this->must_change_password,
+            'ativo'                => (bool) $this->ativo,
+            'modulos_permitidos'   => $this->modulos_permitidos,
             'operario'             => $this->when(
                 $this->relationLoaded('operario') && $this->operario,
                 fn () => [

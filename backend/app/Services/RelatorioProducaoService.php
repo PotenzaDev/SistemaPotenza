@@ -32,7 +32,7 @@ class RelatorioProducaoService
      */
     public function relatorioPorDia(Carbon $data, ?int $operarioId = null, ?int $maquinaId = null): array
     {
-        $turno = Turno::doDia($data->dayOfWeekIso);
+        $turno = Turno::doDia($data->dayOfWeekIso, $data);
 
         if (! $turno) {
             return [];
@@ -147,7 +147,7 @@ class RelatorioProducaoService
         $cursor           = $periodoInicio->copy();
 
         while ($cursor->lessThanOrEqualTo($periodoFim)) {
-            $turno = Turno::doDia($cursor->dayOfWeekIso);
+            $turno = Turno::doDia($cursor->dayOfWeekIso, $cursor);
 
             if ($turno) {
                 $diasConsiderados++;

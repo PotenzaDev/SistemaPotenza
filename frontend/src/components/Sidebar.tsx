@@ -1,16 +1,17 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Cpu, Users, ClipboardList, LogOut, PauseCircle, LayoutDashboard, Clock, FileBarChart, UserCircle, History } from 'lucide-react'
+import { Cpu, Users, ClipboardList, LogOut, PauseCircle, LayoutDashboard, Clock, FileBarChart, UserCircle, History, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
 const NAV_ITEMS = [
-  { to: '/admin/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
-  { to: '/admin/maquinas',      label: 'Máquinas',      icon: Cpu },
-  { to: '/admin/operarios',     label: 'Operários',     icon: Users },
-  { to: '/admin/apontamentos',  label: 'Apontamentos',  icon: ClipboardList },
-  { to: '/admin/motivos-pausa', label: 'Mot. de Pausa', icon: PauseCircle },
-  { to: '/admin/turnos',        label: 'Turnos',        icon: Clock },
-  { to: '/admin/relatorios',    label: 'Relatórios',    icon: FileBarChart },
-  { to: '/admin/logs',          label: 'Log de Atividades', icon: History },
+  { to: '/admin/dashboard',     label: 'Dashboard',     icon: LayoutDashboard, modulo: 'dashboard' },
+  { to: '/admin/maquinas',      label: 'Máquinas',      icon: Cpu, modulo: 'maquinas' },
+  { to: '/admin/operarios',     label: 'Operários',     icon: Users, modulo: 'operarios' },
+  { to: '/admin/apontamentos',  label: 'Apontamentos',  icon: ClipboardList, modulo: 'apontamentos' },
+  { to: '/admin/motivos-pausa', label: 'Mot. de Pausa', icon: PauseCircle, modulo: 'motivos_pausa' },
+  { to: '/admin/turnos',        label: 'Turnos',        icon: Clock, modulo: 'turnos' },
+  { to: '/admin/relatorios',    label: 'Relatórios',    icon: FileBarChart, modulo: 'relatorios' },
+  { to: '/admin/logs',          label: 'Log de Atividades', icon: History, modulo: 'logs' },
+  { to: '/admin/usuarios',      label: 'Usuários do Sistema', icon: ShieldCheck, adminOnly: true },
   { to: '/admin/perfil',        label: 'Meu Perfil',    icon: UserCircle },
 ]
 
@@ -21,6 +22,13 @@ interface SidebarProps {
 export function Sidebar({ onClose }: SidebarProps) {
   const { signOut, user } = useAuth()
   const navigate = useNavigate()
+
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.adminOnly) return user?.role === 'admin'
+    if (!item.modulo) return true
+    if (user?.role !== 'funcionario') return true
+    return user?.modulos_permitidos?.includes(item.modulo) ?? false
+  })
 
   async function handleLogout() {
     await signOut()
@@ -37,7 +45,7 @@ export function Sidebar({ onClose }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+        {visibleItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

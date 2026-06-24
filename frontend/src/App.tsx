@@ -11,6 +11,7 @@ import { RelatoriosPage }          from '@/pages/RelatoriosPage'
 import { RelatorioProducaoMaquinasPage } from '@/pages/RelatorioProducaoMaquinasPage'
 import { AdminPerfilPage }          from '@/pages/AdminPerfilPage'
 import { ActivityLogPage }          from '@/pages/ActivityLogPage'
+import { UsuariosSistemaPage }      from '@/pages/UsuariosSistemaPage'
 import { MaquinasDisponiveisPage }  from '@/pages/MaquinasDisponiveisPage'
 import { ApontamentoOperarioPage }  from '@/pages/ApontamentoOperarioPage'
 import { AdminLayout }              from '@/layouts/AdminLayout'
@@ -33,28 +34,47 @@ function App() {
           }
         />
 
-        {/* Área admin/gestor */}
+        {/* Área admin/gestor/funcionário */}
         <Route
           path="/admin"
           element={
-            <ProtectedRoute requiredRole={['admin', 'gestor']}>
+            <ProtectedRoute requiredRole={['admin', 'gestor', 'funcionario']}>
               <AdminLayout />
             </ProtectedRoute>
           }
         >
           <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard"     element={<DashboardPage />} />
-          <Route path="maquinas"      element={<MaquinasPage />} />
-          <Route path="operarios"     element={<OperariosPage />} />
-          <Route path="apontamentos"  element={<ApontamentosPage />} />
-          <Route path="motivos-pausa" element={<MotivoPausaPage />} />
-          <Route path="turnos"        element={<TurnosPage />} />
-          <Route path="relatorios">
-            <Route index element={<RelatoriosPage />} />
-            <Route path="producao-maquinas" element={<RelatorioProducaoMaquinasPage />} />
-          </Route>
+          <Route path="dashboard" element={
+            <ProtectedRoute requiredModulo="dashboard"><DashboardPage /></ProtectedRoute>
+          } />
+          <Route path="maquinas" element={
+            <ProtectedRoute requiredModulo="maquinas"><MaquinasPage /></ProtectedRoute>
+          } />
+          <Route path="operarios" element={
+            <ProtectedRoute requiredModulo="operarios"><OperariosPage /></ProtectedRoute>
+          } />
+          <Route path="apontamentos" element={
+            <ProtectedRoute requiredModulo="apontamentos"><ApontamentosPage /></ProtectedRoute>
+          } />
+          <Route path="motivos-pausa" element={
+            <ProtectedRoute requiredModulo="motivos_pausa"><MotivoPausaPage /></ProtectedRoute>
+          } />
+          <Route path="turnos" element={
+            <ProtectedRoute requiredModulo="turnos"><TurnosPage /></ProtectedRoute>
+          } />
+          <Route path="relatorios" element={
+            <ProtectedRoute requiredModulo="relatorios"><RelatoriosPage /></ProtectedRoute>
+          } />
+          <Route path="relatorios/producao-maquinas" element={
+            <ProtectedRoute requiredModulo="relatorios"><RelatorioProducaoMaquinasPage /></ProtectedRoute>
+          } />
+          <Route path="logs" element={
+            <ProtectedRoute requiredModulo="logs"><ActivityLogPage /></ProtectedRoute>
+          } />
+          <Route path="usuarios" element={
+            <ProtectedRoute requiredRole={['admin']}><UsuariosSistemaPage /></ProtectedRoute>
+          } />
           <Route path="perfil" element={<AdminPerfilPage />} />
-          <Route path="logs"   element={<ActivityLogPage />} />
         </Route>
 
         {/* Área do operário */}
