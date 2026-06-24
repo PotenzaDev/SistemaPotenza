@@ -8,16 +8,16 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class CheckModuloAccess
+class CheckRotinaAccess
 {
-    public function handle(Request $request, Closure $next, string $modulo): Response
+    public function handle(Request $request, Closure $next, string $slug): Response
     {
         $user = $request->user();
 
-        if (! $user || ! $user->podeAcessarModulo($modulo)) {
+        if (! $user || ! $user->podeAcessarRotina($slug)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Acesso não autorizado a este módulo.',
+                'message' => 'Acesso não autorizado a esta rotina.',
                 'data' => null,
                 'errors' => null,
             ], 403);

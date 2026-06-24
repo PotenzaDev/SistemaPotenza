@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\MaquinaController;
 use App\Http\Controllers\Api\MotivoPausaController;
 use App\Http\Controllers\Api\OperarioController;
 use App\Http\Controllers\Api\RelatorioMaquinaController;
+use App\Http\Controllers\Api\RotinaController;
 use App\Http\Controllers\Api\RelatorioTurnoController;
 use App\Http\Controllers\Api\SessaoTrabalhoController;
 use App\Http\Controllers\Api\TurnoController;
@@ -62,6 +63,8 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->g
 });
 
 Route::middleware(['auth:sanctum', 'check_password_change', 'role:gestor,admin,funcionario'])->group(function () {
+    Route::get('/menu', [RotinaController::class, 'menu']);
+
     Route::get('/admin/dashboard',          [DashboardController::class, 'index'])->middleware('module:dashboard');
     Route::get('/admin/relatorio-turno',    [RelatorioTurnoController::class, 'index'])->middleware('module:relatorios');
     Route::get('/admin/relatorio-maquinas', [RelatorioMaquinaController::class, 'index'])->middleware('module:relatorios');
@@ -79,6 +82,7 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:gestor,admin,f
 Route::middleware(['auth:sanctum', 'check_password_change', 'role:admin'])->group(function () {
     Route::apiResource('etapas-fluxo', EtapaFluxoController::class);
     Route::apiResource('usuarios',     UsuarioSistemaController::class);
+    Route::apiResource('rotinas',      RotinaController::class);
 });
 
 Route::middleware(['auth:sanctum', 'check_password_change', 'role:admin,funcionario'])->group(function () {

@@ -12,6 +12,7 @@ import { RelatorioProducaoMaquinasPage } from '@/pages/RelatorioProducaoMaquinas
 import { AdminPerfilPage }          from '@/pages/AdminPerfilPage'
 import { ActivityLogPage }          from '@/pages/ActivityLogPage'
 import { UsuariosSistemaPage }      from '@/pages/UsuariosSistemaPage'
+import { RotinasPage }              from '@/pages/RotinasPage'
 import { MaquinasDisponiveisPage }  from '@/pages/MaquinasDisponiveisPage'
 import { ApontamentoOperarioPage }  from '@/pages/ApontamentoOperarioPage'
 import { AdminLayout }              from '@/layouts/AdminLayout'
@@ -45,34 +46,37 @@ function App() {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={
-            <ProtectedRoute requiredModulo="dashboard"><DashboardPage /></ProtectedRoute>
+            <ProtectedRoute requiredRotina="dashboard"><DashboardPage /></ProtectedRoute>
           } />
           <Route path="maquinas" element={
-            <ProtectedRoute requiredModulo="maquinas"><MaquinasPage /></ProtectedRoute>
+            <ProtectedRoute requiredRotina="maquinas"><MaquinasPage /></ProtectedRoute>
           } />
           <Route path="operarios" element={
-            <ProtectedRoute requiredModulo="operarios"><OperariosPage /></ProtectedRoute>
+            <ProtectedRoute requiredRotina="operarios"><OperariosPage /></ProtectedRoute>
           } />
           <Route path="apontamentos" element={
-            <ProtectedRoute requiredModulo="apontamentos"><ApontamentosPage /></ProtectedRoute>
+            <ProtectedRoute requiredRotina="apontamentos"><ApontamentosPage /></ProtectedRoute>
           } />
           <Route path="motivos-pausa" element={
-            <ProtectedRoute requiredModulo="motivos_pausa"><MotivoPausaPage /></ProtectedRoute>
+            <ProtectedRoute requiredRotina="motivos_pausa"><MotivoPausaPage /></ProtectedRoute>
           } />
           <Route path="turnos" element={
-            <ProtectedRoute requiredModulo="turnos"><TurnosPage /></ProtectedRoute>
+            <ProtectedRoute requiredRotina="turnos"><TurnosPage /></ProtectedRoute>
           } />
           <Route path="relatorios" element={
-            <ProtectedRoute requiredModulo="relatorios"><RelatoriosPage /></ProtectedRoute>
+            <ProtectedRoute requiredRotina="relatorios"><RelatoriosPage /></ProtectedRoute>
           } />
           <Route path="relatorios/producao-maquinas" element={
-            <ProtectedRoute requiredModulo="relatorios"><RelatorioProducaoMaquinasPage /></ProtectedRoute>
+            <ProtectedRoute requiredRotina="relatorios"><RelatorioProducaoMaquinasPage /></ProtectedRoute>
           } />
           <Route path="logs" element={
-            <ProtectedRoute requiredModulo="logs"><ActivityLogPage /></ProtectedRoute>
+            <ProtectedRoute requiredRotina="logs"><ActivityLogPage /></ProtectedRoute>
           } />
           <Route path="usuarios" element={
             <ProtectedRoute requiredRole={['admin']}><UsuariosSistemaPage /></ProtectedRoute>
+          } />
+          <Route path="rotinas" element={
+            <ProtectedRoute requiredRole={['admin']}><RotinasPage /></ProtectedRoute>
           } />
           <Route path="perfil" element={<AdminPerfilPage />} />
         </Route>

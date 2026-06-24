@@ -1,5 +1,12 @@
 import { apiClient } from './client'
 
+export interface UserRotina {
+  id: number
+  slug: string
+  nome: string
+  parent_id: number | null
+}
+
 export interface User {
   id: number
   name: string
@@ -7,7 +14,7 @@ export interface User {
   role: 'operario' | 'gestor' | 'admin' | 'funcionario'
   must_change_password: boolean
   ativo?: boolean
-  modulos_permitidos?: string[] | null
+  rotinas?: UserRotina[]
 }
 
 export interface LoginPayload {

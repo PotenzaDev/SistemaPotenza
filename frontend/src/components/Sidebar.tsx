@@ -1,19 +1,10 @@
+import { useCallback, useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Cpu, Users, ClipboardList, LogOut, PauseCircle, LayoutDashboard, Clock, FileBarChart, UserCircle, History, ShieldCheck } from 'lucide-react'
+import axios from 'axios'
+import { LogOut, UserCircle, ShieldCheck, ChevronDown, Loader2, LayoutGrid } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-
-const NAV_ITEMS = [
-  { to: '/admin/dashboard',     label: 'Dashboard',     icon: LayoutDashboard, modulo: 'dashboard' },
-  { to: '/admin/maquinas',      label: 'Máquinas',      icon: Cpu, modulo: 'maquinas' },
-  { to: '/admin/operarios',     label: 'Operários',     icon: Users, modulo: 'operarios' },
-  { to: '/admin/apontamentos',  label: 'Apontamentos',  icon: ClipboardList, modulo: 'apontamentos' },
-  { to: '/admin/motivos-pausa', label: 'Mot. de Pausa', icon: PauseCircle, modulo: 'motivos_pausa' },
-  { to: '/admin/turnos',        label: 'Turnos',        icon: Clock, modulo: 'turnos' },
-  { to: '/admin/relatorios',    label: 'Relatórios',    icon: FileBarChart, modulo: 'relatorios' },
-  { to: '/admin/logs',          label: 'Log de Atividades', icon: History, modulo: 'logs' },
-  { to: '/admin/usuarios',      label: 'Usuários do Sistema', icon: ShieldCheck, adminOnly: true },
-  { to: '/admin/perfil',        label: 'Meu Perfil',    icon: UserCircle },
-]
+import { getMenu, type Rotina } from '@/api/rotinas'
+import { getIcon } from '@/lib/iconRegistry'
 
 interface SidebarProps {
   onClose?: () => void
@@ -23,12 +14,46 @@ export function Sidebar({ onClose }: SidebarProps) {
   const { signOut, user } = useAuth()
   const navigate = useNavigate()
 
-  const visibleItems = NAV_ITEMS.filter((item) => {
-    if (item.adminOnly) return user?.role === 'admin'
-    if (!item.modulo) return true
+  const [rotinas, setRotinas] = useState<Rotina[]>([])
+  const [loading, setLoading] = useState(true)
+  const [openParentId, setOpenParentId] = useState<number | null>(null)
+
+  const load = useCallback((signal?: AbortSignal) => {
+    setLoading(true)
+
+    getMenu(signal)
+      .then(setRotinas)
+      .catch((err: unknown) => {
+        if (!axios.isCancel(err)) {
+          setRotinas([])
+        }
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false)
+      })
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    load(controller.signal)
+    return () => controller.abort()
+  }, [load])
+
+  function podeAcessarRotina(slug: string): boolean {
     if (user?.role !== 'funcionario') return true
-    return user?.modulos_permitidos?.includes(item.modulo) ?? false
-  })
+    return user?.rotinas?.some((r) => r.slug === slug) ?? false
+  }
+
+  const visibleRotinas = rotinas
+    .map((rotina) => ({
+      ...rotina,
+      filhos: rotina.filhos?.filter((filho) => podeAcessarRotina(filho.slug)) ?? [],
+    }))
+    .filter((rotina) => podeAcessarRotina(rotina.slug) || rotina.filhos.length > 0)
+
+  function toggleParent(id: number) {
+    setOpenParentId((current) => (current === id ? null : id))
+  }
 
   async function handleLogout() {
     await signOut()
@@ -45,10 +70,84 @@ export function Sidebar({ onClose }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {visibleItems.map(({ to, label, icon: Icon }) => (
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-8 text-slate-500">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-xs">Carregando menu…</span>
+          </div>
+        )}
+
+        {!loading && visibleRotinas.map((rotina) => {
+          const Icon = getIcon(rotina.icone)
+          const temFilhos = rotina.filhos.length > 0
+
+          if (!temFilhos) {
+            return (
+              <NavLink
+                key={rotina.id}
+                to={rotina.pagina}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  [
+                    'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-[#00aa84]/15 text-[#00aa84]'
+                      : 'text-slate-400 hover:bg-white/5 hover:text-white',
+                  ].join(' ')
+                }
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                {rotina.nome}
+              </NavLink>
+            )
+          }
+
+          const isOpen = openParentId === rotina.id
+
+          return (
+            <div key={rotina.id}>
+              <button
+                type="button"
+                onClick={() => toggleParent(rotina.id)}
+                className="flex items-center gap-3 w-full px-4 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="flex-1 text-left">{rotina.nome}</span>
+                <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isOpen && (
+                <div className="mt-1 ml-4 space-y-1 border-l border-white/5 pl-3">
+                  {rotina.filhos.map((filho) => {
+                    const FilhoIcon = getIcon(filho.icone)
+                    return (
+                      <NavLink
+                        key={filho.id}
+                        to={filho.pagina}
+                        onClick={onClose}
+                        className={({ isActive }) =>
+                          [
+                            'flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                            isActive
+                              ? 'bg-[#00aa84]/15 text-[#00aa84]'
+                              : 'text-slate-400 hover:bg-white/5 hover:text-white',
+                          ].join(' ')
+                        }
+                      >
+                        <FilhoIcon className="w-4 h-4 shrink-0" />
+                        {filho.nome}
+                      </NavLink>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        {user?.role === 'admin' && (
           <NavLink
-            key={to}
-            to={to}
+            to="/admin/usuarios"
             onClick={onClose}
             className={({ isActive }) =>
               [
@@ -59,10 +158,44 @@ export function Sidebar({ onClose }: SidebarProps) {
               ].join(' ')
             }
           >
-            <Icon className="w-4 h-4 shrink-0" />
-            {label}
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            Usuários do Sistema
           </NavLink>
-        ))}
+        )}
+
+        {user?.role === 'admin' && (
+          <NavLink
+            to="/admin/rotinas"
+            onClick={onClose}
+            className={({ isActive }) =>
+              [
+                'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-[#00aa84]/15 text-[#00aa84]'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white',
+              ].join(' ')
+            }
+          >
+            <LayoutGrid className="w-4 h-4 shrink-0" />
+            Rotinas
+          </NavLink>
+        )}
+
+        <NavLink
+          to="/admin/perfil"
+          onClick={onClose}
+          className={({ isActive }) =>
+            [
+              'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-[#00aa84]/15 text-[#00aa84]'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white',
+            ].join(' ')
+          }
+        >
+          <UserCircle className="w-4 h-4 shrink-0" />
+          Meu Perfil
+        </NavLink>
       </nav>
 
       {/* Footer: usuário + logout */}

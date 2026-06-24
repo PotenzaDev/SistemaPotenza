@@ -5,14 +5,22 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\User;
+use Database\Seeders\RotinaSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class CheckModuloAccessTest extends TestCase
+class CheckRotinaAccessTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_funcionario_com_modulo_liberado_acessa_maquinas(): void
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(RotinaSeeder::class);
+    }
+
+    public function test_funcionario_com_rotina_liberada_acessa_maquinas(): void
     {
         $funcionario = User::factory()->funcionario(['maquinas'])->create();
 
@@ -22,7 +30,7 @@ class CheckModuloAccessTest extends TestCase
             ->assertJsonPath('success', true);
     }
 
-    public function test_funcionario_sem_modulo_liberado_nao_acessa_maquinas(): void
+    public function test_funcionario_sem_rotina_liberada_nao_acessa_maquinas(): void
     {
         $funcionario = User::factory()->funcionario(['dashboard'])->create();
 
@@ -31,7 +39,7 @@ class CheckModuloAccessTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_funcionario_sem_modulos_setados_nao_acessa_maquinas(): void
+    public function test_funcionario_sem_rotinas_setadas_nao_acessa_maquinas(): void
     {
         $funcionario = User::factory()->funcionario()->create();
 
@@ -40,7 +48,7 @@ class CheckModuloAccessTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_acessa_modulo_independente_de_modulos_permitidos(): void
+    public function test_admin_acessa_rotina_independente_de_rotinas_liberadas(): void
     {
         $admin = User::factory()->admin()->create();
 

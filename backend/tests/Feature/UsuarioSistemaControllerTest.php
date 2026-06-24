@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Rotina;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -26,31 +27,37 @@ class UsuarioSistemaControllerTest extends TestCase
         $this->assertCount(2, $response->json('data'));
     }
 
-    public function test_admin_pode_cadastrar_funcionario_com_modulos(): void
+    public function test_admin_pode_cadastrar_funcionario_com_rotinas(): void
     {
         $admin = User::factory()->admin()->create();
+        $dashboard = Rotina::factory()->create(['slug' => 'dashboard']);
+        $relatorios = Rotina::factory()->create(['slug' => 'relatorios']);
 
         $response = $this->actingAs($admin, 'sanctum')
             ->postJson('/api/usuarios', [
-                'name'               => 'Func Teste',
-                'email'              => 'func.teste@example.com',
-                'password'           => 'senha123',
-                'role'               => 'funcionario',
-                'modulos_permitidos' => ['dashboard', 'relatorios'],
+                'name'       => 'Func Teste',
+                'email'      => 'func.teste@example.com',
+                'password'   => 'senha123',
+                'role'       => 'funcionario',
+                'rotina_ids' => [$dashboard->id, $relatorios->id],
             ]);
 
         $response->assertCreated()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.role', 'funcionario')
-            ->assertJsonPath('data.modulos_permitidos', ['dashboard', 'relatorios']);
+            ->assertJsonPath('data.role', 'funcionario');
 
+        $this->assertCount(2, $response->json('data.rotinas'));
         $this->assertDatabaseHas('users', [
             'email' => 'func.teste@example.com',
             'role'  => 'funcionario',
         ]);
+        $this->assertDatabaseHas('rotina_user', [
+            'user_id'   => $response->json('data.id'),
+            'rotina_id' => $dashboard->id,
+        ]);
     }
 
-    public function test_admin_pode_cadastrar_administrador_sem_modulos(): void
+    public function test_admin_pode_cadastrar_administrador_sem_rotinas(): void
     {
         $admin = User::factory()->admin()->create();
 
@@ -64,20 +71,20 @@ class UsuarioSistemaControllerTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('data.role', 'admin')
-            ->assertJsonPath('data.modulos_permitidos', null);
+            ->assertJsonPath('data.rotinas', []);
     }
 
-    public function test_cadastro_rejeita_modulo_invalido(): void
+    public function test_cadastro_rejeita_rotina_inexistente(): void
     {
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin, 'sanctum')
             ->postJson('/api/usuarios', [
-                'name'               => 'Func Invalido',
-                'email'              => 'func.invalido@example.com',
-                'password'           => 'senha123',
-                'role'               => 'funcionario',
-                'modulos_permitidos' => ['modulo_inexistente'],
+                'name'       => 'Func Invalido',
+                'email'      => 'func.invalido@example.com',
+                'password'   => 'senha123',
+                'role'       => 'funcionario',
+                'rotina_ids' => [999999],
             ])
             ->assertStatus(422);
     }
@@ -96,17 +103,24 @@ class UsuarioSistemaControllerTest extends TestCase
             ->assertStatus(422);
     }
 
-    public function test_admin_pode_atualizar_modulos_de_funcionario(): void
+    public function test_admin_pode_atualizar_rotinas_de_funcionario(): void
     {
         $admin = User::factory()->admin()->create();
+        $dashboard = Rotina::factory()->create(['slug' => 'dashboard']);
+        $maquinas = Rotina::factory()->create(['slug' => 'maquinas']);
         $funcionario = User::factory()->funcionario(['dashboard'])->create();
 
-        $this->actingAs($admin, 'sanctum')
+        $response = $this->actingAs($admin, 'sanctum')
             ->putJson("/api/usuarios/{$funcionario->id}", [
-                'modulos_permitidos' => ['dashboard', 'maquinas'],
+                'rotina_ids' => [$dashboard->id, $maquinas->id],
             ])
-            ->assertOk()
-            ->assertJsonPath('data.modulos_permitidos', ['dashboard', 'maquinas']);
+            ->assertOk();
+
+        $this->assertCount(2, $response->json('data.rotinas'));
+        $this->assertDatabaseHas('rotina_user', [
+            'user_id'   => $funcionario->id,
+            'rotina_id' => $maquinas->id,
+        ]);
     }
 
     public function test_admin_pode_remover_usuario_do_sistema(): void

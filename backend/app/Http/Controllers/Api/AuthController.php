@@ -101,7 +101,7 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return $this->successResponse(
-            new UserResource($request->user()->load('operario')),
+            new UserResource($request->user()->load(['operario', 'rotinas'])),
             'Dados do usuário autenticado.'
         );
     }

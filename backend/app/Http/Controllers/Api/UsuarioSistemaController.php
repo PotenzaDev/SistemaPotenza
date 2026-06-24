@@ -21,7 +21,7 @@ class UsuarioSistemaController extends Controller
     {
         return $this->successResponse(
             UserResource::collection(
-                User::whereIn('role', ['admin', 'funcionario'])->orderBy('name')->get()
+                User::whereIn('role', ['admin', 'funcionario'])->with('rotinas')->orderBy('name')->get()
             )
         );
     }
@@ -36,15 +36,18 @@ class UsuarioSistemaController extends Controller
             'password'             => Hash::make($data['password']),
             'role'                 => $data['role'],
             'must_change_password' => true,
-            'modulos_permitidos'   => $data['role'] === 'funcionario' ? ($data['modulos_permitidos'] ?? []) : null,
         ]);
 
-        return $this->successResponse(new UserResource($user), 'Usuário cadastrado.', 201);
+        if ($data['role'] === 'funcionario') {
+            $user->rotinas()->sync($data['rotina_ids'] ?? []);
+        }
+
+        return $this->successResponse(new UserResource($user->load('rotinas')), 'Usuário cadastrado.', 201);
     }
 
     public function show(int $id): JsonResponse
     {
-        $user = User::whereIn('role', ['admin', 'funcionario'])->find($id);
+        $user = User::whereIn('role', ['admin', 'funcionario'])->with('rotinas')->find($id);
 
         return $user
             ? $this->successResponse(new UserResource($user))
@@ -72,15 +75,17 @@ class UsuarioSistemaController extends Controller
             'ativo'    => $data['ativo'] ?? null,
         ], fn ($v) => $v !== null);
 
-        if (array_key_exists('modulos_permitidos', $data) || isset($data['role'])) {
-            $fields['modulos_permitidos'] = $role === 'funcionario'
-                ? ($data['modulos_permitidos'] ?? $user->modulos_permitidos ?? [])
-                : null;
-        }
-
         $user->update($fields);
 
-        return $this->successResponse(new UserResource($user->fresh()), 'Usuário atualizado.');
+        if ($role === 'funcionario') {
+            if (array_key_exists('rotina_ids', $data)) {
+                $user->rotinas()->sync($data['rotina_ids'] ?? []);
+            }
+        } else {
+            $user->rotinas()->sync([]);
+        }
+
+        return $this->successResponse(new UserResource($user->fresh('rotinas')), 'Usuário atualizado.');
     }
 
     public function destroy(int $id): JsonResponse

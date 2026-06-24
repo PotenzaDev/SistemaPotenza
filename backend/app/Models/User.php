@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -21,7 +22,6 @@ class User extends Authenticatable
         'role',
         'must_change_password',
         'ativo',
-        'modulos_permitidos',
     ];
 
     protected $hidden = [
@@ -33,12 +33,16 @@ class User extends Authenticatable
         'email_verified_at'    => 'datetime',
         'must_change_password' => 'boolean',
         'ativo'                => 'boolean',
-        'modulos_permitidos'   => 'array',
     ];
 
     public function operario(): HasOne
     {
         return $this->hasOne(Operario::class);
+    }
+
+    public function rotinas(): BelongsToMany
+    {
+        return $this->belongsToMany(Rotina::class, 'rotina_user');
     }
 
     public function isAdmin(): bool
@@ -61,7 +65,7 @@ class User extends Authenticatable
         return $this->role === 'funcionario';
     }
 
-    public function podeAcessarModulo(string $modulo): bool
+    public function podeAcessarRotina(string $slug): bool
     {
         if ($this->isAdmin()) {
             return true;
@@ -71,6 +75,6 @@ class User extends Authenticatable
             return true;
         }
 
-        return in_array($modulo, $this->modulos_permitidos ?? [], true);
+        return $this->rotinas->contains('slug', $slug);
     }
 }

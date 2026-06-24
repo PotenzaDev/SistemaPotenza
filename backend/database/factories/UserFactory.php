@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\Rotina;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -46,11 +48,15 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => ['role' => 'operario']);
     }
 
-    public function funcionario(array $modulosPermitidos = []): static
+    public function funcionario(array $rotinaSlugs = []): static
     {
         return $this->state(fn (array $attributes) => [
-            'role'               => 'funcionario',
-            'modulos_permitidos' => $modulosPermitidos,
-        ]);
+            'role' => 'funcionario',
+        ])->afterCreating(function (User $user) use ($rotinaSlugs) {
+            if ($rotinaSlugs !== []) {
+                $ids = Rotina::whereIn('slug', $rotinaSlugs)->pluck('id');
+                $user->rotinas()->sync($ids);
+            }
+        });
     }
 }

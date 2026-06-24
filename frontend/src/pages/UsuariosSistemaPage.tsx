@@ -108,7 +108,7 @@ export function UsuariosSistemaPage() {
                   <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Nome</th>
                   <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">E-mail</th>
                   <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Perfil</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Módulos</th>
+                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Rotinas</th>
                   <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3" />
                 </tr>
@@ -127,9 +127,9 @@ export function UsuariosSistemaPage() {
                     <td className="px-6 py-4 text-slate-400">
                       {u.role === 'admin'
                         ? <span className="text-slate-600">Acesso total</span>
-                        : (u.modulos_permitidos?.length ?? 0) > 0
-                          ? `${u.modulos_permitidos!.length} módulo(s)`
-                          : <span className="text-slate-600">Nenhum módulo</span>
+                        : (u.rotinas?.length ?? 0) > 0
+                          ? `${u.rotinas!.length} rotina(s)`
+                          : <span className="text-slate-600">Nenhuma rotina</span>
                       }
                     </td>
                     <td className="px-6 py-4">

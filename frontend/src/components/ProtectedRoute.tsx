@@ -5,10 +5,10 @@ import { useAuth } from '@/hooks/useAuth'
 interface ProtectedRouteProps {
   children: ReactNode
   requiredRole?: string[]
-  requiredModulo?: string
+  requiredRotina?: string
 }
 
-export function ProtectedRoute({ children, requiredRole, requiredModulo }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, requiredRole, requiredRotina }: ProtectedRouteProps) {
   const { isAuthenticated, user } = useAuth()
 
   if (!isAuthenticated) {
@@ -19,7 +19,7 @@ export function ProtectedRoute({ children, requiredRole, requiredModulo }: Prote
     return <Navigate to="/login" replace />
   }
 
-  if (requiredModulo && user?.role === 'funcionario' && !user.modulos_permitidos?.includes(requiredModulo)) {
+  if (requiredRotina && user?.role === 'funcionario' && !user.rotinas?.some((r) => r.slug === requiredRotina)) {
     return <Navigate to="/login" replace />
   }
 

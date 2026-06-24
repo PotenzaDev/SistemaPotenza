@@ -15,7 +15,17 @@
       "Bash(git fetch *)",
       "Bash(npx vite *)",
       "mcp__plugin_ecc_playwright__browser_navigate",
-      "Bash(pkill -f \"vite\")"
+      "Bash(pkill -f \"vite\")",
+      "Bash(grep -E \"^C:\\\\\\\\\\\\\\\\Gustavo\")",
+      "Read(//tmp/**)",
+      "Bash(awk '/RotinaFormModal\\\\.tsx|Sidebar\\\\.tsx|UsuarioSistemaFormModal\\\\.tsx/{p=1} p{print; c++} c>15{p=0;c=0}' /tmp/lintout.txt)",
+      "Bash(cat .env)",
+      "Bash(cat .env.local)",
+      "Bash(cat .env.development)",
+      "Bash(python3 -c ' *)",
+      "Bash(powershell -NoProfile -Command 'Get-Process -Name php,node -ErrorAction SilentlyContinue | Where-Object {$_.StartTime -gt \\(Get-Date\\).AddMinutes\\(-15\\)} | Select-Object Id,ProcessName,StartTime')",
+      "Bash(taskkill //PID 1384 //F)",
+      "Bash(taskkill //PID 21524 //F)"
     ]
   }
 }

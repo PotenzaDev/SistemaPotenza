@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import axios from 'axios'
 import { X, Eye, EyeOff } from 'lucide-react'
 import { createUsuarioSistema, updateUsuarioSistema, type UsuarioSistema } from '@/api/usuarios'
-import { MODULOS_SISTEMA } from '@/lib/modulos'
+import { getRotinas, type Rotina } from '@/api/rotinas'
+import { getIcon } from '@/lib/iconRegistry'
 
 interface Props {
   open: boolean
@@ -16,7 +17,7 @@ interface FormState {
   email: string
   password: string
   role: 'admin' | 'funcionario'
-  modulos_permitidos: string[]
+  rotina_ids: number[]
   ativo: boolean
 }
 
@@ -25,18 +26,18 @@ const EMPTY: FormState = {
   email: '',
   password: '',
   role: 'funcionario',
-  modulos_permitidos: [],
+  rotina_ids: [],
   ativo: true,
 }
 
 function fromUsuario(u: UsuarioSistema): FormState {
   return {
-    name:               u.name,
-    email:              u.email,
-    password:           '',
-    role:               u.role === 'admin' ? 'admin' : 'funcionario',
-    modulos_permitidos: u.modulos_permitidos ?? [],
-    ativo:              u.ativo ?? true,
+    name:       u.name,
+    email:      u.email,
+    password:   '',
+    role:       u.role === 'admin' ? 'admin' : 'funcionario',
+    rotina_ids: u.rotinas?.map((r) => r.id) ?? [],
+    ativo:      u.ativo ?? true,
   }
 }
 
@@ -44,28 +45,41 @@ export function UsuarioSistemaFormModal({ open, onClose, onSuccess, initialData 
   const isEdit = !!initialData
 
   const [form, setForm]         = useState<FormState>(EMPTY)
+  const [rotinas, setRotinas]   = useState<Rotina[]>([])
   const [showPass, setShowPass] = useState(false)
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState<string | null>(null)
+
+  const loadRotinas = useCallback((signal?: AbortSignal) => {
+    getRotinas(signal)
+      .then(setRotinas)
+      .catch((err: unknown) => {
+        if (!axios.isCancel(err)) setRotinas([])
+      })
+  }, [])
 
   useEffect(() => {
     if (!open) return
     setForm(initialData ? fromUsuario(initialData) : EMPTY)
     setShowPass(false)
     setError(null)
-  }, [open, initialData])
+
+    const controller = new AbortController()
+    loadRotinas(controller.signal)
+    return () => controller.abort()
+  }, [open, initialData, loadRotinas])
 
   function handleField(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const { name, value } = e.target
     setForm(prev => ({ ...prev, [name]: value }))
   }
 
-  function toggleModulo(modulo: string) {
+  function toggleRotina(id: number) {
     setForm(prev => ({
       ...prev,
-      modulos_permitidos: prev.modulos_permitidos.includes(modulo)
-        ? prev.modulos_permitidos.filter(m => m !== modulo)
-        : [...prev.modulos_permitidos, modulo],
+      rotina_ids: prev.rotina_ids.includes(id)
+        ? prev.rotina_ids.filter(r => r !== id)
+        : [...prev.rotina_ids, id],
     }))
   }
 
@@ -88,20 +102,20 @@ export function UsuarioSistemaFormModal({ open, onClose, onSuccess, initialData 
     try {
       if (isEdit && initialData) {
         await updateUsuarioSistema(initialData.id, {
-          name:                form.name.trim(),
-          email:               form.email.trim(),
-          password:            form.password || undefined,
-          role:                form.role,
-          modulos_permitidos:  form.role === 'funcionario' ? form.modulos_permitidos : undefined,
-          ativo:               form.ativo,
+          name:       form.name.trim(),
+          email:      form.email.trim(),
+          password:   form.password || undefined,
+          role:       form.role,
+          rotina_ids: form.role === 'funcionario' ? form.rotina_ids : undefined,
+          ativo:      form.ativo,
         })
       } else {
         await createUsuarioSistema({
-          name:                form.name.trim(),
-          email:               form.email.trim(),
-          password:            form.password,
-          role:                form.role,
-          modulos_permitidos:  form.role === 'funcionario' ? form.modulos_permitidos : undefined,
+          name:       form.name.trim(),
+          email:      form.email.trim(),
+          password:   form.password,
+          role:       form.role,
+          rotina_ids: form.role === 'funcionario' ? form.rotina_ids : undefined,
         })
       }
       onSuccess()
@@ -218,27 +232,48 @@ export function UsuarioSistemaFormModal({ open, onClose, onSuccess, initialData 
             </select>
           </div>
 
-          {/* módulos — só para funcionário */}
+          {/* rotinas — só para funcionário */}
           {form.role === 'funcionario' && (
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                Módulos liberados
+                Rotinas liberadas
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                {MODULOS_SISTEMA.map(m => (
-                  <label
-                    key={m.value}
-                    className="flex items-center gap-2 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-slate-300 cursor-pointer hover:bg-white/[0.07] transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={form.modulos_permitidos.includes(m.value)}
-                      onChange={() => toggleModulo(m.value)}
-                      className="accent-[#00aa84]"
-                    />
-                    {m.label}
-                  </label>
-                ))}
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {rotinas.map((rotina) => {
+                  const Icon = getIcon(rotina.icone)
+                  return (
+                    <div key={rotina.id} className="space-y-1.5">
+                      <label className="flex items-center gap-2 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-slate-300 cursor-pointer hover:bg-white/[0.07] transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={form.rotina_ids.includes(rotina.id)}
+                          onChange={() => toggleRotina(rotina.id)}
+                          className="accent-[#00aa84]"
+                        />
+                        <Icon className="w-4 h-4 shrink-0" />
+                        {rotina.nome}
+                      </label>
+                      {(rotina.filhos ?? []).map((filho) => {
+                        const FilhoIcon = getIcon(filho.icone)
+                        return (
+                          <label
+                            key={filho.id}
+                            className="flex items-center gap-2 ml-6 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-slate-300 cursor-pointer hover:bg-white/[0.07] transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={form.rotina_ids.includes(filho.id)}
+                              onChange={() => toggleRotina(filho.id)}
+                              className="accent-[#00aa84]"
+                            />
+                            <FilhoIcon className="w-4 h-4 shrink-0" />
+                            {filho.nome}
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

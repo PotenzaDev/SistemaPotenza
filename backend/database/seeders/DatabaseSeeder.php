@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             EtapaFluxoSeeder::class,
             UserSeeder::class,
+            RotinaSeeder::class,
         ]);
     }
 }

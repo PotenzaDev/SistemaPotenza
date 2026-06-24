@@ -8,7 +8,7 @@ export interface CreateUsuarioSistemaPayload {
   email: string
   password: string
   role: 'admin' | 'funcionario'
-  modulos_permitidos?: string[]
+  rotina_ids?: number[]
 }
 
 export interface UpdateUsuarioSistemaPayload {
@@ -16,7 +16,7 @@ export interface UpdateUsuarioSistemaPayload {
   email?: string
   password?: string
   role?: 'admin' | 'funcionario'
-  modulos_permitidos?: string[]
+  rotina_ids?: number[]
   ativo?: boolean
 }
 
