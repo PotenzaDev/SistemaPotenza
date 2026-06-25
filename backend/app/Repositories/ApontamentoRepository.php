@@ -122,6 +122,10 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
                 ->where('maquina_id', $maquinaId)
                 ->where('operario_id', $operarioId)
                 ->whereNotNull('fim')
+                // Sessões pausadas manualmente ficam fora: só são retomadas
+                // por escolha explícita do operário (sessao_pausada_id),
+                // nunca reatribuídas automaticamente para uma sessão nova.
+                ->where('status', '!=', SessaoTrabalho::STATUS_PAUSADA)
             )
             ->whereHas('pausas', fn ($q) => $q->whereNull('fim'))
             ->with(self::EAGER)

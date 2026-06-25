@@ -58,6 +58,21 @@ class FichaTecnicaService implements FichaTecnicaServiceInterface
             : null;
     }
 
+    public function contarFichasLote(string $ordemLote, string $codPeca): int
+    {
+        $ordemLote = ltrim($ordemLote, '0') ?: '0';
+
+        $result = DB::selectOne(
+            'SELECT COUNT(*) as total FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
+             WHERE CodiSemiAcabado = ? AND Lote = ?',
+            [$codPeca, $ordemLote]
+        );
+
+        $total = (int) (((array) $result)['total'] ?? 0);
+
+        return max(1, $total);
+    }
+
     private function mapear(array $row, int $qtdeTotal): array
     {
         return [

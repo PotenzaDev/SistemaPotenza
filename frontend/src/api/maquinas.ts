@@ -16,7 +16,8 @@ export interface Maquina {
   foto_url: string | null
   etapa_fluxo_id: number
   etapa_fluxo: EtapaFluxo | null
-  tem_pendencia?: boolean
+  tem_sessao_interrompida?: boolean
+  tem_sessoes_pausadas?: boolean
 }
 
 export async function getMaquinas(signal?: AbortSignal): Promise<Maquina[]> {

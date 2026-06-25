@@ -37,7 +37,7 @@ class UsuarioSistemaControllerTest extends TestCase
             ->postJson('/api/usuarios', [
                 'name'       => 'Func Teste',
                 'email'      => 'func.teste@example.com',
-                'password'   => 'senha123',
+                'password'   => 'Senha1234',
                 'role'       => 'funcionario',
                 'rotina_ids' => [$dashboard->id, $relatorios->id],
             ]);
@@ -65,7 +65,7 @@ class UsuarioSistemaControllerTest extends TestCase
             ->postJson('/api/usuarios', [
                 'name'     => 'Admin Teste',
                 'email'    => 'admin.teste@example.com',
-                'password' => 'senha123',
+                'password' => 'Senha1234',
                 'role'     => 'admin',
             ]);
 

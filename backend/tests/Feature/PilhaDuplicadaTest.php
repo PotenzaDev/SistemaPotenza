@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Apontamento;
 use App\Models\EtapaFluxo;
+use App\Models\FichaApontamento;
 use App\Models\Maquina;
 use App\Models\Operario;
 use App\Models\SessaoTrabalho;
@@ -19,7 +20,7 @@ class PilhaDuplicadaTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_nao_pode_bipar_mesma_pilha_na_mesma_etapa(): void
+    public function test_bloqueia_segunda_bipagem_quando_bridge_retorna_1_ficha(): void
     {
         $this->app->bind(LoteServiceInterface::class, MockLoteService::class);
 
@@ -31,29 +32,35 @@ class PilhaDuplicadaTest extends TestCase
             'operario_id' => $operario->id,
             'maquina_id'  => $maquina->id,
         ]);
-
-        Apontamento::factory()->finalizado(33)->create([
+        $apontamento = Apontamento::factory()->emProducao()->create([
             'sessao_trabalho_id' => $sessao->id,
             'etapa_fluxo_id'     => $etapa->id,
             'cod_peca'           => '4501940',
             'ordem_lote'         => '06854',
-            'pilha'              => 1,
+            'producao_inicio'    => now(),
+        ]);
+
+        FichaApontamento::create([
+            'apontamento_id' => $apontamento->id,
+            'cod_peca'       => '4501940',
+            'pilha'          => 1,
+            'qtd_peca'       => 50,
+            'bipada_at'      => now(),
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->postJson('/api/apontamento/bipar', [
+            ->postJson("/api/apontamento/{$apontamento->id}/bipar-ficha", [
                 'cod_peca'   => '4501940',
                 'ordem_lote' => '06854',
-                'qtd_peca'   => 33,
+                'qtd_peca'   => 50,
                 'pilha'      => 1,
             ])
-            ->assertStatus(422)
-            ->assertJsonPath('success', false);
+            ->assertStatus(422);
     }
 
-    public function test_pilhas_diferentes_do_mesmo_lote_podem_ser_bipadas(): void
+    public function test_permite_segunda_bipagem_quando_bridge_retorna_2_fichas(): void
     {
-        $this->app->bind(LoteServiceInterface::class, MockLoteService::class);
+        $this->app->instance(LoteServiceInterface::class, MockLoteService::com(2));
 
         $etapa    = EtapaFluxo::factory()->create(['ativa' => true]);
         $maquina  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
@@ -63,23 +70,76 @@ class PilhaDuplicadaTest extends TestCase
             'operario_id' => $operario->id,
             'maquina_id'  => $maquina->id,
         ]);
-
-        Apontamento::factory()->finalizado(33)->create([
+        $apontamento = Apontamento::factory()->emProducao()->create([
             'sessao_trabalho_id' => $sessao->id,
             'etapa_fluxo_id'     => $etapa->id,
             'cod_peca'           => '4501940',
             'ordem_lote'         => '06854',
-            'pilha'              => 2,
+            'producao_inicio'    => now(),
+        ]);
+
+        FichaApontamento::create([
+            'apontamento_id' => $apontamento->id,
+            'cod_peca'       => '4501940',
+            'pilha'          => 1,
+            'qtd_peca'       => 50,
+            'bipada_at'      => now(),
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->postJson('/api/apontamento/bipar', [
+            ->postJson("/api/apontamento/{$apontamento->id}/bipar-ficha", [
                 'cod_peca'   => '4501940',
                 'ordem_lote' => '06854',
-                'qtd_peca'   => 33,
+                'qtd_peca'   => 50,
                 'pilha'      => 1,
             ])
-            ->assertStatus(201)
+            ->assertStatus(200)
             ->assertJsonPath('success', true);
+    }
+
+    public function test_bloqueia_terceira_bipagem_quando_bridge_retorna_2_fichas(): void
+    {
+        $this->app->instance(LoteServiceInterface::class, MockLoteService::com(2));
+
+        $etapa    = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+        $user     = User::factory()->operario()->create();
+        $operario = Operario::factory()->create(['user_id' => $user->id]);
+        $sessao   = SessaoTrabalho::factory()->create([
+            'operario_id' => $operario->id,
+            'maquina_id'  => $maquina->id,
+        ]);
+        $apontamento = Apontamento::factory()->emProducao()->create([
+            'sessao_trabalho_id' => $sessao->id,
+            'etapa_fluxo_id'     => $etapa->id,
+            'cod_peca'           => '4501940',
+            'ordem_lote'         => '06854',
+            'producao_inicio'    => now(),
+        ]);
+
+        FichaApontamento::create([
+            'apontamento_id' => $apontamento->id,
+            'cod_peca'       => '4501940',
+            'pilha'          => 1,
+            'qtd_peca'       => 50,
+            'bipada_at'      => now(),
+        ]);
+
+        FichaApontamento::create([
+            'apontamento_id' => $apontamento->id,
+            'cod_peca'       => '4501940',
+            'pilha'          => 1,
+            'qtd_peca'       => 50,
+            'bipada_at'      => now(),
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/apontamento/{$apontamento->id}/bipar-ficha", [
+                'cod_peca'   => '4501940',
+                'ordem_lote' => '06854',
+                'qtd_peca'   => 50,
+                'pilha'      => 1,
+            ])
+            ->assertStatus(422);
     }
 }

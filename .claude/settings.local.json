@@ -26,7 +26,10 @@
       "Bash(powershell -NoProfile -Command 'Get-Process -Name php,node -ErrorAction SilentlyContinue | Where-Object {$_.StartTime -gt \\(Get-Date\\).AddMinutes\\(-15\\)} | Select-Object Id,ProcessName,StartTime')",
       "Bash(taskkill //PID 1384 //F)",
       "Bash(taskkill //PID 21524 //F)",
-      "Bash(php -m)"
+      "Bash(php -m)",
+      "Bash(git rm *)",
+      "Bash(php *)",
+      "Bash(xargs ls)"
     ]
   }
 }

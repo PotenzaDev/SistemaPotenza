@@ -16,22 +16,30 @@ class ActivityLogController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $filtros = $request->validate([
+            'from'     => ['nullable', 'date_format:Y-m-d'],
+            'to'       => ['nullable', 'date_format:Y-m-d'],
+            'user_id'  => ['nullable', 'integer', 'exists:users,id'],
+            'action'   => ['nullable', 'string', 'max:255'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
         $query = ActivityLog::orderByDesc('created_at');
 
-        if ($request->filled('from')) {
-            $query->whereDate('created_at', '>=', $request->query('from'));
+        if (! empty($filtros['from'])) {
+            $query->whereDate('created_at', '>=', $filtros['from']);
         }
-        if ($request->filled('to')) {
-            $query->whereDate('created_at', '<=', $request->query('to'));
+        if (! empty($filtros['to'])) {
+            $query->whereDate('created_at', '<=', $filtros['to']);
         }
-        if ($request->filled('user_id')) {
-            $query->where('user_id', $request->query('user_id'));
+        if (! empty($filtros['user_id'])) {
+            $query->where('user_id', $filtros['user_id']);
         }
-        if ($request->filled('action')) {
-            $query->where('action', $request->query('action'));
+        if (! empty($filtros['action'])) {
+            $query->where('action', $filtros['action']);
         }
 
-        $logs = $query->paginate((int) $request->query('per_page', '50'));
+        $logs = $query->paginate($filtros['per_page'] ?? 50);
 
         return $this->successResponse($logs);
     }

@@ -20,11 +20,8 @@ class ApontamentoFactory extends Factory
             'etapa_fluxo_id'     => EtapaFluxo::factory(),
             'cod_peca'           => fake()->numerify('#######'),
             'ordem_lote'         => fake()->numerify('#####'),
-            'qtd_peca'           => fake()->numberBetween(1, 200),
-            'pilha'              => 1,
             'desc_peca'          => fake()->words(3, true),
             'cod_produto'        => 'PROD-' . fake()->numerify('####'),
-            'qtd_produzida'      => null,
             'status'             => 'em_setup',
         ];
     }
@@ -34,11 +31,8 @@ class ApontamentoFactory extends Factory
         return $this->state(fn (array $attributes) => ['status' => 'em_producao']);
     }
 
-    public function finalizado(int $qtdProduzida = 33): static
+    public function finalizado(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'status'        => 'finalizado',
-            'qtd_produzida' => $qtdProduzida,
-        ]);
+        return $this->state(fn (array $attributes) => ['status' => 'finalizado']);
     }
 }

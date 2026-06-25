@@ -8,8 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Sessao\IniciarSessaoRequest;
 use App\Http\Resources\SessaoTrabalhoResource;
 use App\Http\Traits\ApiResponseTrait;
-use App\Models\Apontamento;
 use App\Models\Maquina;
+use App\Models\SessaoTrabalho;
 use App\Models\Turno;
 use App\Services\SessaoTrabalhoService;
 use Carbon\Carbon;
@@ -27,23 +27,23 @@ class SessaoTrabalhoController extends Controller
     public function disponiveis(Request $request): JsonResponse
     {
         $operario = $request->user()->operario;
+        $desde    = Carbon::now()->subDays(3);
 
-        $maquinasComPendencia = Apontamento::whereIn('status', [
-            Apontamento::STATUS_EM_PAUSA_SETUP,
-            Apontamento::STATUS_EM_PAUSA_PRODUCAO,
-        ])
-            ->where('created_at', '>=', Carbon::now()->subDays(3))
-            ->whereHas('sessaoTrabalho', fn ($q) => $q
-                ->where('operario_id', $operario->id)
-                ->whereNotNull('fim')
-            )
-            ->whereHas('pausas', fn ($q) => $q->whereNull('fim'))
-            ->with('sessaoTrabalho:id,maquina_id')
-            ->get()
-            ->pluck('sessaoTrabalho.maquina_id')
-            ->unique()
-            ->flip()
-            ->toArray();
+        $maquinasPorStatus = function (string $status) use ($operario, $desde) {
+            return SessaoTrabalho::where('operario_id', $operario->id)
+                ->where('status', $status)
+                ->where('fim', '>=', $desde)
+                ->pluck('maquina_id')
+                ->unique()
+                ->flip()
+                ->toArray();
+        };
+
+        // Fim de turno: continua sendo retomada automaticamente ao iniciar.
+        $maquinasComInterrompida = $maquinasPorStatus(SessaoTrabalho::STATUS_INTERROMPIDA_TURNO);
+
+        // Pausa manual: ao iniciar, o operário escolhe entre retomar ou começar uma sessão nova.
+        $maquinasComPausada = $maquinasPorStatus(SessaoTrabalho::STATUS_PAUSADA);
 
         $maquinas = Maquina::where('ativa', true)
             ->when(
@@ -54,7 +54,8 @@ class SessaoTrabalhoController extends Controller
             ->orderBy('nome')
             ->get()
             ->map(fn ($maquina) => array_merge($maquina->toArray(), [
-                'tem_pendencia' => array_key_exists($maquina->id, $maquinasComPendencia),
+                'tem_sessao_interrompida' => array_key_exists($maquina->id, $maquinasComInterrompida),
+                'tem_sessoes_pausadas'    => array_key_exists($maquina->id, $maquinasComPausada),
             ]));
 
         return $this->successResponse($maquinas, 'Máquinas disponíveis.');
@@ -63,7 +64,13 @@ class SessaoTrabalhoController extends Controller
     public function iniciar(IniciarSessaoRequest $request): JsonResponse
     {
         $operario = $request->user()->operario;
-        $sessao   = $this->sessaoService->iniciar($operario, $request->validated()['maquina_id']);
+        $dados    = $request->validated();
+
+        $sessao = $this->sessaoService->iniciar(
+            $operario,
+            $dados['maquina_id'],
+            $dados['sessao_pausada_id'] ?? null,
+        );
 
         return $this->successResponse(
             new SessaoTrabalhoResource($sessao),
@@ -72,11 +79,31 @@ class SessaoTrabalhoController extends Controller
         );
     }
 
+    public function pausadas(Request $request): JsonResponse
+    {
+        $operario = $request->user()->operario;
+
+        $maquinaId = (int) $request->validate([
+            'maquina_id' => ['required', 'integer', 'exists:maquinas,id'],
+        ])['maquina_id'];
+
+        $sessoes = $this->sessaoService->listarSessoesPausadas($operario, $maquinaId);
+
+        return $this->successResponse($sessoes, 'Sessões pausadas.');
+    }
+
     public function encerrar(Request $request): JsonResponse
     {
         $this->sessaoService->encerrar($request->user()->operario);
 
         return $this->successResponse(null, 'Sessão encerrada com sucesso.');
+    }
+
+    public function pausar(Request $request): JsonResponse
+    {
+        $sessao = $this->sessaoService->pausar($request->user()->operario);
+
+        return $this->successResponse(new SessaoTrabalhoResource($sessao), 'Sessão pausada com sucesso.');
     }
 
     public function encerrarTurno(Request $request): JsonResponse

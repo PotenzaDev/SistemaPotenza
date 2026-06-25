@@ -19,8 +19,15 @@ interface FichaApontamentoRepositoryInterface
     /** Verifica se a pilha já foi bipada em qualquer apontamento do mesmo lote/peça/etapa. */
     public function pilhaJaBipada(string $ordemLote, string $codPeca, int $etapaFluxoId, int $pilha): bool;
 
-    /** Conta quantas pilhas distintas já foram bipadas para o lote nesta etapa. */
+    /** Conta quantas fichas (total, não distintas) já foram bipadas para o lote nesta etapa. */
     public function contarPilhasBipadasDoLote(string $ordemLote, string $codPeca, int $etapaFluxoId): int;
+
+    /**
+     * Conta quantas vezes uma pilha específica foi bipada em qualquer apontamento
+     * do mesmo lote/peça/etapa. Usado para comparar contra o total de fichas
+     * permitidas para essa pilha (retornado pela bridge).
+     */
+    public function contarVezesPilhaBipada(string $ordemLote, string $codPeca, int $etapaFluxoId, int $pilha): int;
 
     public function atualizarQtdProduzida(int $fichaId, int $qtdProduzida): FichaApontamento;
 

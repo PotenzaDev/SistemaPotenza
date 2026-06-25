@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { Loader2, MonitorSmartphone, ImageIcon, RotateCcw } from 'lucide-react'
 import { getMaquinasDisponiveis, type Maquina } from '@/api/maquinas'
-import { iniciarSessao, getSessaoAtiva } from '@/api/sessao'
+import { iniciarSessao, getSessaoAtiva, getSessoesPausadas, type SessaoPausada } from '@/api/sessao'
 import { ConfirmarMaquinaModal } from '@/components/ConfirmarMaquinaModal'
+import { EscolherSessaoModal } from '@/components/EscolherSessaoModal'
 import { useAuth } from '@/hooks/useAuth'
 
 export function MaquinasDisponiveisPage() {
@@ -16,6 +17,12 @@ export function MaquinasDisponiveisPage() {
 
   const [selecionada, setSelecionada]   = useState<Maquina | null>(null)
   const [confirmando, setConfirmando]   = useState(false)
+
+  const [escolhendo, setEscolhendo]                 = useState<Maquina | null>(null)
+  const [sessoesPausadas, setSessoesPausadas]       = useState<SessaoPausada[]>([])
+  const [carregandoPausadas, setCarregandoPausadas] = useState(false)
+  const [retomandoId, setRetomandoId]               = useState<number | null>(null)
+  const [iniciandoNova, setIniciandoNova]           = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -54,6 +61,51 @@ export function MaquinasDisponiveisPage() {
       navigate('/operario/apontamento')
     } catch {
       setConfirmando(false)
+    }
+  }
+
+  async function handleSelecionarMaquina(maquina: Maquina) {
+    if (!maquina.tem_sessoes_pausadas) {
+      setSelecionada(maquina)
+      return
+    }
+
+    setEscolhendo(maquina)
+    setCarregandoPausadas(true)
+    try {
+      setSessoesPausadas(await getSessoesPausadas(maquina.id))
+    } catch {
+      setSessoesPausadas([])
+    } finally {
+      setCarregandoPausadas(false)
+    }
+  }
+
+  function handleFecharEscolha() {
+    if (retomandoId !== null || iniciandoNova) return
+    setEscolhendo(null)
+    setSessoesPausadas([])
+  }
+
+  async function handleRetomar(sessaoPausadaId: number) {
+    if (!escolhendo) return
+    setRetomandoId(sessaoPausadaId)
+    try {
+      await iniciarSessao(escolhendo.id, sessaoPausadaId)
+      navigate('/operario/apontamento')
+    } catch {
+      setRetomandoId(null)
+    }
+  }
+
+  async function handleIniciarNovaNaEscolha() {
+    if (!escolhendo) return
+    setIniciandoNova(true)
+    try {
+      await iniciarSessao(escolhendo.id)
+      navigate('/operario/apontamento')
+    } catch {
+      setIniciandoNova(false)
     }
   }
 
@@ -98,7 +150,7 @@ export function MaquinasDisponiveisPage() {
       {!loading && !error && maquinas.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {maquinas.map(maquina => (
-            <MaquinaCard key={maquina.id} maquina={maquina} onClick={() => setSelecionada(maquina)} />
+            <MaquinaCard key={maquina.id} maquina={maquina} onClick={() => handleSelecionarMaquina(maquina)} />
           ))}
         </div>
       )}
@@ -106,16 +158,27 @@ export function MaquinasDisponiveisPage() {
       <ConfirmarMaquinaModal
         maquina={selecionada}
         loading={confirmando}
-        pendencia={selecionada?.tem_pendencia ?? false}
+        pendencia={selecionada?.tem_sessao_interrompida ?? false}
         onClose={() => { if (!confirmando) setSelecionada(null) }}
         onConfirm={handleConfirmar}
+      />
+
+      <EscolherSessaoModal
+        maquina={escolhendo}
+        sessoesPausadas={sessoesPausadas}
+        carregando={carregandoPausadas}
+        retomandoId={retomandoId}
+        iniciandoNova={iniciandoNova}
+        onClose={handleFecharEscolha}
+        onRetomar={handleRetomar}
+        onIniciarNova={handleIniciarNovaNaEscolha}
       />
     </div>
   )
 }
 
 function MaquinaCard({ maquina, onClick }: { maquina: Maquina; onClick: () => void }) {
-  const temPendencia = maquina.tem_pendencia === true
+  const temPendencia = maquina.tem_sessao_interrompida === true || maquina.tem_sessoes_pausadas === true
 
   return (
     <button

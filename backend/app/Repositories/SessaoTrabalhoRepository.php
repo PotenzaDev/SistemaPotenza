@@ -9,6 +9,7 @@ use App\Models\Operario;
 use App\Models\SessaoTrabalho;
 use App\Repositories\Contracts\SessaoTrabalhoRepositoryInterface;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 class SessaoTrabalhoRepository implements SessaoTrabalhoRepositoryInterface
 {
@@ -67,6 +68,39 @@ class SessaoTrabalhoRepository implements SessaoTrabalhoRepositoryInterface
         $sessao->update(['fim' => null, 'status' => SessaoTrabalho::STATUS_ATIVA]);
 
         $this->registrarEvento($sessao->id, EventoSessao::TIPO_INICIO_TURNO);
+
+        return $sessao->fresh();
+    }
+
+    public function pausarSessao(SessaoTrabalho $sessao): SessaoTrabalho
+    {
+        $sessao->update(['fim' => Carbon::now(), 'status' => SessaoTrabalho::STATUS_PAUSADA]);
+
+        $this->registrarEvento($sessao->id, EventoSessao::TIPO_PAUSA_SESSAO);
+
+        return $sessao->fresh();
+    }
+
+    public function listarSessoesPausadas(int $operarioId, int $maquinaId): Collection
+    {
+        return SessaoTrabalho::where('operario_id', $operarioId)
+            ->where('maquina_id', $maquinaId)
+            ->where('status', SessaoTrabalho::STATUS_PAUSADA)
+            ->with('apontamentoPausado')
+            ->orderByDesc('fim')
+            ->get();
+    }
+
+    public function buscarSessaoPausadaPorId(int $id): ?SessaoTrabalho
+    {
+        return SessaoTrabalho::where('status', SessaoTrabalho::STATUS_PAUSADA)->find($id);
+    }
+
+    public function reabrirSessaoPausada(SessaoTrabalho $sessao): SessaoTrabalho
+    {
+        $sessao->update(['fim' => null, 'status' => SessaoTrabalho::STATUS_ATIVA]);
+
+        $this->registrarEvento($sessao->id, EventoSessao::TIPO_RETOMADA_SESSAO);
 
         return $sessao->fresh();
     }

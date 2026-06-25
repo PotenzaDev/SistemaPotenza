@@ -48,6 +48,23 @@ class LoteService implements LoteServiceInterface
         return $response->json('ftec_peca_pilha');
     }
 
+    public function contarFichasLote(string $ordemLote, string $codPeca): int
+    {
+        $ordemLote = ltrim($ordemLote, '0') ?: '0';
+
+        $response = $this->get('ficha-tecnica/count-fichas', [
+            'lote'     => $ordemLote,
+            'cod_peca' => $codPeca,
+        ]);
+
+        if ($response->failed()) {
+            // fallback seguro: assume 1 ficha (comportamento original)
+            return 1;
+        }
+
+        return max(1, (int) $response->json('total'));
+    }
+
     private function get(string $uri, array $query): Response
     {
         $url = (string) config('services.bridge.url');

@@ -22,11 +22,13 @@ class EventoSessao extends Model
         'ocorrido_em' => 'datetime',
     ];
 
-    public const TIPO_INICIO       = 'inicio';
-    public const TIPO_RETOMADA     = 'retomada';
-    public const TIPO_PAUSA        = 'pausa';
-    public const TIPO_INICIO_TURNO = 'inicio_turno';
-    public const TIPO_FIM_TURNO    = 'fim_turno';
+    public const TIPO_INICIO          = 'inicio';
+    public const TIPO_RETOMADA        = 'retomada';
+    public const TIPO_PAUSA           = 'pausa';
+    public const TIPO_INICIO_TURNO    = 'inicio_turno';
+    public const TIPO_FIM_TURNO       = 'fim_turno';
+    public const TIPO_PAUSA_SESSAO    = 'pausa_sessao';
+    public const TIPO_RETOMADA_SESSAO = 'retomada_sessao';
 
     public function sessaoTrabalho(): BelongsTo
     {

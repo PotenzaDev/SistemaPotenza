@@ -77,8 +77,8 @@ class AuthService
             if (! Hash::check($currentPassword ?? '', $user->password)) {
                 throw new BusinessException('Senha atual incorreta.', 422);
             }
-            if (strlen($newPassword) < 6) {
-                throw new BusinessException('A nova senha deve ter pelo menos 6 caracteres.', 422);
+            if (strlen($newPassword) < 8) {
+                throw new BusinessException('A nova senha deve ter pelo menos 8 caracteres.', 422);
             }
             $updates['password'] = Hash::make($newPassword);
         }

@@ -94,12 +94,13 @@ class ApontamentoService
             throw new BusinessException('Setup não iniciado ou já finalizado.', 422);
         }
 
-        $fim     = Carbon::now();
-        $duracao = $this->duracaoLiquida($apontamento, 'setup', $fim);
+        $fim           = Carbon::now();
+        $duracaoJanela = $this->duracaoLiquida($apontamento, 'setup', $fim);
+        $duracaoTotal  = (int) $apontamento->setup_duracao_segundos + $duracaoJanela;
 
         $apontamento->update([
             'setup_fim'              => $fim,
-            'setup_duracao_segundos' => $duracao,
+            'setup_duracao_segundos' => $duracaoTotal,
             'status'                 => Apontamento::STATUS_AGUARDANDO_PRODUCAO,
         ]);
 
@@ -137,13 +138,22 @@ class ApontamentoService
 
         $pilha = (int) $dados['pilha'];
 
-        if ($this->fichaRepo->pilhaJaBipada(
+        $vezesBipadas     = $this->fichaRepo->contarVezesPilhaBipada(
             $apontamento->ordem_lote,
             $apontamento->cod_peca,
             $apontamento->etapa_fluxo_id,
             $pilha,
-        )) {
-            throw new BusinessException("Pilha {$pilha} já foi bipada neste lote.", 422);
+        );
+        $fichasPermitidas = $this->loteService->contarFichasLote(
+            $apontamento->ordem_lote,
+            $apontamento->cod_peca,
+        );
+
+        if ($vezesBipadas >= $fichasPermitidas) {
+            $msg = $fichasPermitidas > 1
+                ? "Pilha {$pilha} já foi bipada {$fichasPermitidas}x (todas as fichas deste lote foram processadas)."
+                : "Pilha {$pilha} já foi bipada neste lote.";
+            throw new BusinessException($msg, 422);
         }
 
         // Marco de tempo compartilhado: fim da ficha anterior = inicio desta
@@ -316,6 +326,47 @@ class ApontamentoService
     }
 
     /**
+     * Retoma um apontamento pausado por pausa de sessão, forçando uma nova
+     * janela de setup antes de continuar — mesmo que estivesse em produção
+     * no momento em que a sessão foi pausada.
+     */
+    public function retomarComNovoSetup(Apontamento $apontamento): Apontamento
+    {
+        $statusValidos = [Apontamento::STATUS_EM_PAUSA_SETUP, Apontamento::STATUS_EM_PAUSA_PRODUCAO];
+
+        if (! in_array($apontamento->status, $statusValidos, true)) {
+            throw new BusinessException('Apontamento não está pausado.', 422);
+        }
+
+        $estavaEmSetup = $apontamento->status === Apontamento::STATUS_EM_PAUSA_SETUP;
+        $pausaAberta   = $apontamento->pausas()->whereNull('fim')->first();
+        $agora         = Carbon::now();
+
+        // A janela de setup interrompida pela pausa de sessão é abandonada, mas o
+        // tempo já trabalhado nela até o início da pausa precisa ser preservado.
+        $duracaoJanelaAnterior = $estavaEmSetup
+            ? $this->duracaoLiquida($apontamento, 'setup', $pausaAberta?->inicio ?? $agora)
+            : 0;
+
+        if ($pausaAberta) {
+            $duracao = (int) $pausaAberta->inicio->diffInSeconds($agora);
+            $pausaAberta->update(['fim' => $agora, 'duracao_segundos' => $duracao]);
+        }
+
+        $totalPausas = (int) $apontamento->pausas()->whereNotNull('fim')->sum('duracao_segundos');
+
+        $apontamento->update([
+            'status'                 => Apontamento::STATUS_EM_SETUP,
+            'setup_inicio'           => $agora,
+            'setup_fim'              => null,
+            'setup_duracao_segundos' => (int) $apontamento->setup_duracao_segundos + $duracaoJanelaAnterior,
+            'total_pausa_segundos'   => $totalPausas,
+        ]);
+
+        return $apontamento->load(['etapaFluxo', 'fichas', 'pausas.motivoPausa']);
+    }
+
+    /**
      * Apontamentos do período/critérios informados — ou de hoje, na ausência
      * de filtros — formatados para a listagem gerencial com operário, máquina,
      * quantidades, tempos e horários de cada fase.
@@ -363,12 +414,21 @@ class ApontamentoService
         ];
     }
 
-    /** Duração líquida = (fim - inicio) menos o total de pausas da fase. */
+    /**
+     * Duração líquida = (fim - inicio) menos o total de pausas da fase
+     * ocorridas dentro da janela atual (inicio >= início da janela).
+     * O filtro por janela evita contar duas vezes pausas de uma janela de
+     * setup anterior quando o apontamento é forçado a uma nova janela
+     * (ver retomarComNovoSetup).
+     */
     private function duracaoLiquida(Apontamento $apontamento, string $fase, Carbon $fim): int
     {
         $inicio = $fase === 'setup' ? $apontamento->setup_inicio : $apontamento->producao_inicio;
         $bruto  = (int) $inicio->diffInSeconds($fim);
-        $pausas = (int) $apontamento->pausas->where('fase', $fase)->sum('duracao_segundos');
+        $pausas = (int) $apontamento->pausas
+            ->where('fase', $fase)
+            ->filter(fn ($pausa) => $pausa->inicio->gte($inicio))
+            ->sum('duracao_segundos');
 
         return max(0, $bruto - $pausas);
     }

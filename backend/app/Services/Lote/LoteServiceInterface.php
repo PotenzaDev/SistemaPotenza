@@ -26,4 +26,12 @@ interface LoteServiceInterface
      * @throws \App\Exceptions\BusinessException quando a API Bridge está indisponível (503).
      */
     public function buscarFtecPecaPilha(string $codPeca): ?int;
+
+    /**
+     * Retorna a quantidade de fichas (linhas) em FbmLoteFichaTecnica
+     * para o CodiSemiAcabado + Lote. Mínimo 1.
+     *
+     * @throws \App\Exceptions\BusinessException quando a API Bridge está indisponível (503).
+     */
+    public function contarFichasLote(string $ordemLote, string $codPeca): int;
 }

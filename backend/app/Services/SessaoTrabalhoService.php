@@ -20,9 +20,10 @@ class SessaoTrabalhoService
     public function __construct(
         private readonly SessaoTrabalhoRepositoryInterface $sessaoRepo,
         private readonly ApontamentoRepositoryInterface    $apontamentoRepo,
+        private readonly ApontamentoService                $apontamentoService,
     ) {}
 
-    public function iniciar(Operario $operario, int $maquinaId): SessaoTrabalho
+    public function iniciar(Operario $operario, int $maquinaId, ?int $sessaoPausadaId = null): SessaoTrabalho
     {
         if (! Turno::doDia(Carbon::now()->dayOfWeekIso)) {
             throw new BusinessException('Nenhum turno configurado para hoje. Não é possível iniciar.', 422);
@@ -32,6 +33,10 @@ class SessaoTrabalhoService
 
         if (! $maquina) {
             throw new BusinessException('Máquina não encontrada ou inativa.', 422);
+        }
+
+        if ($sessaoPausadaId) {
+            return $this->retomarSessaoPausada($operario, $maquinaId, $sessaoPausadaId);
         }
 
         $sessaoInterrompida = $this->sessaoRepo->buscarSessaoInterrompida($operario->id, $maquinaId);
@@ -52,6 +57,47 @@ class SessaoTrabalhoService
         if ($pendente) {
             $this->apontamentoRepo->atualizarSessao($pendente, $sessao->id);
         }
+
+        return $sessao->load(['maquina.etapaFluxo']);
+    }
+
+    /**
+     * Lista as sessões pausadas do operário na máquina informada, mais
+     * recente primeiro, para a tela de escolha (retomar X vs. iniciar nova).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listarSessoesPausadas(Operario $operario, int $maquinaId): array
+    {
+        return $this->sessaoRepo->listarSessoesPausadas($operario->id, $maquinaId)
+            ->map(fn (SessaoTrabalho $sessao) => [
+                'id'         => $sessao->id,
+                'cod_peca'   => $sessao->apontamentoPausado?->cod_peca,
+                'ordem_lote' => $sessao->apontamentoPausado?->ordem_lote,
+                'desc_peca'  => $sessao->apontamentoPausado?->desc_peca,
+                'pausada_em' => $sessao->fim?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Retoma uma sessão pausada específica, escolhida explicitamente pelo
+     * operário (nunca de forma automática/implícita).
+     */
+    private function retomarSessaoPausada(Operario $operario, int $maquinaId, int $sessaoPausadaId): SessaoTrabalho
+    {
+        $sessao = $this->sessaoRepo->buscarSessaoPausadaPorId($sessaoPausadaId);
+
+        if (! $sessao || $sessao->operario_id !== $operario->id || $sessao->maquina_id !== $maquinaId) {
+            throw new BusinessException('Sessão pausada não encontrada ou já encerrada.', 404);
+        }
+
+        $this->sessaoRepo->encerrarSessoesAtivas($operario);
+
+        $sessao = $this->sessaoRepo->reabrirSessaoPausada($sessao);
+
+        $this->forcarRetomadaComNovoSetup($sessao);
 
         return $sessao->load(['maquina.etapaFluxo']);
     }
@@ -97,10 +143,27 @@ class SessaoTrabalhoService
     }
 
     /**
-     * Se há um apontamento em execução (em_setup ou em_producao), cria pausa automática
-     * de "Fim de Turno" para que o tempo ocioso entre turnos não seja contado.
+     * Pausa a sessão ativa do operário: pausa o apontamento em execução (se houver)
+     * com o motivo de sistema "Pausa de Sessão" e marca a sessão como pausada.
      */
-    public function autoPausarApontamentoAtivo(SessaoTrabalho $sessao): void
+    public function pausar(Operario $operario): SessaoTrabalho
+    {
+        $sessao = $this->sessaoRepo->buscarSessaoAtiva($operario);
+
+        if (! $sessao) {
+            throw new BusinessException('Nenhuma sessão ativa encontrada.', 422);
+        }
+
+        $this->autoPausarApontamentoAtivo($sessao, 'Pausa de Sessão');
+
+        return $this->sessaoRepo->pausarSessao($sessao)->load(['maquina.etapaFluxo']);
+    }
+
+    /**
+     * Se há um apontamento em execução (em_setup ou em_producao), cria pausa automática
+     * com o motivo de sistema informado para que o tempo ocioso não seja contado.
+     */
+    public function autoPausarApontamentoAtivo(SessaoTrabalho $sessao, string $nomeMotivo = 'Fim de Turno'): void
     {
         $apontamento = $this->apontamentoRepo->buscarApontamentoAtivo($sessao);
 
@@ -114,7 +177,7 @@ class SessaoTrabalhoService
             return;
         }
 
-        $motivo = MotivoPausa::where('nome', 'Fim de Turno')->where('is_sistema', true)->first();
+        $motivo = MotivoPausa::where('nome', $nomeMotivo)->where('is_sistema', true)->first();
 
         if (! $motivo) {
             return;
@@ -134,5 +197,26 @@ class SessaoTrabalhoService
             : Apontamento::STATUS_EM_PAUSA_PRODUCAO;
 
         $apontamento->update(['status' => $novoStatus]);
+    }
+
+    /**
+     * Após reabrir uma sessão pausada, força o apontamento que estava pausado
+     * de volta para em_setup com uma nova janela de setup.
+     */
+    private function forcarRetomadaComNovoSetup(SessaoTrabalho $sessao): void
+    {
+        $apontamento = $this->apontamentoRepo->buscarApontamentoAtivo($sessao);
+
+        if (! $apontamento) {
+            return;
+        }
+
+        $statusPausados = [Apontamento::STATUS_EM_PAUSA_SETUP, Apontamento::STATUS_EM_PAUSA_PRODUCAO];
+
+        if (! in_array($apontamento->status, $statusPausados, true)) {
+            return;
+        }
+
+        $this->apontamentoService->retomarComNovoSetup($apontamento);
     }
 }

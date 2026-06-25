@@ -15,15 +15,36 @@ export interface Sessao {
   maquina: SessaoMaquina
 }
 
-export async function iniciarSessao(maquinaId: number): Promise<Sessao> {
+export async function iniciarSessao(maquinaId: number, sessaoPausadaId?: number): Promise<Sessao> {
   const res = await apiClient.post<ApiEnvelope<Sessao>>('/sessao/iniciar', {
     maquina_id: maquinaId,
+    sessao_pausada_id: sessaoPausadaId,
+  })
+  return res.data.data
+}
+
+export interface SessaoPausada {
+  id: number
+  cod_peca: string | null
+  ordem_lote: string | null
+  desc_peca: string | null
+  pausada_em: string | null
+}
+
+export async function getSessoesPausadas(maquinaId: number): Promise<SessaoPausada[]> {
+  const res = await apiClient.get<ApiEnvelope<SessaoPausada[]>>('/sessao/pausadas', {
+    params: { maquina_id: maquinaId },
   })
   return res.data.data
 }
 
 export async function encerrarSessao(): Promise<void> {
   await apiClient.post('/sessao/encerrar')
+}
+
+export async function pausarSessao(): Promise<Sessao> {
+  const res = await apiClient.post<ApiEnvelope<Sessao>>('/sessao/pausar')
+  return res.data.data
 }
 
 export async function encerrarTurno(): Promise<void> {

@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import {
   Loader2, LogOut, CheckCircle2, RotateCcw,
   AlertCircle, Cpu, ScanLine, Settings, Play,
-  Timer, PackageCheck, QrCode, Flag,
+  Timer, PackageCheck, QrCode, Flag, Pause,
 } from 'lucide-react'
-import { getSessaoAtiva, getTurnoHoje, encerrarSessao, encerrarTurno, type Sessao, type TurnoHoje } from '@/api/sessao'
+import { getSessaoAtiva, getTurnoHoje, encerrarSessao, encerrarTurno, pausarSessao, type Sessao, type TurnoHoje } from '@/api/sessao'
 import {
   getApontamentoAtivo,
   biparLote,
@@ -45,6 +45,7 @@ export function ApontamentoOperarioPage() {
   const [motivosPausa, setMotivosPausa]     = useState<MotivoPausa[]>([])
   const [loadingInicial, setLoadingInicial] = useState(true)
   const [encerrando, setEncerrando]               = useState(false)
+  const [pausandoSessao, setPausandoSessao]       = useState(false)
   const [finalizandoTurno, setFinalizandoTurno]   = useState(false)
   const [showModalTurno, setShowModalTurno]       = useState(false)
   const [atualizando, setAtualizando]       = useState(false)
@@ -73,6 +74,11 @@ export function ApontamentoOperarioPage() {
   const timerProducao = useTimerLiquido(producaoInicio, pausas, 'producao')
 
   const pausaAtual = useMemo(() => pausas.find(p => p.fim === null), [pausas])
+
+  const retomouAposPausaSessao = useMemo(
+    () => pausas.some(p => p.is_sistema && p.motivo === 'Pausa de Sessão' && p.fim !== null),
+    [pausas]
+  )
 
   useEffect(() => {
     Promise.all([
@@ -139,6 +145,18 @@ export function ApontamentoOperarioPage() {
       navigate('/operario', { replace: true })
     } catch {
       setEncerrando(false)
+    }
+  }
+
+  async function handlePausarSessao() {
+    if (!confirm('Pausar a sessão? O setup em andamento será refeito ao retomar.')) return
+    setPausandoSessao(true)
+    try {
+      await pausarSessao()
+      navigate('/operario', { replace: true })
+    } catch (err) {
+      setErroApi(apiMsg(err))
+      setPausandoSessao(false)
     }
   }
 
@@ -284,7 +302,7 @@ export function ApontamentoOperarioPage() {
   if (!sessao) return null
 
   const podeEncerrar = fase === 'aguardando' || fase === 'concluido'
-  const acoesSessaoDesabilitadas = atualizando || pausando || retomando || encerrando || finalizandoTurno
+  const acoesSessaoDesabilitadas = atualizando || pausando || retomando || encerrando || finalizandoTurno || pausandoSessao
 
   const horarioLiberacao   = turnoHoje ? horarioLiberacaoTurno(turnoHoje) : null
   const podeFinalizarTurno = !horarioLiberacao || now >= horarioLiberacao
@@ -317,6 +335,16 @@ export function ApontamentoOperarioPage() {
           >
             <Flag className="w-3.5 h-3.5" />
             Finalizar Turno
+          </button>
+          <button
+            type="button"
+            onClick={handlePausarSessao}
+            disabled={acoesSessaoDesabilitadas}
+            title="Pausa a sessão; ao retomar, o setup precisará ser refeito"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 bg-white/5 hover:bg-amber-500/10 hover:text-amber-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            {pausandoSessao ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pause className="w-3.5 h-3.5" />}
+            Pausar Sessão
           </button>
           <button
             type="button"
@@ -360,6 +388,14 @@ export function ApontamentoOperarioPage() {
       {/* FASE: em_setup */}
       {fase === 'em_setup' && apontamento && (
         <>
+          {retomouAposPausaSessao && (
+            <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+              <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-400">
+                Sessão foi pausada — refaça o setup antes de continuar.
+              </p>
+            </div>
+          )}
           <FaseTimer
             titulo="Setup em andamento"
             subtitulo="Configure a máquina para iniciar a produção"

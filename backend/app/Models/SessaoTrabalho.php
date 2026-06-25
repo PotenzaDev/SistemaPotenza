@@ -33,6 +33,7 @@ class SessaoTrabalho extends Model
 
     public const STATUS_ATIVA              = 'ativa';
     public const STATUS_INTERROMPIDA_TURNO = 'interrompida_turno';
+    public const STATUS_PAUSADA            = 'pausada';
     public const STATUS_ENCERRADA          = 'encerrada';
 
     public function eventos(): HasMany
@@ -58,6 +59,14 @@ class SessaoTrabalho extends Model
     public function apontamentoAtivo(): HasOne
     {
         return $this->hasOne(Apontamento::class)->whereIn('status', ['em_setup', 'em_producao']);
+    }
+
+    public function apontamentoPausado(): HasOne
+    {
+        return $this->hasOne(Apontamento::class)->whereIn('status', [
+            Apontamento::STATUS_EM_PAUSA_SETUP,
+            Apontamento::STATUS_EM_PAUSA_PRODUCAO,
+        ]);
     }
 
     public function isAtiva(): bool

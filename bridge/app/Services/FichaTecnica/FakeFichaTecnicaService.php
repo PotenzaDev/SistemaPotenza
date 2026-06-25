@@ -46,4 +46,9 @@ class FakeFichaTecnicaService implements FichaTecnicaServiceInterface
     {
         return $codPeca === '0000000' ? null : 50;
     }
+
+    public function contarFichasLote(string $ordemLote, string $codPeca): int
+    {
+        return 1; // comportamento padrão: 1 ficha por pilha
+    }
 }

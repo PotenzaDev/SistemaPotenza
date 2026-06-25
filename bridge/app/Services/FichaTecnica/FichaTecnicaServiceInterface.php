@@ -24,4 +24,11 @@ interface FichaTecnicaServiceInterface
      * do produto. Retorna null se não encontrado.
      */
     public function buscarFtecPecaPilha(string $codPeca): ?int;
+
+    /**
+     * Retorna a quantidade de fichas (linhas) em FbmLoteFichaTecnica
+     * para o CodiSemiAcabado + Lote informados.
+     * Retorna 1 se não encontrado (fallback seguro).
+     */
+    public function contarFichasLote(string $ordemLote, string $codPeca): int;
 }

@@ -20,7 +20,7 @@ use App\Http\Controllers\Api\UsuarioSistemaController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::post('/login-cracha', [AuthController::class, 'loginCracha']);
 
     Route::middleware('auth:sanctum')->group(function () {
@@ -39,6 +39,8 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->g
         Route::post('/iniciar',        [SessaoTrabalhoController::class, 'iniciar']);
         Route::post('/encerrar',       [SessaoTrabalhoController::class, 'encerrar']);
         Route::post('/encerrar-turno', [SessaoTrabalhoController::class, 'encerrarTurno']);
+        Route::post('/pausar',         [SessaoTrabalhoController::class, 'pausar']);
+        Route::get('/pausadas',        [SessaoTrabalhoController::class, 'pausadas']);
         Route::get('/ativa',           [SessaoTrabalhoController::class, 'ativa']);
         Route::get('/turno-hoje',      [SessaoTrabalhoController::class, 'turnoHoje']);
     });

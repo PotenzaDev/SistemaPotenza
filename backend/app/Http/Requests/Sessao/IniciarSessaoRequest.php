@@ -16,7 +16,8 @@ class IniciarSessaoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'maquina_id' => ['required', 'integer', 'exists:maquinas,id'],
+            'maquina_id'         => ['required', 'integer', 'exists:maquinas,id'],
+            'sessao_pausada_id'  => ['nullable', 'integer', 'exists:sessoes_trabalho,id'],
         ];
     }
 
@@ -25,6 +26,7 @@ class IniciarSessaoRequest extends FormRequest
         return [
             'maquina_id.required' => 'O campo máquina é obrigatório.',
             'maquina_id.exists'   => 'Máquina não encontrada.',
+            'sessao_pausada_id.exists' => 'Sessão pausada não encontrada.',
         ];
     }
 }
