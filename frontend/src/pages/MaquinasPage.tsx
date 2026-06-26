@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
-import { Cpu, CheckCircle2, XCircle, Loader2, Plus, ImageIcon, Pencil } from 'lucide-react'
+import { Cpu, CheckCircle2, XCircle, Loader2, Plus, ImageIcon, Pencil, QrCode, X, Download, Printer } from 'lucide-react'
+import QRCode from 'react-qr-code'
 import { getMaquinas, type Maquina } from '@/api/maquinas'
 import { MaquinaFormModal } from '@/components/MaquinaFormModal'
 import { useAuth } from '@/hooks/useAuth'
@@ -23,6 +24,53 @@ export function MaquinasPage() {
   const [editingMaquina, setEditingMaquina] = useState<Maquina | undefined>()
 
   const canCreate = user?.role === 'admin'
+
+  const [qrMaquina, setQrMaquina] = useState<Maquina | null>(null)
+  const qrRef = useRef<HTMLDivElement>(null)
+
+  function openQr(m: Maquina) { setQrMaquina(m) }
+  function closeQr() { setQrMaquina(null) }
+
+  function qrUrl(m: Maquina) {
+    return `${window.location.origin}/solicitar-manutencao/${m.id}`
+  }
+
+  function downloadQr() {
+    if (!qrMaquina || !qrRef.current) return
+    const svg = qrRef.current.querySelector('svg')
+    if (!svg) return
+    const data = new XMLSerializer().serializeToString(svg)
+    const blob = new Blob([data], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `qr-manutencao-${qrMaquina.nome.replace(/\s+/g, '-').toLowerCase()}.svg`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function printQr() {
+    if (!qrMaquina || !qrRef.current) return
+    const svg = qrRef.current.querySelector('svg')
+    if (!svg) return
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(`
+      <html><head><title>QR - ${qrMaquina.nome}</title>
+      <style>body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;background:#fff}
+      h2{margin-bottom:16px;font-size:18px;color:#111}
+      p{margin-top:12px;font-size:12px;color:#555;word-break:break-all;text-align:center;max-width:280px}
+      </style></head>
+      <body>
+        <h2>${qrMaquina.nome}</h2>
+        ${svg.outerHTML}
+        <p>${qrUrl(qrMaquina)}</p>
+      </body></html>
+    `)
+    win.document.close()
+    win.focus()
+    win.print()
+  }
 
   const load = useCallback((signal?: AbortSignal) => {
     setLoading(true)
@@ -141,9 +189,7 @@ export function MaquinasPage() {
                 <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Ano</th>
                 <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Grupo</th>
                 <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                {canCreate && (
-                  <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-16"></th>
-                )}
+                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-20"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -177,23 +223,70 @@ export function MaquinasPage() {
                       </span>
                     )}
                   </td>
-                  {canCreate && (
-                    <td className="px-4 py-3">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
                       <button
-                        onClick={() => openEdit(m)}
-                        title="Editar"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                        onClick={() => openQr(m)}
+                        title="QR Code de manutenção"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <QrCode className="w-4 h-4" />
                       </button>
-                    </td>
-                  )}
+                      {canCreate && (
+                        <button
+                          onClick={() => openEdit(m)}
+                          title="Editar"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* Modal QR Code */}
+      {qrMaquina && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0f1923] border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500 uppercase tracking-wide">QR Code — Manutenção</p>
+                <h2 className="text-white font-semibold mt-0.5">{qrMaquina.nome}</h2>
+              </div>
+              <button onClick={closeQr} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div ref={qrRef} className="bg-white rounded-xl p-4 flex items-center justify-center">
+              <QRCode value={qrUrl(qrMaquina)} size={220} />
+            </div>
+
+            <p className="text-xs text-slate-500 text-center break-all">{qrUrl(qrMaquina)}</p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={downloadQr}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition"
+              >
+                <Download className="w-4 h-4" /> Baixar SVG
+              </button>
+              <button
+                onClick={printQr}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium bg-[#00aa84] hover:bg-[#009973] text-white rounded-xl transition"
+              >
+                <Printer className="w-4 h-4" /> Imprimir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <MaquinaFormModal
         open={modalOpen}

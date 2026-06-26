@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { LogOut, UserCircle, ChevronDown, Loader2 } from 'lucide-react'
+import { LogOut, UserCircle, ChevronDown, Loader2, Bell } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { getMenu, type Rotina } from '@/api/rotinas'
 import { getIcon } from '@/lib/iconRegistry'
+import { getChamadasSuporte } from '@/api/suporte'
 
 interface SidebarProps {
   onClose?: () => void
@@ -14,9 +15,10 @@ export function Sidebar({ onClose }: SidebarProps) {
   const { signOut, user } = useAuth()
   const navigate = useNavigate()
 
-  const [rotinas, setRotinas] = useState<Rotina[]>([])
-  const [loading, setLoading] = useState(true)
+  const [rotinas, setRotinas]           = useState<Rotina[]>([])
+  const [loading, setLoading]           = useState(true)
   const [openParentId, setOpenParentId] = useState<number | null>(null)
+  const [pendentes, setPendentes]       = useState(0)
 
   const load = useCallback((signal?: AbortSignal) => {
     setLoading(true)
@@ -38,6 +40,14 @@ export function Sidebar({ onClose }: SidebarProps) {
     load(controller.signal)
     return () => controller.abort()
   }, [load])
+
+  useEffect(() => {
+    const loadPendentes = () =>
+      getChamadasSuporte().then(r => setPendentes(r.length)).catch(() => {})
+    loadPendentes()
+    const id = setInterval(loadPendentes, 15_000)
+    return () => clearInterval(id)
+  }, [])
 
   function podeAcessarRotina(slug: string): boolean {
     if (user?.role !== 'funcionario') return true
@@ -144,6 +154,27 @@ export function Sidebar({ onClose }: SidebarProps) {
             </div>
           )
         })}
+
+        <NavLink
+          to="/admin/chamadas-suporte"
+          onClick={onClose}
+          className={({ isActive }) =>
+            [
+              'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-orange-500/15 text-orange-400'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white',
+            ].join(' ')
+          }
+        >
+          <Bell className="w-4 h-4 shrink-0" />
+          <span className="flex-1">Suporte</span>
+          {pendentes > 0 && (
+            <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold">
+              {pendentes}
+            </span>
+          )}
+        </NavLink>
 
         <NavLink
           to="/admin/perfil"

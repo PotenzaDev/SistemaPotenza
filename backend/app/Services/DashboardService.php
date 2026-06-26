@@ -55,7 +55,7 @@ class DashboardService
     {
         $maquinas = Maquina::where('ativa', true)
             ->with([
-                'sessaoAtiva.operario',
+                'sessaoAtiva.operario.user',
                 'sessaoAtiva.apontamentos' => fn ($q) => $q
                     ->whereIn('status', [
                         Apontamento::STATUS_EM_SETUP,
@@ -76,7 +76,7 @@ class DashboardService
                 'id'                   => $maquina->id,
                 'nome'                 => $maquina->nome,
                 'status'               => $apontamento?->status ?? 'livre',
-                'operario'             => $sessao?->operario?->nome,
+                'operario'             => $sessao?->operario?->user?->name,
                 'lote'                 => $apontamento?->ordem_lote,
                 'cod_peca'             => $apontamento?->cod_peca,
                 'desc_peca'            => $apontamento?->desc_peca,

@@ -23,6 +23,7 @@ class Maquina extends Model
         'descricao',
         'foto',
         'ativa',
+        'prioridade',
     ];
 
     protected $casts = [
@@ -50,5 +51,10 @@ class Maquina extends Model
     public function sessaoAtiva(): HasOne
     {
         return $this->hasOne(SessaoTrabalho::class)->whereNull('fim');
+    }
+
+    public function ordensManutencao(): HasMany
+    {
+        return $this->hasMany(OrdemManutencao::class);
     }
 }

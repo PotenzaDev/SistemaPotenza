@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Loader2, LogOut, CheckCircle2, RotateCcw,
   AlertCircle, Cpu, ScanLine, Settings, Play,
-  Timer, PackageCheck, QrCode, Flag, Pause,
+  Timer, PackageCheck, QrCode, Flag, Pause, Bell,
 } from 'lucide-react'
 import { getSessaoAtiva, getTurnoHoje, encerrarSessao, encerrarTurno, pausarSessao, type Sessao, type TurnoHoje } from '@/api/sessao'
 import {
@@ -21,6 +21,7 @@ import {
   type FichaApontamento,
 } from '@/api/apontamento'
 import { getMotivosAtivos, type MotivoPausa } from '@/api/motivosPausa'
+import { chamarSuporte } from '@/api/suporte'
 import { FichasRecentes } from '@/components/FichasRecentes'
 import { BarcodeCard } from '@/components/apontamento/BarcodeCard'
 import { BarcodeInline } from '@/components/apontamento/BarcodeInline'
@@ -58,8 +59,13 @@ export function ApontamentoOperarioPage() {
   const [barcode, setBarcode]               = useState('')
   const barcodeRef                          = useRef<HTMLInputElement>(null)
   const [qtdsFichas, setQtdsFichas]         = useState<Record<number, string>>({})
-  const [showConfirmarNovaPassagem, setShowConfirmarNovaPassagem] = useState(false)
-  const [dadosNovaPassagem, setDadosNovaPassagem]                 = useState<{ cod_peca: string; ordem_lote: string } | null>(null)
+  const [showConfirmarNovaPassagem, setShowConfirmarNovaPassagem]       = useState(false)
+  const [dadosNovaPassagem, setDadosNovaPassagem]                       = useState<{ cod_peca: string; ordem_lote: string } | null>(null)
+  const [showConfirmarSegundaPassagem, setShowConfirmarSegundaPassagem] = useState(false)
+  const [showModalSuporte, setShowModalSuporte]                         = useState(false)
+  const [chamandoSuporte, setChamandoSuporte]                           = useState(false)
+  const [suporteCooldown, setSuporteCooldown]                           = useState(false)
+  const [suporteEnviado, setSuporteEnviado]                             = useState(false)
 
   const parsedBarcode = barcode.length === BARCODE_LENGTH ? parseBarcode(barcode) : null
   const barcodeOk     = parsedBarcode !== null
@@ -330,6 +336,22 @@ export function ApontamentoOperarioPage() {
       setErroApi(apiMsg(err))
     } finally {
       setRetomando(false)
+    }
+  }
+
+  async function handleChamarSuporte() {
+    setChamandoSuporte(true)
+    try {
+      await chamarSuporte()
+      setShowModalSuporte(false)
+      setSuporteEnviado(true)
+      setSuporteCooldown(true)
+      setTimeout(() => setSuporteEnviado(false), 4000)
+      setTimeout(() => setSuporteCooldown(false), 60_000)
+    } catch {
+      setShowModalSuporte(false)
+    } finally {
+      setChamandoSuporte(false)
     }
   }
 
@@ -749,7 +771,7 @@ export function ApontamentoOperarioPage() {
             )}
             <button
               type="button"
-              onClick={handleSegundaPassagem}
+              onClick={() => setShowConfirmarSegundaPassagem(true)}
               disabled={atualizando}
               className="w-full py-2.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center justify-center gap-2"
             >
@@ -803,6 +825,67 @@ export function ApontamentoOperarioPage() {
         </div>
       )}
 
+      {/* Botão fixo — chamar suporte (visível em todas as fases exceto concluído) */}
+      {fase !== 'concluido' && (
+        <button
+          type="button"
+          onClick={() => !suporteCooldown && setShowModalSuporte(true)}
+          disabled={suporteCooldown}
+          title={suporteCooldown ? 'Suporte já solicitado. Aguarde 1 minuto.' : 'Chamar suporte'}
+          className={[
+            'fixed bottom-6 right-6 z-50',
+            'flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-medium',
+            'border shadow-lg transition-colors',
+            suporteEnviado
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              : suporteCooldown
+                ? 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
+                : 'bg-orange-500/5 border-orange-500/20 text-orange-400 hover:bg-orange-500/10',
+          ].join(' ')}
+        >
+          {suporteEnviado
+            ? <><CheckCircle2 className="w-3.5 h-3.5" />Suporte chamado</>
+            : <><Bell className="w-3.5 h-3.5" />Suporte</>}
+        </button>
+      )}
+
+      {/* Modal de confirmação — chamar suporte */}
+      {showModalSuporte && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[#0f1923] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-white/5">
+              <Bell className="w-4 h-4 text-orange-400" />
+              <p className="text-sm font-semibold text-white">Chamar suporte?</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Um aviso será enviado ao administrador com o nome desta máquina e o seu nome.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowModalSuporte(false)}
+                  disabled={chamandoSuporte}
+                  className="flex-1 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 text-sm font-medium text-slate-300 transition-all disabled:opacity-40"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleChamarSuporte}
+                  disabled={chamandoSuporte}
+                  className="flex-1 px-4 py-3 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/20 text-sm font-medium text-orange-300 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {chamandoSuporte
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Enviando…</>
+                    : <><Bell className="w-3.5 h-3.5" />Confirmar</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de motivo de pausa */}
       {showModalPausa && (
         <MotivoPausaModal
@@ -811,6 +894,39 @@ export function ApontamentoOperarioPage() {
           onSelect={handlePausar}
           onClose={() => setShowModalPausa(false)}
         />
+      )}
+
+      {/* Modal de confirmação — passar novamente nesta máquina */}
+      {showConfirmarSegundaPassagem && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[#0f1923] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-white/5">
+              <RotateCcw className="w-4 h-4 text-amber-400" />
+              <p className="text-sm font-semibold text-white">Passar novamente</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Deseja iniciar uma nova passagem do mesmo lote nesta máquina?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmarSegundaPassagem(false)}
+                  className="flex-1 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 text-sm font-medium text-slate-300 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => { setShowConfirmarSegundaPassagem(false); handleSegundaPassagem() }}
+                  disabled={atualizando}
+                  className="flex-1 px-4 py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/20 text-sm font-medium text-amber-300 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {atualizando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal de confirmação de nova passagem */}

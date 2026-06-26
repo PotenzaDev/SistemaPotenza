@@ -15,6 +15,10 @@ import { UsuariosSistemaPage }      from '@/pages/UsuariosSistemaPage'
 import { RotinasPage }              from '@/pages/RotinasPage'
 import { MaquinasDisponiveisPage }  from '@/pages/MaquinasDisponiveisPage'
 import { ApontamentoOperarioPage }  from '@/pages/ApontamentoOperarioPage'
+import { ManutencaoPainelPage }        from '@/pages/ManutencaoPainelPage'
+import { ChamadasSuportePage }         from '@/pages/ChamadasSuportePage'
+import { ManutencaoSolicitarPage }     from '@/pages/ManutencaoSolicitarPage'
+import { ManutencaoQrSolicitarPage }   from '@/pages/ManutencaoQrSolicitarPage'
 import { AdminLayout }              from '@/layouts/AdminLayout'
 import { OperarioLayout }          from '@/layouts/OperarioLayout'
 import { ProtectedRoute }          from '@/components/ProtectedRoute'
@@ -78,6 +82,10 @@ function App() {
           <Route path="rotinas" element={
             <ProtectedRoute requiredRole={['admin']}><RotinasPage /></ProtectedRoute>
           } />
+          <Route path="manutencao/painel" element={
+            <ProtectedRoute requiredRotina="manutencao_painel"><ManutencaoPainelPage /></ProtectedRoute>
+          } />
+          <Route path="chamadas-suporte" element={<ChamadasSuportePage />} />
           <Route path="perfil" element={<AdminPerfilPage />} />
         </Route>
 
@@ -91,9 +99,13 @@ function App() {
           }
         >
           <Route index element={<Navigate to="maquinas" replace />} />
-          <Route path="maquinas"     element={<MaquinasDisponiveisPage />} />
-          <Route path="apontamento"  element={<ApontamentoOperarioPage />} />
+          <Route path="maquinas"             element={<MaquinasDisponiveisPage />} />
+          <Route path="apontamento"          element={<ApontamentoOperarioPage />} />
+          <Route path="manutencao/solicitar" element={<ManutencaoSolicitarPage />} />
         </Route>
+
+        {/* Página pública — solicitação de manutenção via QR Code */}
+        <Route path="/solicitar-manutencao/:maquinaId" element={<ManutencaoQrSolicitarPage />} />
 
         {/* Raiz e fallback */}
         <Route path="/"  element={<Navigate to="/login" replace />} />

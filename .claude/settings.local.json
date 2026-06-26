@@ -30,7 +30,10 @@
       "Bash(git rm *)",
       "Bash(php *)",
       "Bash(xargs ls)",
-      "Bash(xargs grep -l \"segunda-passagem\\\\|segundo\")"
+      "Bash(xargs grep -l \"segunda-passagem\\\\|segundo\")",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Stop-Process *)",
+      "PowerShell(netstat *)"
     ]
   }
 }
