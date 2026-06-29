@@ -37,10 +37,10 @@ export function LoginPage() {
   function redirectAfterLogin(result: LoginResponse) {
     if (result.requires_password_change) {
       navigate('/change-password')
-    } else if (result.user.role === 'admin' || result.user.role === 'gestor') {
-      navigate('/admin/maquinas')
-    } else {
+    } else if (result.user.role === 'operario') {
       navigate('/operario')
+    } else {
+      navigate('/admin')
     }
   }
 
