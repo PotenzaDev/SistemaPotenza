@@ -34,7 +34,13 @@
       "PowerShell(Get-Process *)",
       "PowerShell(Stop-Process *)",
       "PowerShell(netstat *)",
-      "Bash(npm list *)"
+      "Bash(npm list *)",
+      "Bash(xargs grep -l \"class Ficha\\\\|class Lote\\\\|class Produto\\\\|class Escala\")",
+      "PowerShell(cd \"C:\\\\Gustavo\\\\Potenza\\\\SistemaApontamento\\\\backend\"; php artisan tinker --execute=\\(Get-Content \"C:\\\\Users\\\\Usuario\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Gustavo-Potenza-SistemaApontamento\\\\a515d1b1-a471-4f90-8bd5-3323f8bf9e35\\\\scratchpad\\\\check_constraint.php\" -Raw\\))",
+      "Bash(xargs grep -l \"ordem\\\\|lote\")",
+      "Bash(xargs grep -l \"tooltip\\\\|Tooltip\")",
+      "Bash(xargs grep -l \"ficha\\\\|Ficha\")",
+      "Bash(xargs grep -l \"Apontamento\\\\|Ficha\")"
     ]
   }
 }

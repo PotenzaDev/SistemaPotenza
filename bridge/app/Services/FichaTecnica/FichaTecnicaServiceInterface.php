@@ -31,4 +31,14 @@ interface FichaTecnicaServiceInterface
      * Retorna 1 se não encontrado (fallback seguro).
      */
     public function contarFichasLote(string $ordemLote, string $codPeca): int;
+
+    /**
+     * Soma qtde_total e conta fichas (pilhas) de todos os produtos cujo
+     * CodiSemiAcabado começa com os 5 dígitos informados, no lote dado.
+     *
+     * @param  string $ordemLote  Código do lote (com ou sem zeros à esquerda).
+     * @param  string $prefixoCod Primeiros 5 dígitos do CodiSemiAcabado.
+     * @return array  ['qtde_total' => int|null, 'total_pilhas' => int]
+     */
+    public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array;
 }

@@ -16,6 +16,7 @@ use App\Repositories\Contracts\ApontamentoRepositoryInterface;
 use App\Repositories\Contracts\FichaApontamentoRepositoryInterface;
 use App\Repositories\Contracts\HistoricoLoteRepositoryInterface;
 use App\Repositories\Contracts\SessaoTrabalhoRepositoryInterface;
+use App\Models\Turno;
 use App\Services\Lote\LoteServiceInterface;
 use Carbon\Carbon;
 
@@ -27,6 +28,7 @@ class ApontamentoService
         private readonly SessaoTrabalhoRepositoryInterface   $sessaoRepo,
         private readonly HistoricoLoteRepositoryInterface    $historicoRepo,
         private readonly LoteServiceInterface                $loteService,
+        private readonly TurnoCalculoService                 $turnoCalculo,
     ) {}
 
     /**
@@ -45,13 +47,25 @@ class ApontamentoService
             throw new BusinessException('Já existe um apontamento em andamento. Finalize-o antes de iniciar novo lote.', 422);
         }
 
-        $loteDados     = $this->loteService->buscarPorOrdemLote($dados['ordem_lote'], $dados['cod_peca']);
-        $ftecPecaPilha = $this->loteService->buscarFtecPecaPilha($dados['cod_peca']);
+        $loteDados       = $this->loteService->buscarPorOrdemLote($dados['ordem_lote'], $dados['cod_peca']);
+        $ftecPecaPilha   = $this->loteService->buscarFtecPecaPilha($dados['cod_peca']);
+        $totaisVariantes = $this->loteService->buscarTotaisPorPrefixoLote(
+            $dados['ordem_lote'],
+            substr($dados['cod_peca'], 0, 5),
+        );
+
+        // Totaliza peças e pilhas considerando todos os produtos variantes do lote (mesmo prefixo).
+        // Fallback ao dado individual caso a bridge não retorne resultado agregado.
+        $qtdeTotal   = $totaisVariantes['qtde_total'] ?? $loteDados['qtde_total'];
+        $totalPilhas = $totaisVariantes['total_pilhas'];
+
+        if ($totalPilhas === 0 && $loteDados['qtde_total'] && $ftecPecaPilha) {
+            $totalPilhas = (int) ceil($loteDados['qtde_total'] / $ftecPecaPilha);
+        }
 
         $etapaFluxoId = $sessao->maquina->etapa_fluxo_id;
 
-        if ($loteDados['qtde_total'] && $ftecPecaPilha) {
-            $totalPilhas   = (int) ceil($loteDados['qtde_total'] / $ftecPecaPilha);
+        if ($totalPilhas > 0) {
             $pilhasBipadas = $this->fichaRepo->contarPilhasBipadasDoLote(
                 $dados['ordem_lote'],
                 $dados['cod_peca'],
@@ -74,7 +88,7 @@ class ApontamentoService
             'ordem_lote'         => $dados['ordem_lote'],
             'desc_peca'          => $loteDados['desc_peca'],
             'cod_produto'        => $loteDados['cod_produto'],
-            'qtde_total'         => $loteDados['qtde_total'] ?? null,
+            'qtde_total'         => $qtdeTotal,
             'ftec_peca_pilha'    => $ftecPecaPilha,
             'status'             => Apontamento::STATUS_EM_SETUP,
             'setup_inicio'       => Carbon::now(),
@@ -179,9 +193,9 @@ class ApontamentoService
             );
         }
 
-        if ($dados['cod_peca'] !== $apontamento->cod_peca) {
+        if (substr($dados['cod_peca'], 0, 5) !== substr($apontamento->cod_peca, 0, 5)) {
             throw new BusinessException(
-                "Esta ficha é do produto {$dados['cod_peca']}, diferente do apontamento ativo ({$apontamento->cod_peca}).",
+                "Esta ficha é do produto {$dados['cod_peca']}, incompatível com o apontamento ativo ({$apontamento->cod_peca}).",
                 422
             );
         }
@@ -189,9 +203,10 @@ class ApontamentoService
         $pilha = (int) $dados['pilha'];
 
         // Verifica quantas vezes esta pilha já foi bipada no lote+etapa (cross-apontamento).
+        // Usa o cod_peca da ficha (pode ser variante do produto do apontamento).
         $vezesBipada = $this->fichaRepo->contarVezesPilhaBipada(
             $apontamento->ordem_lote,
-            $apontamento->cod_peca,
+            $dados['cod_peca'],
             $apontamento->etapa_fluxo_id,
             $pilha,
         );
@@ -200,7 +215,7 @@ class ApontamentoService
             // Consulta a bridge para saber quantas passagens são esperadas para este lote.
             $passagensEsperadas = $this->loteService->contarFichasLote(
                 $apontamento->ordem_lote,
-                $apontamento->cod_peca,
+                $dados['cod_peca'],
             );
 
             if ($vezesBipada >= $passagensEsperadas) {
@@ -266,7 +281,6 @@ class ApontamentoService
             throw new BusinessException('Produção não iniciada ou já finalizada.', 422);
         }
 
-        // Garante que todas as peças do lote foram bipadas antes de finalizar.
         $qtdeTotal   = $apontamento->qtde_total;
         $totalBipado = $apontamento->fichas->sum('qtd_peca');
 
@@ -458,8 +472,8 @@ class ApontamentoService
                 'grupo'                   => $grupo ? ['id' => $grupo->id, 'nome' => $grupo->nome] : null,
                 'qtd_pecas'               => $qtdPecas,
                 'qtd_pilhas'              => $qtdPilhas,
-                'tempo_setup_segundos'    => $apontamento->setup_duracao_segundos,
-                'tempo_producao_segundos' => $apontamento->producao_duracao_segundos,
+                'tempo_setup_segundos'    => $this->tempoNaTurno($apontamento, 'setup'),
+                'tempo_producao_segundos' => $this->tempoNaTurno($apontamento, 'producao'),
                 'numero_pausas'           => $apontamento->pausas->count(),
                 'setup_inicio'            => $apontamento->setup_inicio?->toIso8601String(),
                 'setup_fim'               => $apontamento->setup_fim?->toIso8601String(),
@@ -476,6 +490,33 @@ class ApontamentoService
                 'qtd_pilhas' => (int) $linhas->sum('qtd_pilhas'),
             ],
         ];
+    }
+
+    /**
+     * Tempo da fase clipado à janela do turno do dia em que a fase iniciou.
+     * Se não houver turno configurado para o dia, retorna o valor armazenado
+     * no banco como fallback.
+     */
+    private function tempoNaTurno(Apontamento $apontamento, string $fase): ?int
+    {
+        $inicio = $fase === 'setup' ? $apontamento->setup_inicio : $apontamento->producao_inicio;
+
+        if (! $inicio) {
+            return null;
+        }
+
+        $turno = Turno::doDia($inicio->dayOfWeekIso, $inicio);
+
+        if (! $turno) {
+            return $fase === 'setup'
+                ? $apontamento->setup_duracao_segundos
+                : $apontamento->producao_duracao_segundos;
+        }
+
+        $janelas = $this->turnoCalculo->janelasUteis($turno, $inicio);
+        [$trabalhado] = $this->turnoCalculo->calcularFaseNoDia($apontamento, $fase, $janelas, Carbon::now());
+
+        return $trabalhado;
     }
 
     /**

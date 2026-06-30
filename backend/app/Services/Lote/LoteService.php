@@ -65,6 +65,25 @@ class LoteService implements LoteServiceInterface
         return max(1, (int) $response->json('total'));
     }
 
+    public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array
+    {
+        $ordemLote = ltrim($ordemLote, '0') ?: '0';
+
+        $response = $this->get('ficha-tecnica/lote-variantes', [
+            'lote'        => $ordemLote,
+            'prefixo_cod' => $prefixoCod,
+        ]);
+
+        if ($response->failed()) {
+            return ['qtde_total' => null, 'total_pilhas' => 0];
+        }
+
+        return [
+            'qtde_total'   => $response->json('qtde_total'),
+            'total_pilhas' => (int) $response->json('total_pilhas'),
+        ];
+    }
+
     private function get(string $uri, array $query): Response
     {
         $url = (string) config('services.bridge.url');

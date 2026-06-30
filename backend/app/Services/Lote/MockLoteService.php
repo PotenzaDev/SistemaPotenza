@@ -34,4 +34,12 @@ class MockLoteService implements LoteServiceInterface
     {
         return $this->fichasLoteCount;
     }
+
+    public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array
+    {
+        return [
+            'qtde_total'   => 300,
+            'total_pilhas' => 6,
+        ];
+    }
 }

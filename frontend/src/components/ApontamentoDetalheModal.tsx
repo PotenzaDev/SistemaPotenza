@@ -50,7 +50,7 @@ export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-[#0f1923] border border-white/10 rounded-2xl shadow-2xl">
+      <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-[#0f1923] border border-white/10 rounded-2xl shadow-2xl">
 
         {/* header */}
         <div className="flex items-start justify-between px-6 py-4 border-b border-white/5">
@@ -132,6 +132,7 @@ export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
                       <thead>
                         <tr className="text-left bg-white/[0.02]">
                           <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Pilha</th>
+                          <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Produto</th>
                           <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider text-right">Qtd. Bipada</th>
                           <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider text-right">Qtd. Produzida</th>
                           <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Início</th>
@@ -142,6 +143,12 @@ export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
                         {detalhe.fichas.map(ficha => (
                           <tr key={ficha.id}>
                             <td className="px-4 py-2 text-white">{ficha.pilha}</td>
+                            <td className="px-4 py-2">
+                              <span className="font-mono text-white">{ficha.cod_peca}</span>
+                              {detalhe.desc_peca && (
+                                <span className="block text-xs text-slate-500 truncate max-w-[180px]">{detalhe.desc_peca}</span>
+                              )}
+                            </td>
                             <td className="px-4 py-2 text-right text-slate-300">{ficha.qtd_peca}</td>
                             <td className="px-4 py-2 text-right text-slate-300">{ficha.qtd_produzida ?? '—'}</td>
                             <td className="px-4 py-2 text-slate-300">{fmtDataHora(ficha.bipada_at)}</td>

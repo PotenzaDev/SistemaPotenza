@@ -108,8 +108,15 @@ export function ApontamentosPage() {
                     <td className="px-6 py-3 text-white">{apontamento.operario ?? '—'}</td>
                     <td className="px-6 py-3 text-slate-300">{apontamento.maquina ?? '—'}</td>
                     <td className="px-6 py-3">
-                      <span className="font-mono text-white">{apontamento.ordem_lote}</span>
-                      <span className="block text-xs text-slate-500">{apontamento.cod_peca}</span>
+                      <div className="group relative inline-block">
+                        <span className="font-mono text-white">{apontamento.ordem_lote}</span>
+                        <span className="block text-xs text-slate-500">{apontamento.cod_peca.slice(0, -2)}</span>
+                        {apontamento.desc_peca && (
+                          <div className="pointer-events-none absolute bottom-full left-0 mb-1 hidden group-hover:block bg-slate-700 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap z-20 shadow-xl">
+                            {apontamento.desc_peca}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-3 text-slate-300">{fmtHora(apontamento.setup_inicio)}</td>
                     <td className="px-6 py-3 text-slate-300">{fmtHora(termino)}</td>

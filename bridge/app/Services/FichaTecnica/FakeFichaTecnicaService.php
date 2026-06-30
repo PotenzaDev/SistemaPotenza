@@ -51,4 +51,12 @@ class FakeFichaTecnicaService implements FichaTecnicaServiceInterface
     {
         return 1; // comportamento padrão: 1 ficha por pilha
     }
+
+    public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array
+    {
+        return [
+            'qtde_total'   => 300,
+            'total_pilhas' => 6,
+        ];
+    }
 }

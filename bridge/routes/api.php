@@ -9,4 +9,5 @@ Route::middleware('verify.bridge.token')->prefix('ficha-tecnica')->name('ficha-t
     Route::get('lote', [FichaTecnicaController::class, 'lote'])->name('lote');
     Route::get('pilha', [FichaTecnicaController::class, 'pilha'])->name('pilha');
     Route::get('count-fichas', [FichaTecnicaController::class, 'countFichas'])->name('count-fichas');
+    Route::get('lote-variantes', [FichaTecnicaController::class, 'loteVariantes'])->name('lote-variantes');
 });

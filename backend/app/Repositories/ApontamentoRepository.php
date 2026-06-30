@@ -101,7 +101,7 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
         }
 
         return $query
-            ->with(['sessaoTrabalho.operario.user', 'sessaoTrabalho.maquina.etapaFluxo', 'fichas', 'pausas'])
+            ->with(['sessaoTrabalho.operario.user', 'sessaoTrabalho.maquina.etapaFluxo', 'fichas', 'pausas.motivoPausa'])
             ->orderBy('setup_inicio', 'desc')
             ->get();
     }

@@ -62,9 +62,9 @@ class FichaApontamentoRepository implements FichaApontamentoRepositoryInterface
     public function contarVezesPilhaBipada(string $ordemLote, string $codPeca, int $etapaFluxoId, int $pilha): int
     {
         return FichaApontamento::where('pilha', $pilha)
-            ->whereHas('apontamento', function ($q) use ($ordemLote, $codPeca, $etapaFluxoId) {
+            ->where('cod_peca', $codPeca)
+            ->whereHas('apontamento', function ($q) use ($ordemLote, $etapaFluxoId) {
                 $q->where('ordem_lote', $ordemLote)
-                    ->where('cod_peca', $codPeca)
                     ->where('etapa_fluxo_id', $etapaFluxoId);
             })
             ->count();

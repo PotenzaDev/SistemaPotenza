@@ -34,4 +34,11 @@ interface LoteServiceInterface
      * @throws \App\Exceptions\BusinessException quando a API Bridge está indisponível (503).
      */
     public function contarFichasLote(string $ordemLote, string $codPeca): int;
+
+    /**
+     * Soma qtde_total e conta fichas (pilhas) de todos os produtos do lote
+     * cujo cod_peca começa com os 5 dígitos informados.
+     * Em caso de falha retorna fallback seguro: ['qtde_total' => null, 'total_pilhas' => 0].
+     */
+    public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array;
 }
