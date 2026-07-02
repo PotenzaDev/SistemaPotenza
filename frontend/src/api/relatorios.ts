@@ -70,3 +70,51 @@ export async function getFiltrosRelatorioMaquinas(signal?: AbortSignal): Promise
   const res = await apiClient.get<ApiEnvelope<FiltrosRelatorioMaquinas>>('/admin/relatorio-maquinas/filtros', { signal })
   return res.data.data
 }
+
+export type TimelineTipoSegmento = 'setup' | 'producao' | 'pausa' | 'parado'
+
+export interface TimelineSegmento {
+  tipo: TimelineTipoSegmento
+  inicio: string
+  fim: string
+}
+
+export interface TimelineMaquina {
+  maquina_id: number
+  maquina: string
+  grupo: GrupoRelatorio | null
+  segmentos: TimelineSegmento[]
+}
+
+export interface TimelineTurno {
+  hora_inicio: string
+  hora_fim: string
+  intervalo_inicio: string | null
+  intervalo_fim: string | null
+}
+
+export interface TimelineMaquinasResponse {
+  turno: TimelineTurno | null
+  maquinas: TimelineMaquina[]
+}
+
+export interface TimelineMaquinasFiltros {
+  data: string
+  grupoId?: number
+  maquinaId?: number
+}
+
+export async function getTimelineMaquinas(
+  filtros: TimelineMaquinasFiltros,
+  signal?: AbortSignal,
+): Promise<TimelineMaquinasResponse> {
+  const res = await apiClient.get<ApiEnvelope<TimelineMaquinasResponse>>('/admin/relatorio-timeline-maquinas', {
+    signal,
+    params: {
+      data:       filtros.data,
+      grupo_id:   filtros.grupoId,
+      maquina_id: filtros.maquinaId,
+    },
+  })
+  return res.data.data
+}

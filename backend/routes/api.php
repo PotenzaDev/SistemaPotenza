@@ -92,6 +92,7 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:gestor,admin,f
     Route::get('/admin/relatorio-turno',    [RelatorioTurnoController::class, 'index'])->middleware('module:relatorios');
     Route::get('/admin/relatorio-maquinas', [RelatorioMaquinaController::class, 'index'])->middleware('module:relatorios');
     Route::get('/admin/relatorio-maquinas/filtros', [RelatorioMaquinaController::class, 'filtros'])->middleware('module:relatorios');
+    Route::get('/admin/relatorio-timeline-maquinas', [RelatorioMaquinaController::class, 'timeline'])->middleware('module:relatorios');
     Route::get('/apontamentos/hoje',     [ApontamentoController::class, 'doDia'])->middleware('module:apontamentos');
     Route::get('/apontamentos/{id}',     [ApontamentoController::class, 'show'])->middleware('module:apontamentos');
 

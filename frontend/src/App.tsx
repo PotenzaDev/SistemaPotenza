@@ -9,6 +9,7 @@ import { MotivoPausaPage }         from '@/pages/MotivoPausaPage'
 import { TurnosPage }              from '@/pages/TurnosPage'
 import { RelatoriosPage }          from '@/pages/RelatoriosPage'
 import { RelatorioProducaoMaquinasPage } from '@/pages/RelatorioProducaoMaquinasPage'
+import { RelatorioTimelineMaquinasPage } from '@/pages/RelatorioTimelineMaquinasPage'
 import { AdminPerfilPage }          from '@/pages/AdminPerfilPage'
 import { ActivityLogPage }          from '@/pages/ActivityLogPage'
 import { UsuariosSistemaPage }      from '@/pages/UsuariosSistemaPage'
@@ -73,6 +74,9 @@ function App() {
           } />
           <Route path="relatorios/producao-maquinas" element={
             <ProtectedRoute requiredRotina="relatorios"><RelatorioProducaoMaquinasPage /></ProtectedRoute>
+          } />
+          <Route path="relatorios/timeline-maquinas" element={
+            <ProtectedRoute requiredRotina="relatorios"><RelatorioTimelineMaquinasPage /></ProtectedRoute>
           } />
           <Route path="logs" element={
             <ProtectedRoute requiredRotina="logs"><ActivityLogPage /></ProtectedRoute>

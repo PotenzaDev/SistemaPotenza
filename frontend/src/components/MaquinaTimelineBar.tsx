@@ -1,0 +1,101 @@
+import { fmtHora } from '@/lib/apontamentoFormat'
+import type { TimelineSegmento, TimelineTipoSegmento, TimelineTurno } from '@/api/relatorios'
+
+interface Props {
+  turno: TimelineTurno
+  segmentos: TimelineSegmento[]
+  isHoje: boolean
+}
+
+const COR_SEGMENTO: Record<TimelineTipoSegmento, string> = {
+  setup:    '#3b82f6',
+  producao: '#00aa84',
+  pausa:    '#f97316',
+  parado:   '#ef4444',
+}
+
+const LABEL_SEGMENTO: Record<TimelineTipoSegmento, string> = {
+  setup:    'Setup',
+  producao: 'Produção',
+  pausa:    'Pausa',
+  parado:   'Parado',
+}
+
+function horaParaMinutos(hora: string): number {
+  const [h, m] = hora.split(':').map(Number)
+  return h * 60 + m
+}
+
+function isoParaMinutosDoDia(iso: string): number {
+  const data = new Date(iso)
+  return data.getHours() * 60 + data.getMinutes() + data.getSeconds() / 60
+}
+
+function fmtDuracaoCurta(segundos: number): string {
+  const min = Math.round(segundos / 60)
+  if (min < 60) return `${min}min`
+  const h = Math.floor(min / 60)
+  const resto = min % 60
+  return resto > 0 ? `${h}h ${resto}min` : `${h}h`
+}
+
+export function MaquinaTimelineBar({ turno, segmentos, isHoje }: Props) {
+  const inicioMin  = horaParaMinutos(turno.hora_inicio)
+  const fimMin     = horaParaMinutos(turno.hora_fim)
+  const duracaoMin = fimMin - inicioMin
+
+  if (duracaoMin <= 0) return null
+
+  function posicao(minutos: number): number {
+    return Math.min(100, Math.max(0, ((minutos - inicioMin) / duracaoMin) * 100))
+  }
+
+  const agora    = new Date()
+  const agoraMin = isHoje ? agora.getHours() * 60 + agora.getMinutes() : null
+
+  const horasMarcadas: number[] = []
+  for (let h = Math.ceil(inicioMin / 60); h <= Math.floor(fimMin / 60); h++) {
+    horasMarcadas.push(h * 60)
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="relative h-8 rounded-md overflow-hidden bg-white/5 border border-white/10">
+        {segmentos.map((segmento, index) => {
+          const inicioSeg = isoParaMinutosDoDia(segmento.inicio)
+          const fimSeg    = isoParaMinutosDoDia(segmento.fim)
+          const esquerda  = posicao(inicioSeg)
+          const largura   = Math.max(0, posicao(fimSeg) - esquerda)
+
+          if (largura <= 0) return null
+
+          const duracaoSegundos = (new Date(segmento.fim).getTime() - new Date(segmento.inicio).getTime()) / 1000
+
+          return (
+            <div
+              key={index}
+              className="absolute inset-y-0"
+              style={{ left: `${esquerda}%`, width: `${largura}%`, backgroundColor: COR_SEGMENTO[segmento.tipo] }}
+              title={`${LABEL_SEGMENTO[segmento.tipo]} · ${fmtHora(segmento.inicio)}–${fmtHora(segmento.fim)} (${fmtDuracaoCurta(duracaoSegundos)})`}
+            />
+          )
+        })}
+
+        {agoraMin !== null && agoraMin >= inicioMin && agoraMin <= fimMin && (
+          <div
+            className="absolute inset-y-0 w-0.5 bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)]"
+            style={{ left: `${posicao(agoraMin)}%` }}
+          />
+        )}
+      </div>
+
+      <div className="relative h-4 text-[10px] text-slate-500">
+        {horasMarcadas.map(minutos => (
+          <span key={minutos} className="absolute -translate-x-1/2" style={{ left: `${posicao(minutos)}%` }}>
+            {String(Math.floor(minutos / 60)).padStart(2, '0')}h
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}

@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Loader2, X } from 'lucide-react'
 import { getApontamentosDoDia, type ApontamentoDoDia, type ApontamentosDoDia } from '@/api/apontamentos'
-import type { RelatorioMaquina, RelatorioMaquinasFiltros } from '@/api/relatorios'
+import type { RelatorioMaquinasFiltros } from '@/api/relatorios'
 import { ApontamentoDetalheModal } from '@/components/ApontamentoDetalheModal'
 import { STATUS_LABEL, fmtDuracao, fmtDataHora } from '@/lib/apontamentoFormat'
 
+interface MaquinaSelecionada {
+  maquina_id: number
+  maquina: string
+}
+
 interface Props {
-  maquina: RelatorioMaquina | null
+  maquina: MaquinaSelecionada | null
   filtros: RelatorioMaquinasFiltros
   onClose: () => void
 }
