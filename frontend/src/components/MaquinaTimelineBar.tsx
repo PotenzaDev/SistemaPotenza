@@ -70,13 +70,14 @@ export function MaquinaTimelineBar({ turno, segmentos, isHoje }: Props) {
           if (largura <= 0) return null
 
           const duracaoSegundos = (new Date(segmento.fim).getTime() - new Date(segmento.inicio).getTime()) / 1000
+          const rotulo = segmento.motivo ? `${LABEL_SEGMENTO[segmento.tipo]} (${segmento.motivo})` : LABEL_SEGMENTO[segmento.tipo]
 
           return (
             <div
               key={index}
               className="absolute inset-y-0"
               style={{ left: `${esquerda}%`, width: `${largura}%`, backgroundColor: COR_SEGMENTO[segmento.tipo] }}
-              title={`${LABEL_SEGMENTO[segmento.tipo]} · ${fmtHora(segmento.inicio)}–${fmtHora(segmento.fim)} (${fmtDuracaoCurta(duracaoSegundos)})`}
+              title={`${rotulo} · ${fmtHora(segmento.inicio)}–${fmtHora(segmento.fim)} (${fmtDuracaoCurta(duracaoSegundos)})`}
             />
           )
         })}

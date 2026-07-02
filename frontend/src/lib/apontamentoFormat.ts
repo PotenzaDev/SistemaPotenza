@@ -5,6 +5,7 @@ export type Fase =
   | 'em_setup'
   | 'em_pausa_setup'
   | 'aguardando_ficha'
+  | 'em_pausa_aguardando'
   | 'em_producao'
   | 'em_pausa_producao'
   | 'finalizando'
@@ -27,6 +28,7 @@ export function derivarFase(ap: Apontamento): Fase {
     case 'aguardando_producao': return 'aguardando_ficha'
     case 'em_setup':            return 'em_setup'
     case 'em_pausa_setup':      return 'em_pausa_setup'
+    case 'em_pausa_aguardando': return 'em_pausa_aguardando'
     case 'em_pausa_producao':   return 'em_pausa_producao'
     default:                    return 'aguardando'
   }
@@ -39,6 +41,7 @@ export function mensagemFinalizarTurno(fase: Fase): string {
     case 'finalizando':
       return 'O apontamento em andamento será pausado. Você poderá retomá-lo no próximo turno na mesma máquina.'
     case 'em_pausa_setup':
+    case 'em_pausa_aguardando':
     case 'em_pausa_producao':
       return 'O apontamento já está pausado e permanecerá assim. Você poderá retomá-lo no próximo turno na mesma máquina.'
     case 'aguardando_ficha':
@@ -58,6 +61,7 @@ export const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   aguardando_producao: { label: 'Aguardando',  color: 'text-yellow-400' },
   em_producao:         { label: 'Produção',    color: 'text-[#00aa84]'  },
   em_pausa_setup:      { label: 'Pausa Setup', color: 'text-orange-400' },
+  em_pausa_aguardando: { label: 'Pausa',       color: 'text-orange-400' },
   em_pausa_producao:   { label: 'Pausa Prod.', color: 'text-orange-400' },
   finalizado:          { label: 'Finalizado',  color: 'text-slate-400'  },
 }

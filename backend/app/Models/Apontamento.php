@@ -48,12 +48,27 @@ class Apontamento extends Model
         'numero_passagem'           => 'integer',
     ];
 
-    public const STATUS_EM_SETUP            = 'em_setup';
-    public const STATUS_AGUARDANDO_PRODUCAO = 'aguardando_producao';
-    public const STATUS_EM_PRODUCAO         = 'em_producao';
-    public const STATUS_EM_PAUSA_SETUP      = 'em_pausa_setup';
-    public const STATUS_EM_PAUSA_PRODUCAO   = 'em_pausa_producao';
-    public const STATUS_FINALIZADO          = 'finalizado';
+    public const STATUS_EM_SETUP             = 'em_setup';
+    public const STATUS_AGUARDANDO_PRODUCAO  = 'aguardando_producao';
+    public const STATUS_EM_PRODUCAO          = 'em_producao';
+    public const STATUS_EM_PAUSA_SETUP       = 'em_pausa_setup';
+    public const STATUS_EM_PAUSA_AGUARDANDO  = 'em_pausa_aguardando';
+    public const STATUS_EM_PAUSA_PRODUCAO    = 'em_pausa_producao';
+    public const STATUS_FINALIZADO           = 'finalizado';
+
+    /** Status "em pausa" mapeados para o status ativo que retomam. */
+    public const MAPA_RETOMADA = [
+        self::STATUS_EM_PAUSA_SETUP      => self::STATUS_EM_SETUP,
+        self::STATUS_EM_PAUSA_AGUARDANDO => self::STATUS_AGUARDANDO_PRODUCAO,
+        self::STATUS_EM_PAUSA_PRODUCAO   => self::STATUS_EM_PRODUCAO,
+    ];
+
+    /** Status ativos mapeados para o nome de fase usado em `pausas.fase`. */
+    public const MAPA_FASE = [
+        self::STATUS_EM_SETUP            => 'setup',
+        self::STATUS_AGUARDANDO_PRODUCAO => 'aguardando',
+        self::STATUS_EM_PRODUCAO         => 'producao',
+    ];
 
     public function sessaoTrabalho(): BelongsTo
     {
@@ -87,7 +102,14 @@ class Apontamento extends Model
             self::STATUS_AGUARDANDO_PRODUCAO,
             self::STATUS_EM_PRODUCAO,
             self::STATUS_EM_PAUSA_SETUP,
+            self::STATUS_EM_PAUSA_AGUARDANDO,
             self::STATUS_EM_PAUSA_PRODUCAO,
         ], true);
+    }
+
+    /** Lista dos status "em pausa" — usado nos vários whereIn espalhados pelo domínio. */
+    public static function statusPausados(): array
+    {
+        return array_keys(self::MAPA_RETOMADA);
     }
 }

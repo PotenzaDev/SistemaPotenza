@@ -12,6 +12,7 @@ const STATUS_CONFIG: Record<MaquinaDashboard['status'], { label: string; dot: st
   aguardando_producao: { label: 'Aguardando', dot: 'bg-yellow-500', text: 'text-yellow-400' },
   em_producao: { label: 'Produção', dot: 'bg-[#00aa84]', text: 'text-[#00aa84]' },
   em_pausa_setup: { label: 'Pausa Setup', dot: 'bg-orange-500', text: 'text-orange-400' },
+  em_pausa_aguardando: { label: 'Pausa', dot: 'bg-orange-500', text: 'text-orange-400' },
   em_pausa_producao: { label: 'Pausa Prod.', dot: 'bg-orange-500', text: 'text-orange-400' },
 }
 

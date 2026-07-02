@@ -160,7 +160,69 @@ class SessaoTrabalhoService
 
     public function ativa(Operario $operario): ?SessaoTrabalho
     {
-        return $this->sessaoRepo->buscarSessaoAtiva($operario);
+        return $this->sessaoRepo->buscarSessaoAtiva($operario)?->load('pausaOciosaAberta.motivoPausa');
+    }
+
+    /**
+     * Pausa a sessão ativa enquanto ociosa — sem nenhum apontamento em
+     * andamento (nem setup, nem aguardando, nem produção). Ao contrário de
+     * pausar(), não encerra a sessão nem exige novo setup ao retomar; exige
+     * um motivo explícito.
+     */
+    public function pausarOciosa(Operario $operario, int $motivoId): SessaoTrabalho
+    {
+        $sessao = $this->sessaoRepo->buscarSessaoAtiva($operario);
+
+        if (! $sessao) {
+            throw new BusinessException('Nenhuma sessão ativa encontrada.', 422);
+        }
+
+        if ($this->apontamentoRepo->buscarApontamentoAtivo($sessao)) {
+            throw new BusinessException('Sessão não está ociosa — há um apontamento em andamento.', 422);
+        }
+
+        if ($sessao->pausaOciosaAberta()->exists()) {
+            throw new BusinessException('Já existe uma pausa em aberto nesta sessão.', 422);
+        }
+
+        $motivo = MotivoPausa::find($motivoId);
+
+        if (! $motivo || ! $motivo->ativo) {
+            throw new BusinessException('Motivo de pausa inválido.', 422);
+        }
+
+        Pausa::create([
+            'sessao_trabalho_id' => $sessao->id,
+            'motivo_pausa_id'    => $motivoId,
+            'inicio'             => Carbon::now(),
+        ]);
+
+        return $sessao->load(['maquina.etapaFluxo', 'pausaOciosaAberta.motivoPausa']);
+    }
+
+    /** Retoma a sessão de uma pausa ociosa, fechando a pausa em aberto. */
+    public function retomarOciosa(Operario $operario): SessaoTrabalho
+    {
+        $sessao = $this->sessaoRepo->buscarSessaoAtiva($operario);
+
+        if (! $sessao) {
+            throw new BusinessException('Nenhuma sessão ativa encontrada.', 422);
+        }
+
+        $pausaAberta = $sessao->pausaOciosaAberta;
+
+        if (! $pausaAberta) {
+            throw new BusinessException('Sessão não está pausada.', 422);
+        }
+
+        $fim = Carbon::now();
+
+        $pausaAberta->update([
+            'fim'              => $fim,
+            'duracao_segundos' => (int) $pausaAberta->inicio->diffInSeconds($fim),
+        ]);
+
+        return $sessao->load(['maquina.etapaFluxo']);
     }
 
     /**
@@ -192,9 +254,9 @@ class SessaoTrabalhoService
             return;
         }
 
-        $statusPausaveis = [Apontamento::STATUS_EM_SETUP, Apontamento::STATUS_EM_PRODUCAO];
+        $fase = Apontamento::MAPA_FASE[$apontamento->status] ?? null;
 
-        if (! in_array($apontamento->status, $statusPausaveis, true)) {
+        if ($fase === null) {
             return;
         }
 
@@ -204,8 +266,6 @@ class SessaoTrabalhoService
             return;
         }
 
-        $fase = $apontamento->status === Apontamento::STATUS_EM_SETUP ? 'setup' : 'producao';
-
         Pausa::create([
             'apontamento_id'  => $apontamento->id,
             'motivo_pausa_id' => $motivo->id,
@@ -213,9 +273,11 @@ class SessaoTrabalhoService
             'inicio'          => Carbon::now(),
         ]);
 
-        $novoStatus = $fase === 'setup'
-            ? Apontamento::STATUS_EM_PAUSA_SETUP
-            : Apontamento::STATUS_EM_PAUSA_PRODUCAO;
+        $novoStatus = match ($fase) {
+            'setup'      => Apontamento::STATUS_EM_PAUSA_SETUP,
+            'aguardando' => Apontamento::STATUS_EM_PAUSA_AGUARDANDO,
+            'producao'   => Apontamento::STATUS_EM_PAUSA_PRODUCAO,
+        };
 
         $apontamento->update(['status' => $novoStatus]);
     }
@@ -232,7 +294,7 @@ class SessaoTrabalhoService
             return;
         }
 
-        $statusPausados = [Apontamento::STATUS_EM_PAUSA_SETUP, Apontamento::STATUS_EM_PAUSA_PRODUCAO];
+        $statusPausados = Apontamento::statusPausados();
 
         if (! in_array($apontamento->status, $statusPausados, true)) {
             return;

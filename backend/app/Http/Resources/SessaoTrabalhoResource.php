@@ -16,6 +16,15 @@ class SessaoTrabalhoResource extends JsonResource
             'inicio'  => $this->inicio?->toIso8601String(),
             'fim'     => $this->fim?->toIso8601String(),
             'ativa'   => $this->isAtiva(),
+            'pausa_ociosa' => $this->whenLoaded(
+                'pausaOciosaAberta',
+                fn () => $this->pausaOciosaAberta ? [
+                    'id'     => $this->pausaOciosaAberta->id,
+                    'motivo' => $this->pausaOciosaAberta->motivoPausa?->nome,
+                    'inicio' => $this->pausaOciosaAberta->inicio->toIso8601String(),
+                ] : null,
+                null
+            ),
             'maquina' => $this->whenLoaded('maquina', fn () => [
                 'id'          => $this->maquina->id,
                 'nome'        => $this->maquina->nome,

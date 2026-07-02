@@ -52,7 +52,7 @@ class RelatorioProducaoService
         // finalizados são excluídos no cancelamento) — evita linhas "fantasma"
         // de sessões totalmente canceladas sem nenhuma produção real.
         $sessoes = SessaoTrabalho::withTrashed()
-            ->with(['operario.user', 'maquina', 'apontamentos.pausas.motivoPausa'])
+            ->with(['operario.user', 'maquina', 'apontamentos.pausas.motivoPausa', 'pausasOciosas.motivoPausa'])
             ->where('inicio', '<=', $diaFim)
             ->where(function ($query) use ($diaInicio) {
                 $query->whereNull('fim')->orWhere('fim', '>=', $diaInicio);
@@ -78,6 +78,19 @@ class RelatorioProducaoService
                         $pausasPorMotivo[$motivo] = ($pausasPorMotivo[$motivo] ?? 0) + $segundos;
                     }
                 }
+
+                // "aguardando" não conta como trabalhado — só as pausas explícitas
+                // nessa fase entram no total de pausa (o restante vira ocioso).
+                $pausasAguardando = $apontamento->pausas->where('fase', 'aguardando');
+
+                foreach ($this->calculo->calcularPausasAvulsas($pausasAguardando, $janelas, $agora) as $motivo => $segundos) {
+                    $pausasPorMotivo[$motivo] = ($pausasPorMotivo[$motivo] ?? 0) + $segundos;
+                }
+            }
+
+            // Pausas ociosas: sessão pausada sem nenhum apontamento em andamento.
+            foreach ($this->calculo->calcularPausasAvulsas($sessao->pausasOciosas, $janelas, $agora) as $motivo => $segundos) {
+                $pausasPorMotivo[$motivo] = ($pausasPorMotivo[$motivo] ?? 0) + $segundos;
             }
 
             $pausaSegundos  = array_sum($pausasPorMotivo);

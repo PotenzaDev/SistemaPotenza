@@ -40,6 +40,7 @@ export interface Apontamento {
     | 'aguardando_producao'
     | 'em_producao'
     | 'em_pausa_setup'
+    | 'em_pausa_aguardando'
     | 'em_pausa_producao'
     | 'finalizado'
   etapa_fluxo: { id: number; nome: string } | null

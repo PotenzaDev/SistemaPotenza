@@ -11,7 +11,7 @@ export interface DashboardKpis {
 export interface MaquinaDashboard {
   id: number
   nome: string
-  status: 'livre' | 'em_setup' | 'aguardando_producao' | 'em_producao' | 'em_pausa_setup' | 'em_pausa_producao'
+  status: 'livre' | 'em_setup' | 'aguardando_producao' | 'em_producao' | 'em_pausa_setup' | 'em_pausa_aguardando' | 'em_pausa_producao'
   operario: string | null
   lote: string | null
   cod_peca: string | null

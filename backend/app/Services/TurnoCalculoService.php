@@ -70,9 +70,26 @@ class TurnoCalculoService
             $trabalhado += $this->intersecaoComJanelas($intervalo['inicio'], $intervalo['fim'], $janelas);
         }
 
+        $pausasPorMotivo = $this->calcularPausasAvulsas($pausasFase, $janelas, $agora);
+
+        return [$trabalhado, $pausasPorMotivo];
+    }
+
+    /**
+     * Pausas de uma fase sem janela de trabalho ativa própria (ex.: "aguardando",
+     * o intervalo entre fim do setup e início da produção) somadas por motivo,
+     * recortadas pelas janelas úteis do turno. Não conta como tempo trabalhado —
+     * só o tempo efetivamente pausado é contabilizado.
+     *
+     * @param  Collection<int, Pausa>  $pausas
+     * @param  array<int, array{inicio: Carbon, fim: Carbon}>  $janelas
+     * @return array<string, int>
+     */
+    public function calcularPausasAvulsas(Collection $pausas, array $janelas, Carbon $agora): array
+    {
         $pausasPorMotivo = [];
 
-        foreach ($pausasFase as $pausa) {
+        foreach ($pausas as $pausa) {
             // "Fim de Turno" é pausa automática de fechamento, não conta como pausa real.
             if ($pausa->motivoPausa?->nome === 'Fim de Turno') {
                 continue;
@@ -86,7 +103,7 @@ class TurnoCalculoService
             }
         }
 
-        return [$trabalhado, $pausasPorMotivo];
+        return $pausasPorMotivo;
     }
 
     /**
@@ -125,9 +142,27 @@ class TurnoCalculoService
             }
         }
 
-        foreach ($pausasFase as $pausa) {
+        return [...$segmentos, ...$this->segmentarPausasAvulsas($pausasFase, $janelas, $agora)];
+    }
+
+    /**
+     * Segmentos de pausa de uma fase sem janela de trabalho ativa própria (ex.:
+     * "aguardando"), recortados pelas janelas úteis do turno — usado na timeline
+     * da máquina para que essas pausas apareçam como "pausa" em vez de "parado".
+     *
+     * @param  Collection<int, Pausa>  $pausas
+     * @param  array<int, array{inicio: Carbon, fim: Carbon}>  $janelas
+     * @return array<int, array{tipo: string, inicio: Carbon, fim: Carbon, motivo: string|null}>
+     */
+    public function segmentarPausasAvulsas(Collection $pausas, array $janelas, Carbon $agora): array
+    {
+        $segmentos = [];
+
+        foreach ($pausas as $pausa) {
+            $motivo = $pausa->motivoPausa?->nome;
+
             foreach ($this->clipIntervaloComJanelas($pausa->inicio, $pausa->fim ?? $agora, $janelas) as $clip) {
-                $segmentos[] = ['tipo' => 'pausa', 'inicio' => $clip['inicio'], 'fim' => $clip['fim']];
+                $segmentos[] = ['tipo' => 'pausa', 'inicio' => $clip['inicio'], 'fim' => $clip['fim'], 'motivo' => $motivo];
             }
         }
 

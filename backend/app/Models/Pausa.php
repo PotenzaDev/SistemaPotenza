@@ -13,6 +13,7 @@ class Pausa extends Model
 
     protected $fillable = [
         'apontamento_id',
+        'sessao_trabalho_id',
         'motivo_pausa_id',
         'fase',
         'inicio',
@@ -28,6 +29,11 @@ class Pausa extends Model
     public function apontamento(): BelongsTo
     {
         return $this->belongsTo(Apontamento::class);
+    }
+
+    public function sessaoTrabalho(): BelongsTo
+    {
+        return $this->belongsTo(SessaoTrabalho::class);
     }
 
     public function motivoPausa(): BelongsTo

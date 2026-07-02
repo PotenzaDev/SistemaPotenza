@@ -113,6 +113,25 @@ class SessaoTrabalhoController extends Controller
         return $this->successResponse(null, 'Sessão cancelada com sucesso.');
     }
 
+    /** Pausa manual da sessão ociosa (sem apontamento em andamento), com motivo. */
+    public function pausarOciosa(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'motivo_pausa_id' => ['required', 'integer', 'exists:motivos_pausa,id'],
+        ]);
+
+        $sessao = $this->sessaoService->pausarOciosa($request->user()->operario, $data['motivo_pausa_id']);
+
+        return $this->successResponse(new SessaoTrabalhoResource($sessao), 'Sessão pausada com sucesso.');
+    }
+
+    public function retomarOciosa(Request $request): JsonResponse
+    {
+        $sessao = $this->sessaoService->retomarOciosa($request->user()->operario);
+
+        return $this->successResponse(new SessaoTrabalhoResource($sessao), 'Sessão retomada com sucesso.');
+    }
+
     public function encerrarTurno(Request $request): JsonResponse
     {
         $this->sessaoService->encerrarTurno($request->user()->operario);

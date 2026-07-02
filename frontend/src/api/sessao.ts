@@ -7,12 +7,19 @@ export interface SessaoMaquina {
   etapa_fluxo: { id: number; nome: string; ordem: number } | null
 }
 
+export interface PausaOciosa {
+  id: number
+  motivo: string | null
+  inicio: string
+}
+
 export interface Sessao {
   id: number
   inicio: string
   fim: string | null
   ativa: boolean
   maquina: SessaoMaquina
+  pausa_ociosa: PausaOciosa | null
 }
 
 export async function iniciarSessao(maquinaId: number, sessaoPausadaId?: number): Promise<Sessao> {
@@ -48,6 +55,16 @@ export async function cancelarSessao(): Promise<void> {
 
 export async function pausarSessao(): Promise<Sessao> {
   const res = await apiClient.post<ApiEnvelope<Sessao>>('/sessao/pausar')
+  return res.data.data
+}
+
+export async function pausarSessaoOciosa(motivoId: number): Promise<Sessao> {
+  const res = await apiClient.post<ApiEnvelope<Sessao>>('/sessao/pausar-ociosa', { motivo_pausa_id: motivoId })
+  return res.data.data
+}
+
+export async function retomarSessaoOciosa(): Promise<Sessao> {
+  const res = await apiClient.post<ApiEnvelope<Sessao>>('/sessao/retomar-ociosa')
   return res.data.data
 }
 

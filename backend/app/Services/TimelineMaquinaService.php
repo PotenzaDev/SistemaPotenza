@@ -55,7 +55,7 @@ class TimelineMaquinaService
         // restar algum apontamento (necessariamente finalizado) — mesmo
         // critério usado em RelatorioProducaoService::relatorioMaquinasPorPeriodo.
         $sessoesPorMaquina = SessaoTrabalho::withTrashed()
-            ->with('apontamentos.pausas')
+            ->with('apontamentos.pausas.motivoPausa', 'pausasOciosas.motivoPausa')
             ->whereIn('maquina_id', $maquinas->pluck('id'))
             ->where('inicio', '<=', $diaFim)
             ->where(function ($query) use ($diaInicio) {
@@ -77,7 +77,16 @@ class TimelineMaquinaService
                     foreach (['setup', 'producao'] as $fase) {
                         array_push($segmentos, ...$this->calculo->segmentarFaseNoDia($apontamento, $fase, $janelas, $agora));
                     }
+
+                    // "aguardando" não tem janela de trabalho ativa própria (ver
+                    // segmentarFaseNoDia) — só as pausas explícitas nessa fase
+                    // aparecem na timeline; o restante do tempo permanece "parado".
+                    $pausasAguardando = $apontamento->pausas->where('fase', 'aguardando');
+                    array_push($segmentos, ...$this->calculo->segmentarPausasAvulsas($pausasAguardando, $janelas, $agora));
                 }
+
+                // Pausas ociosas: sessão pausada sem nenhum apontamento em andamento.
+                array_push($segmentos, ...$this->calculo->segmentarPausasAvulsas($sessao->pausasOciosas, $janelas, $agora));
             }
 
             usort($segmentos, fn (array $a, array $b) => $a['inicio']->timestamp <=> $b['inicio']->timestamp);
@@ -94,6 +103,7 @@ class TimelineMaquinaService
                     'tipo' => $s['tipo'],
                     'inicio' => $s['inicio']->toISOString(),
                     'fim' => $s['fim']->toISOString(),
+                    'motivo' => $s['motivo'] ?? null,
                 ], $segmentos),
             ];
         }

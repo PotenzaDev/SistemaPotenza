@@ -53,7 +53,8 @@
       "Bash(git push *)",
       "Bash(vendor/bin/pint --test app/Services/TimelineMaquinaService.php app/Services/TurnoCalculoService.php app/Http/Controllers/Api/RelatorioMaquinaController.php tests/Feature/RelatorioTimelineMaquinaTest.php)",
       "Bash(vendor/bin/pint app/Services/TimelineMaquinaService.php app/Services/TurnoCalculoService.php app/Http/Controllers/Api/RelatorioMaquinaController.php tests/Feature/RelatorioTimelineMaquinaTest.php)",
-      "Bash(vendor/bin/pint app/Http/Controllers/Api/RelatorioMaquinaController.php tests/Feature/RelatorioTimelineMaquinaTest.php)"
+      "Bash(vendor/bin/pint app/Http/Controllers/Api/RelatorioMaquinaController.php tests/Feature/RelatorioTimelineMaquinaTest.php)",
+      "PowerShell(Get-CimInstance *)"
     ]
   }
 }

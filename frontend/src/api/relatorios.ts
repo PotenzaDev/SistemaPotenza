@@ -77,6 +77,7 @@ export interface TimelineSegmento {
   tipo: TimelineTipoSegmento
   inicio: string
   fim: string
+  motivo: string | null
 }
 
 export interface TimelineMaquina {

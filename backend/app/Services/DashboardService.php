@@ -62,6 +62,7 @@ class DashboardService
                         Apontamento::STATUS_AGUARDANDO_PRODUCAO,
                         Apontamento::STATUS_EM_PRODUCAO,
                         Apontamento::STATUS_EM_PAUSA_SETUP,
+                        Apontamento::STATUS_EM_PAUSA_AGUARDANDO,
                         Apontamento::STATUS_EM_PAUSA_PRODUCAO,
                     ]),
             ])

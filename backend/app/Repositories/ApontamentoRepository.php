@@ -32,6 +32,7 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
                 Apontamento::STATUS_AGUARDANDO_PRODUCAO,
                 Apontamento::STATUS_EM_PRODUCAO,
                 Apontamento::STATUS_EM_PAUSA_SETUP,
+                Apontamento::STATUS_EM_PAUSA_AGUARDANDO,
                 Apontamento::STATUS_EM_PAUSA_PRODUCAO,
             ])
             ->with(self::EAGER)
@@ -134,6 +135,7 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
     {
         return Apontamento::whereIn('status', [
             Apontamento::STATUS_EM_PAUSA_SETUP,
+            Apontamento::STATUS_EM_PAUSA_AGUARDANDO,
             Apontamento::STATUS_EM_PAUSA_PRODUCAO,
         ])
             ->where('created_at', '>=', Carbon::now()->subDays(3))

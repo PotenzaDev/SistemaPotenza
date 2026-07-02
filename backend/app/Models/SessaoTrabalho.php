@@ -67,8 +67,21 @@ class SessaoTrabalho extends Model
     {
         return $this->hasOne(Apontamento::class)->whereIn('status', [
             Apontamento::STATUS_EM_PAUSA_SETUP,
+            Apontamento::STATUS_EM_PAUSA_AGUARDANDO,
             Apontamento::STATUS_EM_PAUSA_PRODUCAO,
         ]);
+    }
+
+    /** Pausa ociosa em aberto — sessão pausada sem nenhum apontamento em andamento. */
+    public function pausaOciosaAberta(): HasOne
+    {
+        return $this->hasOne(Pausa::class)->whereNull('apontamento_id')->whereNull('fim');
+    }
+
+    /** Todas as pausas ociosas da sessão (abertas ou fechadas) — usado em relatórios/timeline. */
+    public function pausasOciosas(): HasMany
+    {
+        return $this->hasMany(Pausa::class)->whereNull('apontamento_id')->orderBy('inicio');
     }
 
     public function isAtiva(): bool

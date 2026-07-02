@@ -47,6 +47,10 @@ class ApontamentoService
             throw new BusinessException('Já existe um apontamento em andamento. Finalize-o antes de iniciar novo lote.', 422);
         }
 
+        if ($sessao->pausaOciosaAberta()->exists()) {
+            throw new BusinessException('Sessão está pausada. Retome antes de bipar um novo lote.', 422);
+        }
+
         $loteDados       = $this->loteService->buscarPorOrdemLote($dados['ordem_lote'], $dados['cod_peca']);
         $ftecPecaPilha   = $this->loteService->buscarFtecPecaPilha($dados['cod_peca']);
         $totaisVariantes = $this->loteService->buscarTotaisPorPrefixoLote(
@@ -345,13 +349,13 @@ class ApontamentoService
     }
 
     /**
-     * Pausa o apontamento em setup ou em produção.
+     * Pausa o apontamento em setup, aguardando produção ou em produção.
      */
     public function pausar(Apontamento $apontamento, int $motivoId, bool $sistema = false): Apontamento
     {
-        $statusValidos = [Apontamento::STATUS_EM_SETUP, Apontamento::STATUS_EM_PRODUCAO];
+        $fase = Apontamento::MAPA_FASE[$apontamento->status] ?? null;
 
-        if (! in_array($apontamento->status, $statusValidos, true)) {
+        if ($fase === null) {
             throw new BusinessException('Apontamento não pode ser pausado no status atual.', 422);
         }
 
@@ -365,8 +369,6 @@ class ApontamentoService
             throw new BusinessException('Motivo de pausa inválido.', 422);
         }
 
-        $fase = $apontamento->status === Apontamento::STATUS_EM_SETUP ? 'setup' : 'producao';
-
         Pausa::create([
             'apontamento_id'  => $apontamento->id,
             'motivo_pausa_id' => $motivoId,
@@ -374,9 +376,11 @@ class ApontamentoService
             'inicio'          => Carbon::now(),
         ]);
 
-        $novoStatus = $fase === 'setup'
-            ? Apontamento::STATUS_EM_PAUSA_SETUP
-            : Apontamento::STATUS_EM_PAUSA_PRODUCAO;
+        $novoStatus = match ($fase) {
+            'setup'      => Apontamento::STATUS_EM_PAUSA_SETUP,
+            'aguardando' => Apontamento::STATUS_EM_PAUSA_AGUARDANDO,
+            'producao'   => Apontamento::STATUS_EM_PAUSA_PRODUCAO,
+        };
 
         $apontamento->update(['status' => $novoStatus]);
 
@@ -390,9 +394,9 @@ class ApontamentoService
      */
     public function retomar(Apontamento $apontamento): Apontamento
     {
-        $statusValidos = [Apontamento::STATUS_EM_PAUSA_SETUP, Apontamento::STATUS_EM_PAUSA_PRODUCAO];
+        $novoStatus = Apontamento::MAPA_RETOMADA[$apontamento->status] ?? null;
 
-        if (! in_array($apontamento->status, $statusValidos, true)) {
+        if ($novoStatus === null) {
             throw new BusinessException('Apontamento não está pausado.', 422);
         }
 
@@ -403,10 +407,6 @@ class ApontamentoService
             $duracao = (int) $pausaAberta->inicio->diffInSeconds($fim);
             $pausaAberta->update(['fim' => $fim, 'duracao_segundos' => $duracao]);
         }
-
-        $novoStatus = $apontamento->status === Apontamento::STATUS_EM_PAUSA_SETUP
-            ? Apontamento::STATUS_EM_SETUP
-            : Apontamento::STATUS_EM_PRODUCAO;
 
         $totalPausas = (int) $apontamento->pausas()->whereNotNull('fim')->sum('duracao_segundos');
 
@@ -427,7 +427,7 @@ class ApontamentoService
      */
     public function retomarComNovoSetup(Apontamento $apontamento): Apontamento
     {
-        $statusValidos = [Apontamento::STATUS_EM_PAUSA_SETUP, Apontamento::STATUS_EM_PAUSA_PRODUCAO];
+        $statusValidos = Apontamento::statusPausados();
 
         if (! in_array($apontamento->status, $statusValidos, true)) {
             throw new BusinessException('Apontamento não está pausado.', 422);
