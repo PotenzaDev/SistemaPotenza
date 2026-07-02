@@ -51,8 +51,8 @@ class RelatorioMaquinaController extends Controller
             $this->relatorioService->relatorioMaquinasPorPeriodo(
                 $dataInicio,
                 $dataFim,
-                $filtros['maquina_id'] ?? null,
-                $filtros['grupo_id'] ?? null,
+                isset($filtros['maquina_id']) ? (int) $filtros['maquina_id'] : null,
+                isset($filtros['grupo_id']) ? (int) $filtros['grupo_id'] : null,
             ),
             'Relatório de produção de máquinas.'
         );
@@ -76,8 +76,8 @@ class RelatorioMaquinaController extends Controller
         return $this->successResponse(
             $this->timelineService->timelineDoDia(
                 $data,
-                $filtros['maquina_id'] ?? null,
-                $filtros['grupo_id'] ?? null,
+                isset($filtros['maquina_id']) ? (int) $filtros['maquina_id'] : null,
+                isset($filtros['grupo_id']) ? (int) $filtros['grupo_id'] : null,
             ),
             'Linha do tempo de máquinas.'
         );

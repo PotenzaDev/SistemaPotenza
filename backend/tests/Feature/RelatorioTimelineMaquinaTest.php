@@ -128,6 +128,25 @@ class RelatorioTimelineMaquinaTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_filtro_por_maquina_via_query_string_nao_gera_erro_de_tipo(): void
+    {
+        // Parâmetros de query chegam como string ("1", não 1) — o controller
+        // precisa converter antes de repassar para o service (?int).
+        $gestor = User::factory()->gestor()->create();
+        $etapa = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+
+        $this->actingAs($gestor, 'sanctum')
+            ->getJson('/api/admin/relatorio-timeline-maquinas?'.http_build_query([
+                'data' => '2026-06-08',
+                'maquina_id' => (string) $maquina->id,
+                'grupo_id' => (string) $etapa->id,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(1, 'data.maquinas');
+    }
+
     private function assertSegmento(array $segmento, string $tipo, Carbon $inicio, Carbon $fim): void
     {
         $this->assertSame($tipo, $segmento['tipo']);
