@@ -178,7 +178,7 @@ export function DashboardPage() {
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: '#0f1923', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={(v: number) => [`${v}min`, 'Tempo']} />
+                <Tooltip contentStyle={{ background: '#0f1923', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={(v) => [`${v}min`, 'Tempo']} />
                 <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
               </PieChart>
             </ResponsiveContainer>
