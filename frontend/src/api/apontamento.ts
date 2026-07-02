@@ -71,6 +71,13 @@ export interface FinalizarPayload {
   fichas: { ficha_id: number; qtd_produzida: number }[]
 }
 
+export interface ResumoFichasPorCor {
+  cod_peca: string
+  cor: string
+  qtd_fichas: number | null
+  qtd_bipadas: number
+}
+
 // ── Leitura ───────────────────────────────────────────────────────────────────
 
 export async function getApontamentoAtivo(): Promise<Apontamento | null> {
@@ -85,6 +92,16 @@ export async function getApontamentoAtivo(): Promise<Apontamento | null> {
 export async function getFichasRecentes(): Promise<FichaApontamento[]> {
   try {
     const res = await apiClient.get<ApiEnvelope<FichaApontamento[]>>('/apontamento/fichas/recentes')
+    return res.data.data ?? []
+  } catch {
+    return []
+  }
+}
+
+/** Resumo por cor/variante das fichas já bipadas — vazio quando há só uma cor. */
+export async function getFichasPorCor(id: number): Promise<ResumoFichasPorCor[]> {
+  try {
+    const res = await apiClient.get<ApiEnvelope<ResumoFichasPorCor[]>>(`/apontamento/${id}/fichas-por-cor`)
     return res.data.data ?? []
   } catch {
     return []

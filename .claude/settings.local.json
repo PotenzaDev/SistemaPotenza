@@ -46,7 +46,11 @@
       "Bash(Remove-Item \"C:\\\\Gustavo\\\\Potenza\\\\SistemaApontamento\\\\backend\\\\app\\\\Services\\\\Lote\\\\MockLoteService.php\" -Force)",
       "Bash(Remove-Item \"C:\\\\Gustavo\\\\Potenza\\\\SistemaApontamento\\\\backend\\\\tests\\\\Feature\\\\FluxoCompletoTest.php\" -Force)",
       "Bash(Remove-Item \"C:\\\\Gustavo\\\\Potenza\\\\SistemaApontamento\\\\backend\\\\tests\\\\Feature\\\\AvanceLoteKanbanTest.php\" -Force)",
-      "Bash(Remove-Item \"C:\\\\Gustavo\\\\Potenza\\\\SistemaApontamento\\\\backend\\\\tests\\\\Feature\\\\LoteNaoAvancaTest.php\" -Force)"
+      "Bash(Remove-Item \"C:\\\\Gustavo\\\\Potenza\\\\SistemaApontamento\\\\backend\\\\tests\\\\Feature\\\\LoteNaoAvancaTest.php\" -Force)",
+      "Bash(grep -A 15 \"ApontamentoOperarioPage.tsx$\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }

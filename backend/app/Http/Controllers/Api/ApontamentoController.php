@@ -180,6 +180,26 @@ class ApontamentoController extends Controller
     }
 
     /**
+     * Resumo das fichas bipadas agrupadas por cor/variante (cod_peca), quando
+     * o apontamento tem mais de um código distinto entre as fichas.
+     */
+    public function fichasPorCor(Request $request, int $id): JsonResponse
+    {
+        $apontamento = $this->apontamentoRepo->buscarPorId($id);
+
+        if (! $apontamento) {
+            return $this->errorResponse('Apontamento não encontrado.', 404);
+        }
+
+        $this->authorize('view', $apontamento);
+
+        return $this->successResponse(
+            $this->apontamentoService->resumoFichasPorCor($apontamento),
+            'Resumo de fichas por cor.'
+        );
+    }
+
+    /**
      * Apontamentos para visão gerencial — filtráveis por período, operário,
      * máquina e lote/ordem. Sem filtro de data, retorna os de hoje
      * (iniciados hoje ou ainda em aberto).

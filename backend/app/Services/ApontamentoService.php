@@ -202,35 +202,52 @@ class ApontamentoService
 
         $pilha = (int) $dados['pilha'];
 
-        // Verifica quantas vezes esta pilha já foi bipada no lote+etapa (cross-apontamento).
-        // Usa o cod_peca da ficha (pode ser variante do produto do apontamento).
-        $vezesBipada = $this->fichaRepo->contarVezesPilhaBipada(
-            $apontamento->ordem_lote,
+        // Bipagem duplicada acidental: mesma pilha já bipada NESTE apontamento.
+        // Compara contra o total de fichas físicas esperadas (bridge) — limite rígido.
+        $vezesBipadaAtual = $this->fichaRepo->contarVezesPilhaBipadaNoApontamento(
+            $apontamento->id,
             $dados['cod_peca'],
-            $apontamento->etapa_fluxo_id,
             $pilha,
         );
 
-        if ($vezesBipada > 0) {
-            // Consulta a bridge para saber quantas passagens são esperadas para este lote.
+        if ($vezesBipadaAtual > 0) {
             $passagensEsperadas = $this->loteService->contarFichasLote(
                 $apontamento->ordem_lote,
                 $dados['cod_peca'],
             );
 
-            if ($vezesBipada >= $passagensEsperadas) {
+            if ($vezesBipadaAtual >= $passagensEsperadas) {
                 throw new BusinessException(
                     "Pilha {$pilha} já atingiu o limite de {$passagensEsperadas} passagem(ns) neste lote.",
                     422
                 );
             }
 
-            // Bridge permite mais passagens; exige confirmação explícita do operário.
             if (! $confirmar) {
                 throw new ConfirmacaoNecessariaException(
                     "Pilha {$pilha} já foi bipada neste lote. Deseja registrar uma nova passagem?",
-                    $vezesBipada,
+                    $vezesBipadaAtual,
                     $passagensEsperadas,
+                );
+            }
+        } elseif (! $confirmar) {
+            // Repasse legítimo: pilha já bipada em um apontamento ANTERIOR já finalizado
+            // (ex.: retrabalho, nova passagem pela mesma etapa). Sempre confirmável — não
+            // há limite da bridge aqui, pois o limite representa fichas físicas distintas,
+            // não quantas vezes a peça pode reprocessar.
+            $vezesBipadaAnterior = $this->fichaRepo->contarVezesPilhaBipadaEmOutrosApontamentos(
+                $apontamento->ordem_lote,
+                $dados['cod_peca'],
+                $apontamento->etapa_fluxo_id,
+                $pilha,
+                $apontamento->id,
+            );
+
+            if ($vezesBipadaAnterior > 0) {
+                throw new ConfirmacaoNecessariaException(
+                    "Esta ficha já passou por esta etapa em um apontamento anterior. Deseja processá-la novamente?",
+                    $vezesBipadaAnterior,
+                    $vezesBipadaAnterior + 1,
                 );
             }
         }
@@ -490,6 +507,41 @@ class ApontamentoService
                 'qtd_pilhas' => (int) $linhas->sum('qtd_pilhas'),
             ],
         ];
+    }
+
+    /**
+     * Agrupa as fichas já bipadas deste apontamento por cod_peca (cor/variante),
+     * quando há mais de um código distinto entre as fichas — caso de peças que
+     * compartilham o mesmo prefixo mas mudam de cor (últimos dígitos). Para cada
+     * grupo, busca a cor (descrição) e a quantidade de fichas esperada na Bridge.
+     * Retorna array vazio quando todas as fichas são do mesmo cod_peca.
+     */
+    public function resumoFichasPorCor(Apontamento $apontamento): array
+    {
+        $porCodigo = $apontamento->fichas->groupBy('cod_peca');
+
+        if ($porCodigo->count() <= 1) {
+            return [];
+        }
+
+        return $porCodigo->map(function ($fichas, $codPeca) use ($apontamento) {
+            $dados         = $this->loteService->buscarPorOrdemLote($apontamento->ordem_lote, $codPeca);
+            $ftecPecaPilha = $this->loteService->buscarFtecPecaPilha($codPeca);
+
+            $qtdFichas = $dados['qtde_total'] && $ftecPecaPilha
+                ? (int) ceil($dados['qtde_total'] / $ftecPecaPilha)
+                : null;
+
+            // A cor/acabamento é o último segmento da descrição (ex: "... - Nature").
+            $partesDesc = explode(' - ', (string) $dados['desc_peca']);
+
+            return [
+                'cod_peca'    => $codPeca,
+                'cor'         => trim((string) end($partesDesc)),
+                'qtd_fichas'  => $qtdFichas,
+                'qtd_bipadas' => $fichas->count(),
+            ];
+        })->values()->all();
     }
 
     /**

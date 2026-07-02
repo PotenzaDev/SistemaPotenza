@@ -75,6 +75,56 @@ class BiparFichaDuplicadaTest extends TestCase
         $this->assertDatabaseCount('fichas_apontamento', 1);
     }
 
+    public function test_bipar_ficha_ja_bipada_em_apontamento_anterior_exige_confirmacao_e_depois_permite(): void
+    {
+        // Bridge indica apenas 1 ficha física legítima por pilha — o mesmo cenário
+        // que antes travava permanentemente ao iniciar uma nova passagem do lote.
+        [$user, $apontamentoId1] = $this->prepararApontamentoEmProducao(passagensEsperadas: 1);
+
+        $payload = ['cod_peca' => '4501940', 'ordem_lote' => '06854', 'qtd_peca' => 10, 'pilha' => 1];
+
+        // Bipa e finaliza o primeiro apontamento normalmente.
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/apontamento/{$apontamentoId1}/bipar-ficha", $payload)
+            ->assertOk();
+
+        $ficha1Id = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/apontamento/{$apontamentoId1}")
+            ->json('data.fichas.0.id');
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/apontamento/{$apontamentoId1}/finalizar", [
+                'fichas' => [['ficha_id' => $ficha1Id, 'qtd_produzida' => 10]],
+            ])
+            ->assertOk();
+
+        // Inicia um novo apontamento do mesmo lote (nova passagem / retrabalho).
+        $bipar2 = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/apontamento/bipar', ['cod_peca' => '4501940', 'ordem_lote' => '06854'])
+            ->assertCreated();
+
+        $apontamentoId2 = $bipar2->json('data.id');
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/apontamento/{$apontamentoId2}/finalizar-setup")
+            ->assertOk();
+
+        // Bipar a mesma pilha no novo apontamento: deve pedir confirmação, NUNCA
+        // bloquear de forma definitiva (a ficha já passou por um apontamento anterior).
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/apontamento/{$apontamentoId2}/bipar-ficha", $payload)
+            ->assertStatus(409)
+            ->assertJsonPath('requiresConfirmation', true);
+
+        // Confirmando, a passagem é registrada mesmo já tendo atingido o limite da bridge.
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/apontamento/{$apontamentoId2}/bipar-ficha", $payload + ['confirmar' => true])
+            ->assertOk()
+            ->assertJsonCount(1, 'data.fichas');
+
+        $this->assertDatabaseCount('fichas_apontamento', 2);
+    }
+
     /**
      * Cria turno, etapa, máquina e operário; inicia sessão; bipa o lote e
      * finaliza o setup, deixando o apontamento pronto para bipar fichas.

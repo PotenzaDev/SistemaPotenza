@@ -62,6 +62,7 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->g
         Route::get('/ativo',           [ApontamentoController::class, 'ativo']);
         Route::get('/historico',       [ApontamentoController::class, 'historico']);
         Route::get('/fichas/recentes', [ApontamentoController::class, 'fichasRecentes']);
+        Route::get('/{id}/fichas-por-cor', [ApontamentoController::class, 'fichasPorCor']);
         Route::get('/{id}',            [ApontamentoController::class, 'show']);
 
         // Fluxo de trabalho

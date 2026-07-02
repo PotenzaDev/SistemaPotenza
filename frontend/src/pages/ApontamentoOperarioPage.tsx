@@ -650,7 +650,7 @@ export function ApontamentoOperarioPage() {
 
           {/* Fichas após os botões — scrollável internamente */}
           {apontamento.fichas.length > 0 && (
-            <FichasDoLote fichas={apontamento.fichas} qtdeTotal={apontamento.qtde_total} />
+            <FichasDoLote apontamentoId={apontamento.id} fichas={apontamento.fichas} qtdeTotal={apontamento.qtde_total} />
           )}
 
           <FichasRecentes fichas={fichasRecentes} />
@@ -668,7 +668,7 @@ export function ApontamentoOperarioPage() {
             onRetomar={handleRetomar}
           />
           {apontamento.fichas.length > 0 && (
-            <FichasDoLote fichas={apontamento.fichas} qtdeTotal={apontamento.qtde_total} />
+            <FichasDoLote apontamentoId={apontamento.id} fichas={apontamento.fichas} qtdeTotal={apontamento.qtde_total} />
           )}
         </>
       )}

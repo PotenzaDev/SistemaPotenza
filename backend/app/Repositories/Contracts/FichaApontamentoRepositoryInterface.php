@@ -23,11 +23,26 @@ interface FichaApontamentoRepositoryInterface
     public function contarPilhasBipadasDoLote(string $ordemLote, string $codPeca, int $etapaFluxoId): int;
 
     /**
-     * Conta quantas vezes uma pilha específica foi bipada em qualquer apontamento
-     * do mesmo lote/peça/etapa. Usado para comparar contra o total de fichas
-     * permitidas para essa pilha (retornado pela bridge).
+     * Conta quantas vezes uma pilha específica foi bipada dentro do MESMO
+     * apontamento informado. Usado para detectar bipagem duplicada acidental
+     * (mesma ficha lida duas vezes na mesma produção), comparada contra o
+     * total de fichas físicas permitidas para essa pilha (retornado pela bridge).
      */
-    public function contarVezesPilhaBipada(string $ordemLote, string $codPeca, int $etapaFluxoId, int $pilha): int;
+    public function contarVezesPilhaBipadaNoApontamento(int $apontamentoId, string $codPeca, int $pilha): int;
+
+    /**
+     * Conta quantas vezes uma pilha específica foi bipada em OUTROS apontamentos
+     * (diferentes do informado) do mesmo lote/peça/etapa. Usado para detectar
+     * repasse legítimo da peça por uma passagem anterior já finalizada — não é
+     * comparado contra o limite da bridge, apenas exige confirmação do operário.
+     */
+    public function contarVezesPilhaBipadaEmOutrosApontamentos(
+        string $ordemLote,
+        string $codPeca,
+        int $etapaFluxoId,
+        int $pilha,
+        int $apontamentoIdAtual,
+    ): int;
 
     public function atualizarQtdProduzida(int $fichaId, int $qtdProduzida): FichaApontamento;
 
