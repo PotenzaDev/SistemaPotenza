@@ -42,6 +42,10 @@ export async function encerrarSessao(): Promise<void> {
   await apiClient.post('/sessao/encerrar')
 }
 
+export async function cancelarSessao(): Promise<void> {
+  await apiClient.post('/sessao/cancelar')
+}
+
 export async function pausarSessao(): Promise<Sessao> {
   const res = await apiClient.post<ApiEnvelope<Sessao>>('/sessao/pausar')
   return res.data.data

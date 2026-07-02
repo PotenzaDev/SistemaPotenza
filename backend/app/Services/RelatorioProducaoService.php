@@ -47,10 +47,18 @@ class RelatorioProducaoService
         $tempoTurnoSegundos = $this->calculo->somaDuracaoJanelas($janelas);
         $agora              = Carbon::now();
 
-        $sessoes = SessaoTrabalho::with(['operario.user', 'maquina', 'apontamentos.pausas.motivoPausa'])
+        // withTrashed(): sessões canceladas (soft-deleted) só entram se ainda
+        // restar algum apontamento (necessariamente finalizado, já que os não
+        // finalizados são excluídos no cancelamento) — evita linhas "fantasma"
+        // de sessões totalmente canceladas sem nenhuma produção real.
+        $sessoes = SessaoTrabalho::withTrashed()
+            ->with(['operario.user', 'maquina', 'apontamentos.pausas.motivoPausa'])
             ->where('inicio', '<=', $diaFim)
             ->where(function ($query) use ($diaInicio) {
                 $query->whereNull('fim')->orWhere('fim', '>=', $diaInicio);
+            })
+            ->where(function ($query) {
+                $query->whereNull('deleted_at')->orWhereHas('apontamentos');
             })
             ->when($operarioId, fn ($query) => $query->where('operario_id', $operarioId))
             ->when($maquinaId, fn ($query) => $query->where('maquina_id', $maquinaId))
@@ -121,11 +129,18 @@ class RelatorioProducaoService
         $periodoFim    = $dataFim->copy()->endOfDay();
         $agora         = Carbon::now();
 
-        $sessoesPorMaquina = SessaoTrabalho::with(['apontamentos.pausas.motivoPausa', 'apontamentos.fichas'])
+        // withTrashed(): sessões canceladas (soft-deleted) só entram se ainda
+        // restar algum apontamento (necessariamente finalizado) — evita
+        // sessões totalmente canceladas sem nenhuma produção real.
+        $sessoesPorMaquina = SessaoTrabalho::withTrashed()
+            ->with(['apontamentos.pausas.motivoPausa', 'apontamentos.fichas'])
             ->whereIn('maquina_id', $maquinas->pluck('id'))
             ->where('inicio', '<=', $periodoFim)
             ->where(function ($query) use ($periodoInicio) {
                 $query->whereNull('fim')->orWhere('fim', '>=', $periodoInicio);
+            })
+            ->where(function ($query) {
+                $query->whereNull('deleted_at')->orWhereHas('apontamentos');
             })
             ->get()
             ->groupBy('maquina_id');

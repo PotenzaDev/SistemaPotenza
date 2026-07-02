@@ -14,6 +14,7 @@ use App\Models\Turno;
 use App\Repositories\Contracts\ApontamentoRepositoryInterface;
 use App\Repositories\Contracts\SessaoTrabalhoRepositoryInterface;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class SessaoTrabalhoService
 {
@@ -113,6 +114,26 @@ class SessaoTrabalhoService
         $this->autoPausarApontamentoAtivo($sessao);
 
         $this->sessaoRepo->encerrarSessao($sessao, $fimTurno);
+    }
+
+    /**
+     * Cancela a sessão ativa do operário (ex.: iniciada por engano): exclui
+     * definitivamente os apontamentos não finalizados (e suas pausas/fichas,
+     * via cascade no banco) e soft-deleta a sessão. Apontamentos já
+     * finalizados são preservados.
+     */
+    public function cancelar(Operario $operario): void
+    {
+        $sessao = $this->sessaoRepo->buscarSessaoAtiva($operario);
+
+        if (! $sessao) {
+            throw new BusinessException('Nenhuma sessão ativa encontrada.', 422);
+        }
+
+        DB::transaction(function () use ($sessao) {
+            $this->apontamentoRepo->excluirNaoFinalizadosPorSessao($sessao);
+            $this->sessaoRepo->cancelarSessao($sessao);
+        });
     }
 
     public function encerrarTurno(Operario $operario): void

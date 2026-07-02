@@ -35,4 +35,7 @@ interface SessaoTrabalhoRepositoryInterface
 
     /** Registra um evento na linha do tempo da sessão, usado pelo SessaoCalculoService. */
     public function registrarEvento(int $sessaoTrabalhoId, string $tipo, ?int $apontamentoId = null): void;
+
+    /** Soft-deleta a sessão (cancelamento) e registra o evento correspondente. */
+    public function cancelarSessao(SessaoTrabalho $sessao): void;
 }

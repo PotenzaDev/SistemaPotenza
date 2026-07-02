@@ -29,6 +29,7 @@ class EventoSessao extends Model
     public const TIPO_FIM_TURNO       = 'fim_turno';
     public const TIPO_PAUSA_SESSAO    = 'pausa_sessao';
     public const TIPO_RETOMADA_SESSAO = 'retomada_sessao';
+    public const TIPO_CANCELAMENTO    = 'cancelamento';
 
     public function sessaoTrabalho(): BelongsTo
     {

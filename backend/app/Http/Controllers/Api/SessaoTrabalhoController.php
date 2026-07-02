@@ -106,6 +106,13 @@ class SessaoTrabalhoController extends Controller
         return $this->successResponse(new SessaoTrabalhoResource($sessao), 'Sessão pausada com sucesso.');
     }
 
+    public function cancelar(Request $request): JsonResponse
+    {
+        $this->sessaoService->cancelar($request->user()->operario);
+
+        return $this->successResponse(null, 'Sessão cancelada com sucesso.');
+    }
+
     public function encerrarTurno(Request $request): JsonResponse
     {
         $this->sessaoService->encerrarTurno($request->user()->operario);

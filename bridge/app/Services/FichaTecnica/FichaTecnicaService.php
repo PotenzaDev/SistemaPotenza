@@ -62,15 +62,28 @@ class FichaTecnicaService implements FichaTecnicaServiceInterface
     {
         $ordemLote = ltrim($ordemLote, '0') ?: '0';
 
-        $result = DB::selectOne(
-            'SELECT COUNT(*) as total FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
+        $rows = DB::select(
+            'SELECT Prod_Codi FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
              WHERE CodiSemiAcabado = ? AND Lote = ?',
             [$codPeca, $ordemLote]
         );
 
-        $total = (int) (((array) $result)['total'] ?? 0);
+        if (empty($rows)) {
+            return 1;
+        }
 
-        return max(1, $total);
+        // O sufixo alfabético de Prod_Codi identifica a cor/acabamento do
+        // produto final (ex: "03950GD" -> "GD"). Quando todas as linhas
+        // compartilham o mesmo sufixo, cada uma é um produto distinto que
+        // precisa de sua própria ficha física (passagens legítimas =
+        // quantidade de linhas). Quando os sufixos diferem, as linhas são
+        // variantes de cor do mesmo corte, somadas em uma única ficha.
+        $sufixos = array_unique(array_map(
+            fn ($row) => preg_replace('/^[0-9]+/', '', (string) $row->Prod_Codi),
+            $rows
+        ));
+
+        return count($sufixos) === 1 ? count($rows) : 1;
     }
 
     public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array

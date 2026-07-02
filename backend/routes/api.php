@@ -51,6 +51,7 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->g
         Route::post('/encerrar',       [SessaoTrabalhoController::class, 'encerrar']);
         Route::post('/encerrar-turno', [SessaoTrabalhoController::class, 'encerrarTurno']);
         Route::post('/pausar',         [SessaoTrabalhoController::class, 'pausar']);
+        Route::post('/cancelar',       [SessaoTrabalhoController::class, 'cancelar']);
         Route::get('/pausadas',        [SessaoTrabalhoController::class, 'pausadas']);
         Route::get('/ativa',           [SessaoTrabalhoController::class, 'ativa']);
         Route::get('/turno-hoje',      [SessaoTrabalhoController::class, 'turnoHoje']);

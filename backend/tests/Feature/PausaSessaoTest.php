@@ -43,6 +43,11 @@ class PausaSessaoTest extends TestCase
             {
                 return 1;
             }
+
+            public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array
+            {
+                return ['qtde_total' => null, 'total_pilhas' => 0];
+            }
         });
 
         $t0 = Carbon::parse('2026-06-25 08:00:00');
@@ -241,6 +246,11 @@ class PausaSessaoTest extends TestCase
             public function contarFichasLote(string $ordemLote, string $codPeca): int
             {
                 return 1;
+            }
+
+            public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array
+            {
+                return ['qtde_total' => null, 'total_pilhas' => 0];
             }
         });
     }

@@ -114,4 +114,11 @@ class SessaoTrabalhoRepository implements SessaoTrabalhoRepositoryInterface
             'ocorrido_em'        => Carbon::now(),
         ]);
     }
+
+    public function cancelarSessao(SessaoTrabalho $sessao): void
+    {
+        $this->registrarEvento($sessao->id, EventoSessao::TIPO_CANCELAMENTO);
+
+        $sessao->delete();
+    }
 }

@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import {
   Loader2, LogOut, CheckCircle2, RotateCcw,
   AlertCircle, Cpu, ScanLine, Settings, Play,
-  Timer, PackageCheck, QrCode, Flag, Pause, Bell,
+  Timer, PackageCheck, QrCode, Flag, Pause, Bell, Ban,
 } from 'lucide-react'
-import { getSessaoAtiva, getTurnoHoje, encerrarSessao, encerrarTurno, pausarSessao, type Sessao, type TurnoHoje } from '@/api/sessao'
+import { getSessaoAtiva, getTurnoHoje, encerrarSessao, encerrarTurno, pausarSessao, cancelarSessao, type Sessao, type TurnoHoje } from '@/api/sessao'
 import {
   getApontamentoAtivo,
   biparLote,
@@ -48,6 +48,7 @@ export function ApontamentoOperarioPage() {
   const [loadingInicial, setLoadingInicial] = useState(true)
   const [encerrando, setEncerrando]               = useState(false)
   const [pausandoSessao, setPausandoSessao]       = useState(false)
+  const [cancelando, setCancelando]               = useState(false)
   const [finalizandoTurno, setFinalizandoTurno]   = useState(false)
   const [showModalTurno, setShowModalTurno]       = useState(false)
   const [atualizando, setAtualizando]       = useState(false)
@@ -166,6 +167,18 @@ export function ApontamentoOperarioPage() {
     } catch (err) {
       setErroApi(apiMsg(err))
       setPausandoSessao(false)
+    }
+  }
+
+  async function handleCancelarSessao() {
+    if (!confirm('Cancelar esta sessão? O trabalho em andamento ainda não finalizado será perdido. Apontamentos já finalizados são mantidos.')) return
+    setCancelando(true)
+    try {
+      await cancelarSessao()
+      navigate('/operario', { replace: true })
+    } catch (err) {
+      setErroApi(apiMsg(err))
+      setCancelando(false)
     }
   }
 
@@ -393,13 +406,13 @@ export function ApontamentoOperarioPage() {
   if (!sessao) return null
 
   const podeEncerrar = fase === 'aguardando' || fase === 'concluido'
-  const acoesSessaoDesabilitadas = atualizando || pausando || retomando || encerrando || finalizandoTurno || pausandoSessao
+  const acoesSessaoDesabilitadas = atualizando || pausando || retomando || encerrando || finalizandoTurno || pausandoSessao || cancelando
 
   const horarioLiberacao   = turnoHoje ? horarioLiberacaoTurno(turnoHoje) : null
   const podeFinalizarTurno = !horarioLiberacao || now >= horarioLiberacao
 
   return (
-    <div className="max-w-xl mx-auto space-y-5">
+    <div className="max-w-2xl mx-auto space-y-5">
 
       {/* Cabeçalho da sessão */}
       <div className="flex items-center justify-between gap-4 bg-[#0f1923] border border-white/5 rounded-xl px-5 py-4">
@@ -445,6 +458,16 @@ export function ApontamentoOperarioPage() {
           >
             {encerrando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
             Encerrar
+          </button>
+          <button
+            type="button"
+            onClick={handleCancelarSessao}
+            disabled={cancelando}
+            title="Cancela a sessão; apontamentos não finalizados são excluídos"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 bg-white/5 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            {cancelando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+            Cancelar Sessão
           </button>
         </div>
       </div>

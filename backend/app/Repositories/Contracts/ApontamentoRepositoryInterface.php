@@ -37,4 +37,11 @@ interface ApontamentoRepositoryInterface
 
     /** Busca o apontamento finalizado mais recente para o lote/etapa. */
     public function buscarUltimoFinalizadoPorLoteEtapa(string $ordemLote, string $codPeca, int $etapaFluxoId): ?Apontamento;
+
+    /**
+     * Exclui definitivamente os apontamentos não finalizados da sessão (usado
+     * ao cancelar uma sessão iniciada por engano). Apontamentos finalizados
+     * são preservados. Retorna a quantidade de apontamentos excluídos.
+     */
+    public function excluirNaoFinalizadosPorSessao(SessaoTrabalho $sessao): int;
 }

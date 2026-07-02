@@ -26,9 +26,13 @@ interface FichaTecnicaServiceInterface
     public function buscarFtecPecaPilha(string $codPeca): ?int;
 
     /**
-     * Retorna a quantidade de fichas (linhas) em FbmLoteFichaTecnica
-     * para o CodiSemiAcabado + Lote informados.
-     * Retorna 1 se não encontrado (fallback seguro).
+     * Retorna quantas passagens legítimas existem para o CodiSemiAcabado + Lote
+     * informados, com base no sufixo alfabético de Prod_Codi (cor/acabamento
+     * do produto final): linhas com o mesmo sufixo são produtos distintos que
+     * precisam de fichas próprias (retorna a quantidade de linhas); linhas com
+     * sufixos diferentes são variantes de cor do mesmo corte, somadas em uma
+     * única ficha (retorna 1). Retorna 1 também quando não há nenhuma linha
+     * (fallback seguro).
      */
     public function contarFichasLote(string $ordemLote, string $codPeca): int;
 

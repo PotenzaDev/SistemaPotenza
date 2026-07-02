@@ -83,7 +83,11 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
         }
 
         if (! empty($filtros['operario_id']) || ! empty($filtros['maquina_id']) || ! empty($filtros['grupo_id'])) {
+            // withTrashed(): apontamentos finalizados de uma sessão cancelada
+            // (soft-deleted) continuam contando no relatório/histórico.
             $query->whereHas('sessaoTrabalho', function ($q) use ($filtros) {
+                $q->withTrashed();
+
                 if (! empty($filtros['operario_id'])) {
                     $q->where('operario_id', $filtros['operario_id']);
                 }
@@ -101,14 +105,26 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
         }
 
         return $query
-            ->with(['sessaoTrabalho.operario.user', 'sessaoTrabalho.maquina.etapaFluxo', 'fichas', 'pausas.motivoPausa'])
+            ->with([
+                // withTrashed(): sem isso, o relacionamento eager-loaded volta
+                // null para apontamentos de uma sessão cancelada (soft-deleted),
+                // mesmo que o whereHas() acima já a inclua no resultado.
+                'sessaoTrabalho' => fn ($q) => $q->withTrashed()->with(['operario.user', 'maquina.etapaFluxo']),
+                'fichas',
+                'pausas.motivoPausa',
+            ])
             ->orderBy('setup_inicio', 'desc')
             ->get();
     }
 
     public function historicoPorOperario(int $operarioId): Collection
     {
-        return Apontamento::whereHas('sessaoTrabalho', fn ($q) => $q->where('operario_id', $operarioId))
+        // withTrashed(): apontamentos finalizados de uma sessão cancelada
+        // (soft-deleted) continuam aparecendo no histórico do operário.
+        return Apontamento::whereHas(
+            'sessaoTrabalho',
+            fn ($q) => $q->withTrashed()->where('operario_id', $operarioId)
+        )
             ->with(self::EAGER)
             ->latest()
             ->get();
@@ -151,5 +167,12 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
             ->with(self::EAGER)
             ->latest()
             ->first();
+    }
+
+    public function excluirNaoFinalizadosPorSessao(SessaoTrabalho $sessao): int
+    {
+        return Apontamento::where('sessao_trabalho_id', $sessao->id)
+            ->where('status', '!=', Apontamento::STATUS_FINALIZADO)
+            ->delete();
     }
 }

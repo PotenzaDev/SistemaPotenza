@@ -7,7 +7,9 @@ import {
   type RelatorioMaquinasResponse,
   type RelatorioMaquinasFiltros,
   type FiltrosRelatorioMaquinas,
+  type RelatorioMaquina,
 } from '@/api/relatorios'
+import { ApontamentosMaquinaModal } from '@/components/ApontamentosMaquinaModal'
 import { fmtDuracao } from '@/lib/apontamentoFormat'
 import {
   PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer,
@@ -69,6 +71,7 @@ export function RelatorioProducaoMaquinasPage() {
   const [dados, setDados]     = useState<RelatorioMaquinasResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
+  const [maquinaSelecionada, setMaquinaSelecionada] = useState<RelatorioMaquina | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -294,7 +297,11 @@ export function RelatorioProducaoMaquinasPage() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {maquinas.map(maquina => (
-                  <tr key={maquina.maquina_id} className="hover:bg-white/[0.02] transition-colors">
+                  <tr
+                    key={maquina.maquina_id}
+                    onClick={() => setMaquinaSelecionada(maquina)}
+                    className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-3 text-white">{maquina.maquina}</td>
                     <td className="px-6 py-3 text-slate-300">{maquina.grupo?.nome ?? '—'}</td>
                     <td className="px-6 py-3 text-right text-slate-300">{fmtDuracao(maquina.tempo_setup_segundos)}</td>
@@ -321,6 +328,12 @@ export function RelatorioProducaoMaquinasPage() {
           </div>
         </>
       )}
+
+      <ApontamentosMaquinaModal
+        maquina={maquinaSelecionada}
+        filtros={filtros}
+        onClose={() => setMaquinaSelecionada(null)}
+      />
     </div>
   )
 }
