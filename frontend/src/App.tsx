@@ -6,6 +6,13 @@ import { MaquinasPage }            from '@/pages/MaquinasPage'
 import { OperariosPage }           from '@/pages/OperariosPage'
 import { ApontamentosPage }        from '@/pages/ApontamentosPage'
 import { MotivoPausaPage }         from '@/pages/MotivoPausaPage'
+import { BrocasPage }              from '@/pages/BrocasPage'
+import { ProdutosPage }            from '@/pages/ProdutosPage'
+import { ImportarProdutoPage }     from '@/pages/ImportarProdutoPage'
+import { ProdutoSemiAcabadosPage } from '@/pages/ProdutoSemiAcabadosPage'
+import { FichaCabecoteListPage }   from '@/pages/FichaCabecoteListPage'
+import { FichaCabecoteFormPage }   from '@/pages/FichaCabecoteFormPage'
+import { FichaCabecoteDetalhePage } from '@/pages/FichaCabecoteDetalhePage'
 import { TurnosPage }              from '@/pages/TurnosPage'
 import { RelatoriosPage }          from '@/pages/RelatoriosPage'
 import { RelatorioProducaoMaquinasPage } from '@/pages/RelatorioProducaoMaquinasPage'
@@ -65,6 +72,30 @@ function App() {
           } />
           <Route path="motivos-pausa" element={
             <ProtectedRoute requiredRotina="motivos_pausa"><MotivoPausaPage /></ProtectedRoute>
+          } />
+          <Route path="brocas" element={
+            <ProtectedRoute requiredRotina="brocas"><BrocasPage /></ProtectedRoute>
+          } />
+          <Route path="produtos" element={
+            <ProtectedRoute requiredRotina="produtos"><ProdutosPage /></ProtectedRoute>
+          } />
+          <Route path="produtos/importar" element={
+            <ProtectedRoute requiredRotina="produtos"><ImportarProdutoPage /></ProtectedRoute>
+          } />
+          <Route path="produtos/:id/semi-acabados" element={
+            <ProtectedRoute requiredRotina="produtos"><ProdutoSemiAcabadosPage /></ProtectedRoute>
+          } />
+          <Route path="produtos/:produtoId/semi-acabados/:pecaId/fichas" element={
+            <ProtectedRoute requiredRotina="produtos"><FichaCabecoteListPage /></ProtectedRoute>
+          } />
+          <Route path="produtos/:produtoId/semi-acabados/:pecaId/fichas/nova" element={
+            <ProtectedRoute requiredRotina="produtos"><FichaCabecoteFormPage /></ProtectedRoute>
+          } />
+          <Route path="produtos/:produtoId/semi-acabados/:pecaId/fichas/:fichaId/editar" element={
+            <ProtectedRoute requiredRotina="produtos"><FichaCabecoteFormPage /></ProtectedRoute>
+          } />
+          <Route path="produtos/:produtoId/semi-acabados/:pecaId/fichas/:fichaId" element={
+            <ProtectedRoute requiredRotina="produtos"><FichaCabecoteDetalhePage /></ProtectedRoute>
           } />
           <Route path="turnos" element={
             <ProtectedRoute requiredRotina="turnos"><TurnosPage /></ProtectedRoute>

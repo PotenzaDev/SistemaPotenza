@@ -15,6 +15,7 @@ class RelatorioProducaoService
 {
     public function __construct(
         private readonly TurnoCalculoService $calculo,
+        private readonly MovimentacaoDiaService $movimentacao,
     ) {}
 
     /**
@@ -29,7 +30,10 @@ class RelatorioProducaoService
      * janela é removida do cálculo (não conta como tempo de turno nem como
      * tempo trabalhado).
      *
-     * Retorna [] se não houver turno ativo configurado para o dia da semana.
+     * Retorna [] se não houver turno ativo configurado para o dia da semana
+     * E nenhuma movimentação (setup/produção) real tiver ocorrido nesse dia
+     * — nesse segundo caso (ex.: sábado avulso), usa-se a janela de fallback
+     * de TurnoCalculoService::turnoFallback() para o cálculo.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -38,7 +42,18 @@ class RelatorioProducaoService
         $turno = Turno::doDia($data->dayOfWeekIso, $data);
 
         if (! $turno) {
-            return [];
+            $temMovimentacao = $this->movimentacao->existeParaSessao(
+                $data->copy()->startOfDay(),
+                $data->copy()->endOfDay(),
+                $operarioId,
+                $maquinaId,
+            );
+
+            if (! $temMovimentacao) {
+                return [];
+            }
+
+            $turno = $this->calculo->turnoFallback();
         }
 
         $janelas            = $this->calculo->janelasUteis($turno, $data);
@@ -118,10 +133,15 @@ class RelatorioProducaoService
      * Relatório de produção por máquina, agregando turno, setup, produção,
      * tempo parado e quantidade de peças produzidas em um intervalo de dias.
      *
-     * Para cada dia do período, soma-se o tempo de turno, setup e produção
-     * de cada máquina dentro da janela [hora_inicio, hora_fim] do turno
-     * daquele dia da semana. Dias sem turno configurado são ignorados (não
-     * contam para tempo de turno nem para tempo parado).
+     * Um dia só é contabilizado para uma máquina se existiu movimentação real
+     * (setup ou produção) daquela máquina naquele dia — não basta o dia da
+     * semana ter turno ativo configurado. Isso evita que feriados caídos em
+     * dia de semana normalmente ativo inflem o tempo de turno sem nenhuma
+     * produção real, e permite que sábados/domingos com serviço avulso
+     * apareçam no relatório mesmo sem turno cadastrado (usando, nesse caso,
+     * a janela de fallback de TurnoCalculoService::turnoFallback()). Cada
+     * máquina conta seus próprios dias com movimentação de forma
+     * independente das demais.
      *
      * @return array{maquinas: array<int, array<string, mixed>>, totais: array<string, mixed>, dias_considerados: int}
      */
@@ -171,42 +191,47 @@ class RelatorioProducaoService
                 'tempo_setup_segundos'    => 0,
                 'tempo_producao_segundos' => 0,
                 'qtd_pecas'               => 0,
+                'dias_com_movimentacao'   => 0,
             ];
         }
 
-        $diasConsiderados = 0;
-        $cursor           = $periodoInicio->copy();
+        $diasComMovimentoNoPeriodo = [];
+        $cursor                    = $periodoInicio->copy();
 
         while ($cursor->lessThanOrEqualTo($periodoFim)) {
-            $turno = Turno::doDia($cursor->dayOfWeekIso, $cursor);
+            $inicioDia = $cursor->copy()->startOfDay();
+            $fimDia    = $cursor->copy()->endOfDay();
 
-            if ($turno) {
-                $diasConsiderados++;
+            $turno              = Turno::doDia($cursor->dayOfWeekIso, $cursor) ?? $this->calculo->turnoFallback();
+            $janelas            = $this->calculo->janelasUteis($turno, $cursor);
+            $diaInicio          = $janelas[0]['inicio'];
+            $diaFimDia          = $janelas[array_key_last($janelas)]['fim'];
+            $tempoTurnoSegundos = $this->calculo->somaDuracaoJanelas($janelas);
 
-                $janelas            = $this->calculo->janelasUteis($turno, $cursor);
-                $diaInicio          = $janelas[0]['inicio'];
-                $diaFimDia          = $janelas[array_key_last($janelas)]['fim'];
-                $tempoTurnoSegundos = $this->calculo->somaDuracaoJanelas($janelas);
+            foreach ($maquinas as $maquina) {
+                /** @var Collection<int, SessaoTrabalho> $sessoes */
+                $sessoes = $sessoesPorMaquina->get($maquina->id, collect());
 
-                foreach ($maquinas as $maquina) {
-                    $acumulado[$maquina->id]['tempo_turno_segundos'] += $tempoTurnoSegundos;
+                if (! $this->existeMovimentacaoNoDia($sessoes, $inicioDia, $fimDia, $agora)) {
+                    continue;
+                }
 
-                    /** @var Collection<int, SessaoTrabalho> $sessoes */
-                    $sessoes = $sessoesPorMaquina->get($maquina->id, collect());
+                $diasComMovimentoNoPeriodo[$cursor->toDateString()] = true;
+                $acumulado[$maquina->id]['dias_com_movimentacao']++;
+                $acumulado[$maquina->id]['tempo_turno_segundos'] += $tempoTurnoSegundos;
 
-                    foreach ($sessoes as $sessao) {
-                        foreach ($sessao->apontamentos as $apontamento) {
-                            foreach (['setup', 'producao'] as $fase) {
-                                [$trabalhado] = $this->calculo->calcularFaseNoDia($apontamento, $fase, $janelas, $agora);
+                foreach ($sessoes as $sessao) {
+                    foreach ($sessao->apontamentos as $apontamento) {
+                        foreach (['setup', 'producao'] as $fase) {
+                            [$trabalhado] = $this->calculo->calcularFaseNoDia($apontamento, $fase, $janelas, $agora);
 
-                                $chave = $fase === 'setup' ? 'tempo_setup_segundos' : 'tempo_producao_segundos';
-                                $acumulado[$maquina->id][$chave] += $trabalhado;
-                            }
+                            $chave = $fase === 'setup' ? 'tempo_setup_segundos' : 'tempo_producao_segundos';
+                            $acumulado[$maquina->id][$chave] += $trabalhado;
+                        }
 
-                            foreach ($apontamento->fichas as $ficha) {
-                                if ($ficha->bipada_at && $ficha->bipada_at->between($diaInicio, $diaFimDia)) {
-                                    $acumulado[$maquina->id]['qtd_pecas'] += $ficha->qtd_peca;
-                                }
+                        foreach ($apontamento->fichas as $ficha) {
+                            if ($ficha->bipada_at && $ficha->bipada_at->between($diaInicio, $diaFimDia)) {
+                                $acumulado[$maquina->id]['qtd_pecas'] += $ficha->qtd_peca;
                             }
                         }
                     }
@@ -234,6 +259,7 @@ class RelatorioProducaoService
                 'tempo_producao_segundos' => $tempoProducao,
                 'tempo_parado_segundos'   => $tempoParado,
                 'qtd_pecas'               => $dados['qtd_pecas'],
+                'dias_com_movimentacao'   => $dados['dias_com_movimentacao'],
                 'percentual_utilizacao'   => $tempoTurno > 0
                     ? round($tempoProducao / $tempoTurno * 100, 1)
                     : 0.0,
@@ -249,8 +275,50 @@ class RelatorioProducaoService
         return [
             'maquinas'          => $maquinasResultado,
             'totais'            => $totais,
-            'dias_considerados' => $diasConsiderados,
+            'dias_considerados' => count($diasComMovimentoNoPeriodo),
         ];
+    }
+
+    /**
+     * Existe alguma movimentação (setup, produção ou ficha bipada) das
+     * sessões informadas sobrepondo [inicioDia, fimDia]? Verificação em
+     * memória (as sessões/apontamentos/fichas já vêm eager-loaded do
+     * chamador) — evita uma query por dia×máquina no período.
+     *
+     * @param  Collection<int, SessaoTrabalho>  $sessoes
+     */
+    private function existeMovimentacaoNoDia(Collection $sessoes, Carbon $inicioDia, Carbon $fimDia, Carbon $agora): bool
+    {
+        foreach ($sessoes as $sessao) {
+            foreach ($sessao->apontamentos as $apontamento) {
+                if ($this->faseSobrepoeDia($apontamento->setup_inicio, $apontamento->setup_fim, $inicioDia, $fimDia, $agora)) {
+                    return true;
+                }
+
+                if ($this->faseSobrepoeDia($apontamento->producao_inicio, $apontamento->producao_fim, $inicioDia, $fimDia, $agora)) {
+                    return true;
+                }
+
+                foreach ($apontamento->fichas as $ficha) {
+                    if ($ficha->bipada_at && $ficha->bipada_at->between($inicioDia, $fimDia)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function faseSobrepoeDia(?Carbon $inicio, ?Carbon $fim, Carbon $inicioDia, Carbon $fimDia, Carbon $agora): bool
+    {
+        if (! $inicio) {
+            return false;
+        }
+
+        $fimEfetivo = $fim ?? $agora;
+
+        return $inicio->lessThanOrEqualTo($fimDia) && $fimEfetivo->greaterThanOrEqualTo($inicioDia);
     }
 
     /** @return array<string, int> */

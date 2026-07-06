@@ -4,6 +4,15 @@ import type { ApiEnvelope } from './auth'
 export interface EtapaFluxo {
   id: number
   nome: string
+  requer_config_cabecote: boolean
+}
+
+export interface ConfiguracaoCabecoteMaquina {
+  cabecotes_inferiores: number
+  cabecotes_superiores: number
+  cabecotes_topo: number
+  cabecotes_traseiros: number
+  pinos_por_cabecote: number
 }
 
 export interface Maquina {
@@ -16,6 +25,7 @@ export interface Maquina {
   foto_url: string | null
   etapa_fluxo_id: number
   etapa_fluxo: EtapaFluxo | null
+  configuracao_cabecote: ConfiguracaoCabecoteMaquina | null
   tem_sessao_interrompida?: boolean
   tem_sessoes_pausadas?: boolean
 }

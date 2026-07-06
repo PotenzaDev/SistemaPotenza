@@ -6,38 +6,66 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponseTrait;
+use App\Models\ConfiguracaoCabecoteMaquina;
 use App\Models\Maquina;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class MaquinaController extends Controller
 {
     use ApiResponseTrait;
 
+    private const CAMPOS_CABECOTE = [
+        'cabecotes_inferiores',
+        'cabecotes_superiores',
+        'cabecotes_topo',
+        'cabecotes_traseiros',
+        'pinos_por_cabecote',
+    ];
+
+    private const RELACOES = ['etapaFluxo', 'configuracaoCabecote'];
+
     public function index(): JsonResponse
     {
-        return $this->successResponse(Maquina::with('etapaFluxo')->orderBy('nome')->get());
+        return $this->successResponse(Maquina::with(self::RELACOES)->orderBy('nome')->get());
     }
 
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
             'etapa_fluxo_id' => ['required', 'integer', 'exists:etapas_fluxo,id'],
-            'nome'           => ['required', 'string', 'max:100'],
-            'codigo'         => ['nullable', 'string', 'max:50', 'unique:maquinas,codigo'],
-            'ano'            => ['nullable', 'integer', 'min:1900', 'max:2100'],
-            'descricao'      => ['nullable', 'string'],
-            'ativa'          => ['boolean'],
-            'foto'           => ['sometimes', 'nullable', 'image', 'max:2048'],
+            'nome' => ['required', 'string', 'max:100'],
+            'codigo' => ['nullable', 'string', 'max:50', 'unique:maquinas,codigo'],
+            'ano' => ['nullable', 'integer', 'min:1900', 'max:2100'],
+            'descricao' => ['nullable', 'string'],
+            'ativa' => ['boolean'],
+            'foto' => ['sometimes', 'nullable', 'image', 'max:2048'],
+            'cabecotes_inferiores' => ['nullable', 'integer', 'min:0'],
+            'cabecotes_superiores' => ['nullable', 'integer', 'min:0'],
+            'cabecotes_topo' => ['nullable', 'integer', 'min:0'],
+            'cabecotes_traseiros' => ['nullable', 'integer', 'min:0'],
+            'pinos_por_cabecote' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        $cabecote = Arr::only($data, self::CAMPOS_CABECOTE);
+        $data = Arr::except($data, self::CAMPOS_CABECOTE);
 
         if ($request->hasFile('foto')) {
             $data['foto'] = $request->file('foto')->store('maquinas', 'public');
         }
 
+        $maquina = DB::transaction(function () use ($data, $cabecote) {
+            $maquina = Maquina::create($data);
+            $this->salvarConfiguracaoCabecote($maquina, $cabecote);
+
+            return $maquina;
+        });
+
         return $this->successResponse(
-            Maquina::create($data)->load('etapaFluxo'),
+            $maquina->load(self::RELACOES),
             'Máquina criada.',
             201
         );
@@ -45,7 +73,7 @@ class MaquinaController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $maquina = Maquina::with('etapaFluxo')->find($id);
+        $maquina = Maquina::with(self::RELACOES)->find($id);
 
         return $maquina
             ? $this->successResponse($maquina)
@@ -62,13 +90,21 @@ class MaquinaController extends Controller
 
         $data = $request->validate([
             'etapa_fluxo_id' => ['sometimes', 'integer', 'exists:etapas_fluxo,id'],
-            'nome'           => ['sometimes', 'string', 'max:100'],
-            'codigo'         => ['nullable', 'string', 'max:50', 'unique:maquinas,codigo,' . $id],
-            'ano'            => ['nullable', 'integer', 'min:1900', 'max:2100'],
-            'descricao'      => ['nullable', 'string'],
-            'ativa'          => ['boolean'],
-            'foto'           => ['sometimes', 'nullable', 'image', 'max:2048'],
+            'nome' => ['sometimes', 'string', 'max:100'],
+            'codigo' => ['nullable', 'string', 'max:50', 'unique:maquinas,codigo,'.$id],
+            'ano' => ['nullable', 'integer', 'min:1900', 'max:2100'],
+            'descricao' => ['nullable', 'string'],
+            'ativa' => ['boolean'],
+            'foto' => ['sometimes', 'nullable', 'image', 'max:2048'],
+            'cabecotes_inferiores' => ['nullable', 'integer', 'min:0'],
+            'cabecotes_superiores' => ['nullable', 'integer', 'min:0'],
+            'cabecotes_topo' => ['nullable', 'integer', 'min:0'],
+            'cabecotes_traseiros' => ['nullable', 'integer', 'min:0'],
+            'pinos_por_cabecote' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        $cabecote = Arr::only($data, self::CAMPOS_CABECOTE);
+        $data = Arr::except($data, self::CAMPOS_CABECOTE);
 
         if ($request->hasFile('foto')) {
             if ($maquina->foto) {
@@ -77,9 +113,12 @@ class MaquinaController extends Controller
             $data['foto'] = $request->file('foto')->store('maquinas', 'public');
         }
 
-        $maquina->update($data);
+        DB::transaction(function () use ($maquina, $data, $cabecote) {
+            $maquina->update($data);
+            $this->salvarConfiguracaoCabecote($maquina->fresh(), $cabecote);
+        });
 
-        return $this->successResponse($maquina->load('etapaFluxo'), 'Máquina atualizada.');
+        return $this->successResponse($maquina->fresh()->load(self::RELACOES), 'Máquina atualizada.');
     }
 
     public function destroy(int $id): JsonResponse
@@ -92,6 +131,18 @@ class MaquinaController extends Controller
 
         $maquina->update(['ativa' => false]);
 
-        return $this->successResponse($maquina->load('etapaFluxo'), 'Máquina desativada.');
+        return $this->successResponse($maquina->load(self::RELACOES), 'Máquina desativada.');
+    }
+
+    private function salvarConfiguracaoCabecote(Maquina $maquina, array $cabecote): void
+    {
+        if (! $maquina->etapaFluxo->requer_config_cabecote || $cabecote === []) {
+            return;
+        }
+
+        ConfiguracaoCabecoteMaquina::updateOrCreate(
+            ['maquina_id' => $maquina->id],
+            $cabecote
+        );
     }
 }

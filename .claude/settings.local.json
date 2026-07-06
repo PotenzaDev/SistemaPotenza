@@ -54,7 +54,24 @@
       "Bash(vendor/bin/pint --test app/Services/TimelineMaquinaService.php app/Services/TurnoCalculoService.php app/Http/Controllers/Api/RelatorioMaquinaController.php tests/Feature/RelatorioTimelineMaquinaTest.php)",
       "Bash(vendor/bin/pint app/Services/TimelineMaquinaService.php app/Services/TurnoCalculoService.php app/Http/Controllers/Api/RelatorioMaquinaController.php tests/Feature/RelatorioTimelineMaquinaTest.php)",
       "Bash(vendor/bin/pint app/Http/Controllers/Api/RelatorioMaquinaController.php tests/Feature/RelatorioTimelineMaquinaTest.php)",
-      "PowerShell(Get-CimInstance *)"
+      "PowerShell(Get-CimInstance *)",
+      "Bash(xargs -I{} echo {})",
+      "Bash(timeout 3 bash -c \"cat < /dev/null > /dev/tcp/127.0.0.1/5432\")",
+      "Bash(find backend *)",
+      "Bash(ls -la backend/.env*)",
+      "Bash(find bridge *)",
+      "Bash(find bridge/app -type f -name \"*.php\")",
+      "Bash(mkdir -p /tmp/mig_hold)",
+      "Bash(mv database/migrations/2026_07_03_000005_create_produtos_table.php database/migrations/2026_07_03_000006_create_produto_pecas_table.php database/migrations/2026_07_03_000007_seed_rotina_produtos.php /tmp/mig_hold/)",
+      "Bash(find bridge/app -iname \"*produto*\" -o -iname \"*Produto*\")",
+      "Bash(find backend/app -iname \"*produto*\")",
+      "Bash(find frontend/src -iname \"*produto*\")",
+      "Bash(grep -n \"throttle\" backend/routes/api.php bridge/routes/api.php)",
+      "Bash(grep -rn \"'module'\\\\|'role'\\\\|throttle\" backend/app/Http/Kernel.php backend/bootstrap/app.php)",
+      "Bash(composer require *)",
+      "Bash(curl -s -X POST http://localhost:8000/api/login -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"email\":\"admin@potenza.com\",\"password\":\"password\"}')",
+      "Bash(curl -s http://localhost:8000/api/produtos/10 -H 'Authorization: Bearer 2|7Eg4E7CEBbAvOW469oIUvlxl1OLfmaDTUawCMrDtb4e14105' -H 'Accept: application/json')",
+      "Bash(php artisan tinker '--execute= *)"
     ]
   }
 }

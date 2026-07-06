@@ -110,6 +110,47 @@ class RelatorioTimelineMaquinaTest extends TestCase
         $this->assertSame([], $timeline['maquinas']);
     }
 
+    public function test_sabado_sem_turno_configurado_com_movimentacao_real_usa_janela_de_fallback(): void
+    {
+        $sabado = Carbon::parse('2026-06-13 00:00:00'); // seeder não cadastra sábado
+        Carbon::setTestNow($sabado->copy()->setTime(9, 0));
+
+        $etapa = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+
+        $sessao = $this->criarSessao($maquina, $sabado->copy()->setTime(7, 0));
+
+        Apontamento::create([
+            'sessao_trabalho_id' => $sessao->id,
+            'etapa_fluxo_id' => $etapa->id,
+            'cod_peca' => '1234567',
+            'ordem_lote' => '00001',
+            'desc_peca' => 'Peça Sábado',
+            'cod_produto' => 'PROD-0001',
+            'qtde_total' => 10,
+            'status' => Apontamento::STATUS_EM_PRODUCAO,
+            'setup_inicio' => $sabado->copy()->setTime(7, 0),
+            'setup_fim' => $sabado->copy()->setTime(7, 30),
+            'producao_inicio' => $sabado->copy()->setTime(7, 30),
+            'producao_fim' => null,
+        ]);
+
+        $timeline = app(TimelineMaquinaService::class)->timelineDoDia($sabado, $maquina->id);
+
+        $this->assertNotNull($timeline['turno']);
+        $this->assertSame('06:00:00', $timeline['turno']['hora_inicio']);
+        $this->assertSame('12:00:00', $timeline['turno']['hora_fim']);
+
+        $this->assertCount(1, $timeline['maquinas']);
+        $segmentos = $timeline['maquinas'][0]['segmentos'];
+
+        // 06:00-07:00 parado, 07:00-07:30 setup, 07:30-09:00 (agora) produção.
+        $this->assertCount(3, $segmentos);
+        $this->assertSegmento($segmentos[0], 'parado', $sabado->copy()->setTime(6, 0), $sabado->copy()->setTime(7, 0));
+        $this->assertSegmento($segmentos[1], 'setup', $sabado->copy()->setTime(7, 0), $sabado->copy()->setTime(7, 30));
+        $this->assertSegmento($segmentos[2], 'producao', $sabado->copy()->setTime(7, 30), $sabado->copy()->setTime(9, 0));
+    }
+
     public function test_gestor_pode_acessar_endpoint_e_operario_recebe_403(): void
     {
         $gestor = User::factory()->gestor()->create();

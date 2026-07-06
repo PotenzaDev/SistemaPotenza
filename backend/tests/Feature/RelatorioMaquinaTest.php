@@ -115,20 +115,153 @@ class RelatorioMaquinaTest extends TestCase
         $this->assertSame(80, $totais['qtd_pecas']);
     }
 
-    public function test_relatorio_ignora_dias_sem_turno_configurado(): void
+    public function test_relatorio_ignora_dia_sem_turno_configurado_e_sem_movimentacao(): void
     {
-        $sexta  = Carbon::parse('2026-06-12 00:00:00'); // turno 08:00-16:30
-        $sabado = $sexta->copy()->addDay();             // sem turno (seeder não cadastra sábado/domingo)
+        $sexta  = Carbon::parse('2026-06-12 00:00:00'); // turno 08:00-16:30, com movimentação real
+        $sabado = $sexta->copy()->addDay();             // sem turno (seeder não cadastra sábado/domingo) e sem movimentação
 
         $etapa   = EtapaFluxo::factory()->create(['ativa' => true]);
         $maquina = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
 
-        $this->criarSessao($maquina, $sexta->copy()->setTime(7, 30));
+        $sessao = $this->criarSessao($maquina, $sexta->copy()->setTime(7, 30));
+
+        Apontamento::create([
+            'sessao_trabalho_id'     => $sessao->id,
+            'etapa_fluxo_id'         => $etapa->id,
+            'cod_peca'               => '1234567',
+            'ordem_lote'             => '00001',
+            'desc_peca'              => 'Peça Sexta',
+            'cod_produto'            => 'PROD-0001',
+            'qtde_total'             => 10,
+            'status'                 => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio'           => $sexta->copy()->setTime(8, 0),
+            'setup_fim'              => $sexta->copy()->setTime(9, 0),
+            'setup_duracao_segundos' => 3600,
+        ]);
 
         $relatorio = app(RelatorioProducaoService::class)->relatorioMaquinasPorPeriodo($sexta, $sabado);
 
         $this->assertSame(1, $relatorio['dias_considerados']);
+        $this->assertSame(1, $relatorio['maquinas'][0]['dias_com_movimentacao']);
         $this->assertSame(30600, $relatorio['maquinas'][0]['tempo_turno_segundos']); // só sexta: 8h30
+    }
+
+    public function test_relatorio_inclui_sabado_sem_turno_configurado_quando_ha_movimentacao_real(): void
+    {
+        $sabado = Carbon::parse('2026-06-13 00:00:00'); // seeder não cadastra sábado
+
+        $etapa   = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+
+        $sessao = $this->criarSessao($maquina, $sabado->copy()->setTime(7, 0));
+
+        Apontamento::create([
+            'sessao_trabalho_id'        => $sessao->id,
+            'etapa_fluxo_id'            => $etapa->id,
+            'cod_peca'                  => '1234567',
+            'ordem_lote'                => '00001',
+            'desc_peca'                 => 'Peça Sábado',
+            'cod_produto'               => 'PROD-0001',
+            'qtde_total'                => 10,
+            'status'                    => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio'              => $sabado->copy()->setTime(7, 0),
+            'setup_fim'                 => $sabado->copy()->setTime(8, 0),
+            'setup_duracao_segundos'    => 3600,
+            'producao_inicio'           => $sabado->copy()->setTime(8, 0),
+            'producao_fim'              => $sabado->copy()->setTime(10, 0),
+            'producao_duracao_segundos' => 7200,
+            'total_pausa_segundos'      => 0,
+        ]);
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioMaquinasPorPeriodo($sabado, $sabado);
+
+        $this->assertSame(1, $relatorio['dias_considerados']);
+        $linha = $relatorio['maquinas'][0];
+        $this->assertSame(1, $linha['dias_com_movimentacao']);
+        // Janela de fallback 06:00-12:00 (sem turno cadastrado para sábado).
+        $this->assertSame(21600, $linha['tempo_turno_segundos']); // 6h
+        $this->assertSame(3600, $linha['tempo_setup_segundos']);
+        $this->assertSame(7200, $linha['tempo_producao_segundos']);
+    }
+
+    public function test_relatorio_exclui_dia_de_semana_com_turno_ativo_mas_sem_movimentacao(): void
+    {
+        $segunda = Carbon::parse('2026-06-08 00:00:00'); // turno ativo 08:00-17:00, feriado sem apontamentos
+
+        $etapa   = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+
+        // Sessão aberta (ex.: operário bateu ponto) mas sem nenhum apontamento.
+        $this->criarSessao($maquina, $segunda->copy()->setTime(7, 30));
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioMaquinasPorPeriodo($segunda, $segunda);
+
+        $this->assertSame(0, $relatorio['dias_considerados']);
+        $this->assertSame(0, $relatorio['maquinas'][0]['dias_com_movimentacao']);
+        $this->assertSame(0, $relatorio['maquinas'][0]['tempo_turno_segundos']);
+    }
+
+    public function test_relatorio_conta_dias_com_movimentacao_de_forma_independente_por_maquina(): void
+    {
+        $sexta  = Carbon::parse('2026-06-12 00:00:00'); // turno 08:00-16:30
+        $sabado = $sexta->copy()->addDay();             // sem turno cadastrado
+
+        $etapa    = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquinaA = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+        $maquinaB = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+
+        // Máquina A trabalha sexta e sábado. Máquina B só trabalha sexta.
+        $sessaoA = $this->criarSessao($maquinaA, $sexta->copy()->setTime(7, 0));
+        Apontamento::create([
+            'sessao_trabalho_id'     => $sessaoA->id,
+            'etapa_fluxo_id'         => $etapa->id,
+            'cod_peca'               => '1111111',
+            'ordem_lote'             => '00001',
+            'desc_peca'              => 'Peça A Sexta',
+            'cod_produto'            => 'PROD-0001',
+            'qtde_total'             => 10,
+            'status'                 => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio'           => $sexta->copy()->setTime(8, 0),
+            'setup_fim'              => $sexta->copy()->setTime(9, 0),
+            'setup_duracao_segundos' => 3600,
+        ]);
+        Apontamento::create([
+            'sessao_trabalho_id'     => $sessaoA->id,
+            'etapa_fluxo_id'         => $etapa->id,
+            'cod_peca'               => '1111112',
+            'ordem_lote'             => '00002',
+            'desc_peca'              => 'Peça A Sábado',
+            'cod_produto'            => 'PROD-0001',
+            'qtde_total'             => 10,
+            'status'                 => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio'           => $sabado->copy()->setTime(7, 0),
+            'setup_fim'              => $sabado->copy()->setTime(8, 0),
+            'setup_duracao_segundos' => 3600,
+        ]);
+
+        $sessaoB = $this->criarSessao($maquinaB, $sexta->copy()->setTime(7, 0));
+        Apontamento::create([
+            'sessao_trabalho_id'     => $sessaoB->id,
+            'etapa_fluxo_id'         => $etapa->id,
+            'cod_peca'               => '2222222',
+            'ordem_lote'             => '00003',
+            'desc_peca'              => 'Peça B Sexta',
+            'cod_produto'            => 'PROD-0002',
+            'qtde_total'             => 10,
+            'status'                 => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio'           => $sexta->copy()->setTime(8, 0),
+            'setup_fim'              => $sexta->copy()->setTime(9, 0),
+            'setup_duracao_segundos' => 3600,
+        ]);
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioMaquinasPorPeriodo($sexta, $sabado);
+
+        // Período tem movimentação em 2 dias distintos (sexta e sábado), somando qualquer máquina.
+        $this->assertSame(2, $relatorio['dias_considerados']);
+
+        $linhas = collect($relatorio['maquinas'])->keyBy('maquina_id');
+        $this->assertSame(2, $linhas[$maquinaA->id]['dias_com_movimentacao']);
+        $this->assertSame(1, $linhas[$maquinaB->id]['dias_com_movimentacao']);
     }
 
     public function test_alterar_turno_hoje_nao_altera_relatorio_de_dia_passado(): void
@@ -180,6 +313,21 @@ class RelatorioMaquinaTest extends TestCase
         // O relatório do dia passado não pode mudar com a edição de hoje.
         $this->assertSame($relatorioAntes, $relatorioDepois);
         $this->assertSame(32400, $relatorioDepois['maquinas'][0]['tempo_turno_segundos']); // 9h, turno original
+
+        // Movimentação real "hoje" (segunda), pra que o dia conte no relatório.
+        Apontamento::create([
+            'sessao_trabalho_id'        => $this->criarSessao($maquina, Carbon::today()->setTime(6, 30))->id,
+            'etapa_fluxo_id'            => $etapa->id,
+            'cod_peca'                  => '7654321',
+            'ordem_lote'                => '00002',
+            'desc_peca'                 => 'Peça Hoje',
+            'cod_produto'               => 'PROD-0002',
+            'qtde_total'                => 50,
+            'status'                    => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio'              => Carbon::today()->setTime(7, 0),
+            'setup_fim'                 => Carbon::today()->setTime(8, 0),
+            'setup_duracao_segundos'    => 3600,
+        ]);
 
         // Mas o turno vigente a partir de hoje já reflete o novo horário.
         $relatorioHoje = app(RelatorioProducaoService::class)

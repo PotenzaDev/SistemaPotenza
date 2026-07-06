@@ -264,6 +264,49 @@ class RelatorioTurnoTest extends TestCase
         $this->assertNull($fresh->fim);
     }
 
+    public function test_sabado_sem_turno_configurado_com_movimentacao_real_usa_janela_de_fallback(): void
+    {
+        $sabado = Carbon::parse('2026-06-13 00:00:00'); // seeder não cadastra sábado
+
+        [$operario, , $sessao] = $this->criarSessao($sabado->copy()->setTime(7, 0));
+
+        Apontamento::create([
+            'sessao_trabalho_id'        => $sessao->id,
+            'etapa_fluxo_id'            => $sessao->maquina->etapa_fluxo_id,
+            'cod_peca'                  => '1234567',
+            'ordem_lote'                => '00001',
+            'desc_peca'                 => 'Peça Sábado',
+            'cod_produto'               => 'PROD-0001',
+            'qtde_total'                => 10,
+            'status'                    => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio'              => $sabado->copy()->setTime(7, 0),
+            'setup_fim'                 => $sabado->copy()->setTime(7, 30),
+            'setup_duracao_segundos'    => 1800,
+            'producao_inicio'           => $sabado->copy()->setTime(7, 30),
+            'producao_fim'              => $sabado->copy()->setTime(9, 30),
+            'producao_duracao_segundos' => 7200,
+            'total_pausa_segundos'      => 0,
+        ]);
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioPorDia($sabado, $operario->id);
+
+        $this->assertCount(1, $relatorio);
+        // Janela de fallback 06:00-12:00 (6h) — sem turno cadastrado para sábado.
+        $this->assertSame(21600, $relatorio[0]['tempo_turno_segundos']);
+        $this->assertSame(9000, $relatorio[0]['tempo_trabalhado_segundos']); // 1800 + 7200
+    }
+
+    public function test_sabado_sem_turno_configurado_e_sem_movimentacao_retorna_vazio(): void
+    {
+        $sabado = Carbon::parse('2026-06-13 00:00:00'); // seeder não cadastra sábado
+
+        [$operario] = $this->criarSessao($sabado->copy()->setTime(7, 0));
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioPorDia($sabado, $operario->id);
+
+        $this->assertSame([], $relatorio);
+    }
+
     /** @return array{0: Operario, 1: Maquina, 2: SessaoTrabalho} */
     private function criarSessao(Carbon $inicio): array
     {

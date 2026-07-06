@@ -13,6 +13,20 @@ use Illuminate\Support\Collection;
 class TurnoCalculoService
 {
     /**
+     * Turno "virtual" (não persistido) usado como janela de cálculo quando
+     * existe movimentação (setup/produção) em um dia sem nenhum turno
+     * configurado — ex.: sábado avulso trabalhado sem turno cadastrado.
+     * Janela fixa 06:00-12:00: tempo fora dela não é contabilizado.
+     */
+    public function turnoFallback(): Turno
+    {
+        return new Turno([
+            'hora_inicio' => '06:00:00',
+            'hora_fim'    => '12:00:00',
+        ]);
+    }
+
+    /**
      * Janelas de tempo do turno que contam como tempo útil: o dia inteiro
      * [hora_inicio, hora_fim], ou esse período recortado pelo intervalo de
      * almoço [intervalo_inicio, intervalo_fim] quando configurado.

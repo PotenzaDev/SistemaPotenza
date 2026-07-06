@@ -15,6 +15,7 @@ export interface RelatorioMaquina {
   tempo_producao_segundos: number
   tempo_parado_segundos: number
   qtd_pecas: number
+  dias_com_movimentacao: number
   percentual_utilizacao: number
 }
 

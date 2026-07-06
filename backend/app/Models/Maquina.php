@@ -28,7 +28,7 @@ class Maquina extends Model
 
     protected $casts = [
         'ativa' => 'boolean',
-        'ano'   => 'integer',
+        'ano' => 'integer',
     ];
 
     protected $appends = ['foto_url'];
@@ -56,5 +56,10 @@ class Maquina extends Model
     public function ordensManutencao(): HasMany
     {
         return $this->hasMany(OrdemManutencao::class);
+    }
+
+    public function configuracaoCabecote(): HasOne
+    {
+        return $this->hasOne(ConfiguracaoCabecoteMaquina::class);
     }
 }

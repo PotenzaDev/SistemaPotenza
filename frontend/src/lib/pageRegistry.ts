@@ -9,6 +9,8 @@ export const PAGE_REGISTRY: PageOption[] = [
   { value: '/admin/operarios',                      label: 'Operários' },
   { value: '/admin/apontamentos',                   label: 'Apontamentos' },
   { value: '/admin/motivos-pausa',                  label: 'Motivos de Pausa' },
+  { value: '/admin/brocas',                         label: 'Brocas' },
+  { value: '/admin/produtos',                       label: 'Produtos' },
   { value: '/admin/turnos',                         label: 'Turnos' },
   { value: '/admin/relatorios',                     label: 'Relatórios' },
   { value: '/admin/relatorios/producao-maquinas',   label: 'Relatório de Produção por Máquina' },

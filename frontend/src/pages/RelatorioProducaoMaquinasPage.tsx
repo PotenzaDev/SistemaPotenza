@@ -293,6 +293,7 @@ export function RelatorioProducaoMaquinasPage() {
                   <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">Tempo Parado</th>
                   <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">% Utilização</th>
                   <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">Peças Produzidas</th>
+                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">Dias c/ Movimentação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -309,19 +310,21 @@ export function RelatorioProducaoMaquinasPage() {
                     <td className="px-6 py-3 text-right text-slate-300">{fmtDuracao(maquina.tempo_parado_segundos)}</td>
                     <td className="px-6 py-3 text-right text-slate-300">{maquina.percentual_utilizacao.toFixed(1)}%</td>
                     <td className="px-6 py-3 text-right text-slate-300">{maquina.qtd_pecas}</td>
+                    <td className="px-6 py-3 text-right text-slate-300">{maquina.dias_com_movimentacao}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t border-white/10 bg-white/[0.02]">
                   <td colSpan={2} className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    Total ({dados.dias_considerados} {dados.dias_considerados === 1 ? 'dia' : 'dias'} com turno)
+                    Total ({dados.dias_considerados} {dados.dias_considerados === 1 ? 'dia' : 'dias'} com movimentação)
                   </td>
                   <td className="px-6 py-3 text-right font-semibold text-white">{fmtDuracao(totais.tempo_setup_segundos)}</td>
                   <td className="px-6 py-3 text-right font-semibold text-white">{fmtDuracao(totais.tempo_producao_segundos)}</td>
                   <td className="px-6 py-3 text-right font-semibold text-white">{fmtDuracao(totais.tempo_parado_segundos)}</td>
                   <td className="px-6 py-3 text-right font-semibold text-white">—</td>
                   <td className="px-6 py-3 text-right font-semibold text-white">{totais.qtd_pecas}</td>
+                  <td className="px-6 py-3 text-right font-semibold text-white">—</td>
                 </tr>
               </tfoot>
             </table>

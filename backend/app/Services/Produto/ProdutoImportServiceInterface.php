@@ -1,0 +1,41 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Produto;
+
+use App\Exceptions\BusinessException;
+use App\Models\Produto;
+
+interface ProdutoImportServiceInterface
+{
+    /**
+     * Busca produtos no ERP legado (via API Bridge) filtrando por empresa,
+     * nome e/ou sub-grupo, restrito a uma janela relativa de 12 meses.
+     *
+     * @return array<int, array{cod_produto: string, nome: string, grupo: string, sub_grupo: string}>
+     *
+     * @throws BusinessException quando a API Bridge está indisponível (503).
+     */
+    public function buscarNoErp(string $empresa, ?string $nome, ?string $subGrupo): array;
+
+    /**
+     * Busca a lista de sub-grupos distintos disponíveis no ERP legado
+     * para a empresa informada.
+     *
+     * @return array<int, string>
+     *
+     * @throws BusinessException quando a API Bridge está indisponível (503).
+     */
+    public function buscarSubGruposNoErp(string $empresa): array;
+
+    /**
+     * Importa (ou reimporta) um produto e suas peças a partir dos dados
+     * do ERP legado, persistindo em `produtos` e `produto_pecas`.
+     *
+     * @param  array{cod_produto: string, nome: string, grupo?: ?string, sub_grupo?: ?string, empresa: string}  $dadosProdutoErp
+     *
+     * @throws BusinessException quando a API Bridge está indisponível (503).
+     */
+    public function importar(array $dadosProdutoErp): Produto;
+}

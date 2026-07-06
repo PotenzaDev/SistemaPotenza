@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
-import { X, ImageIcon, Upload } from 'lucide-react'
+import { X, ImageIcon, Upload, ClipboardList, Settings2 } from 'lucide-react'
 import { getEtapasFluxo, type EtapaFluxo } from '@/api/etapasFluxo'
 import { createMaquina, updateMaquina, type Maquina } from '@/api/maquinas'
 
@@ -18,6 +18,11 @@ interface FormState {
   descricao: string
   etapa_fluxo_id: string
   ativa: boolean
+  cabecotes_inferiores: string
+  cabecotes_superiores: string
+  cabecotes_topo: string
+  cabecotes_traseiros: string
+  pinos_por_cabecote: string
 }
 
 const EMPTY: FormState = {
@@ -27,9 +32,15 @@ const EMPTY: FormState = {
   descricao: '',
   etapa_fluxo_id: '',
   ativa: true,
+  cabecotes_inferiores: '',
+  cabecotes_superiores: '',
+  cabecotes_topo: '',
+  cabecotes_traseiros: '',
+  pinos_por_cabecote: '',
 }
 
 function fromMaquina(m: Maquina): FormState {
+  const cabecote = m.configuracao_cabecote
   return {
     nome:          m.nome,
     codigo:        m.codigo ?? '',
@@ -37,6 +48,11 @@ function fromMaquina(m: Maquina): FormState {
     descricao:     m.descricao ?? '',
     etapa_fluxo_id: String(m.etapa_fluxo_id),
     ativa:         m.ativa,
+    cabecotes_inferiores: cabecote ? String(cabecote.cabecotes_inferiores) : '',
+    cabecotes_superiores: cabecote ? String(cabecote.cabecotes_superiores) : '',
+    cabecotes_topo:       cabecote ? String(cabecote.cabecotes_topo) : '',
+    cabecotes_traseiros:  cabecote ? String(cabecote.cabecotes_traseiros) : '',
+    pinos_por_cabecote:   cabecote ? String(cabecote.pinos_por_cabecote) : '',
   }
 }
 
@@ -49,6 +65,7 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
   const [etapas, setEtapas]         = useState<EtapaFluxo[]>([])
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState<string | null>(null)
+  const [activeTab, setActiveTab]   = useState<'dados' | 'cabecote'>('dados')
   const fileRef                     = useRef<HTMLInputElement>(null)
 
   /* inicializa ao abrir */
@@ -60,6 +77,7 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
     setFoto(null)
     setBlobPreview(null)
     setError(null)
+    setActiveTab('dados')
 
     getEtapasFluxo(controller.signal)
       .then(setEtapas)
@@ -69,6 +87,9 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
 
     return () => controller.abort()
   }, [open, initialData])
+
+  const grupoSelecionado   = etapas.find(e => String(e.id) === form.etapa_fluxo_id)
+  const mostrarAbaCabecote = grupoSelecionado?.requer_config_cabecote ?? false
 
   /* gera/revoga blob URL quando o usuário seleciona um novo arquivo */
   useEffect(() => {
@@ -114,6 +135,14 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
     if (form.ano.trim())       data.append('ano',       form.ano.trim())
     if (form.descricao.trim()) data.append('descricao', form.descricao.trim())
     if (foto)                  data.append('foto',      foto)
+
+    if (mostrarAbaCabecote) {
+      data.append('cabecotes_inferiores', String(Number(form.cabecotes_inferiores) || 0))
+      data.append('cabecotes_superiores', String(Number(form.cabecotes_superiores) || 0))
+      data.append('cabecotes_topo',       String(Number(form.cabecotes_topo) || 0))
+      data.append('cabecotes_traseiros',  String(Number(form.cabecotes_traseiros) || 0))
+      data.append('pinos_por_cabecote',   String(Number(form.pinos_por_cabecote) || 0))
+    }
 
     setSaving(true)
     try {
@@ -162,6 +191,39 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
 
+          {/* tabs: Dados / Configuração de Cabeçote */}
+          {mostrarAbaCabecote && (
+            <div className="flex gap-1 border-b border-white/5">
+              <button
+                type="button"
+                onClick={() => setActiveTab('dados')}
+                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-t-lg transition-colors ${
+                  activeTab === 'dados'
+                    ? 'bg-white/5 text-white border border-b-0 border-white/10'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                <ClipboardList className="w-3 h-3" />
+                Dados
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('cabecote')}
+                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-t-lg transition-colors ${
+                  activeTab === 'cabecote'
+                    ? 'bg-white/5 text-white border border-b-0 border-white/10'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                <Settings2 className="w-3 h-3" />
+                Configuração de Cabeçote
+              </button>
+            </div>
+          )}
+
+          {/* aba Dados */}
+          {(!mostrarAbaCabecote || activeTab === 'dados') && (
+          <>
           {/* foto */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">Foto</label>
@@ -263,6 +325,81 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
               <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.ativa ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
           </div>
+          </>
+          )}
+
+          {/* aba Configuração de Cabeçote */}
+          {mostrarAbaCabecote && activeTab === 'cabecote' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Cabeçotes Inferiores</label>
+                  <input
+                    name="cabecotes_inferiores"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.cabecotes_inferiores}
+                    onChange={handleField}
+                    placeholder="0"
+                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Cabeçotes Superiores</label>
+                  <input
+                    name="cabecotes_superiores"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.cabecotes_superiores}
+                    onChange={handleField}
+                    placeholder="0"
+                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Cabeçotes de Topo</label>
+                  <input
+                    name="cabecotes_topo"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.cabecotes_topo}
+                    onChange={handleField}
+                    placeholder="0"
+                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Cabeçotes Traseiro</label>
+                  <input
+                    name="cabecotes_traseiros"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.cabecotes_traseiros}
+                    onChange={handleField}
+                    placeholder="0"
+                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Pinos por Cabeçote</label>
+                <input
+                  name="pinos_por_cabecote"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.pinos_por_cabecote}
+                  onChange={handleField}
+                  placeholder="0"
+                  className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors"
+                />
+              </div>
+            </div>
+          )}
 
           {/* erro */}
           {error && (

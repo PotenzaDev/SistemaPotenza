@@ -13,6 +13,7 @@ class TimelineMaquinaService
 {
     public function __construct(
         private readonly TurnoCalculoService $calculo,
+        private readonly MovimentacaoDiaService $movimentacao,
     ) {}
 
     /**
@@ -23,29 +24,41 @@ class TimelineMaquinaService
      * parado um período que ainda não aconteceu.
      *
      * Retorna turno: null se não houver turno ativo configurado para o dia
-     * da semana informado.
+     * da semana informado E nenhuma movimentação real tiver ocorrido nesse
+     * dia. Se houver movimentação (ex.: sábado avulso trabalhado), usa-se a
+     * janela de fallback de TurnoCalculoService::turnoFallback().
      *
      * @return array{turno: array<string, mixed>|null, maquinas: array<int, array<string, mixed>>}
      */
     public function timelineDoDia(Carbon $data, ?int $maquinaId = null, ?int $grupoId = null): array
     {
-        $turno = Turno::doDia($data->dayOfWeekIso, $data);
-
-        if (! $turno) {
-            return ['turno' => null, 'maquinas' => []];
-        }
-
-        $janelas = $this->calculo->janelasUteis($turno, $data);
-        $diaInicio = $janelas[0]['inicio'];
-        $diaFim = $janelas[array_key_last($janelas)]['fim'];
-        $agora = Carbon::now();
-
         $maquinas = Maquina::query()
             ->where('ativa', true)
             ->with('etapaFluxo')
             ->when($maquinaId, fn ($query) => $query->where('id', $maquinaId))
             ->when($grupoId, fn ($query) => $query->where('etapa_fluxo_id', $grupoId))
             ->get();
+
+        $turno = Turno::doDia($data->dayOfWeekIso, $data);
+
+        if (! $turno) {
+            $temMovimentacao = ! $maquinas->isEmpty() && $this->movimentacao->existeParaMaquinas(
+                $data->copy()->startOfDay(),
+                $data->copy()->endOfDay(),
+                $maquinas->pluck('id'),
+            );
+
+            if (! $temMovimentacao) {
+                return ['turno' => null, 'maquinas' => []];
+            }
+
+            $turno = $this->calculo->turnoFallback();
+        }
+
+        $janelas = $this->calculo->janelasUteis($turno, $data);
+        $diaInicio = $janelas[0]['inicio'];
+        $diaFim = $janelas[array_key_last($janelas)]['fim'];
+        $agora = Carbon::now();
 
         if ($maquinas->isEmpty()) {
             return ['turno' => $this->turnoParaResposta($turno), 'maquinas' => []];

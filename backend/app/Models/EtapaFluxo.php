@@ -18,10 +18,12 @@ class EtapaFluxo extends Model
         'nome',
         'ordem',
         'ativa',
+        'requer_config_cabecote',
     ];
 
     protected $casts = [
         'ativa' => 'boolean',
+        'requer_config_cabecote' => 'boolean',
     ];
 
     public function maquinas(): HasMany
