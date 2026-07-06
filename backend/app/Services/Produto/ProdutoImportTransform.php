@@ -28,26 +28,54 @@ class ProdutoImportTransform
     }
 
     /**
-     * Monta a string de dimensão "comprimentoxlarguraxespessuramm" a
+     * Monta a string de dimensão "comprimento x largura x espessura mm" a
      * partir dos valores disponíveis, ignorando os ausentes/vazios.
-     * Retorna null se nenhum valor estiver disponível.
+     *
+     * No ERP, comprimento e largura vêm em metros e espessura já vem em
+     * milímetros — por isso só os dois primeiros são multiplicados por
+     * 1000. Retorna null se nenhum valor estiver disponível.
      */
     public static function dimensao(mixed $comprimento, mixed $largura, mixed $espessura): ?string
     {
-        $partes = [];
+        $partes = [
+            [$comprimento, true],
+            [$largura, true],
+            [$espessura, false],
+        ];
 
-        foreach ([$comprimento, $largura, $espessura] as $valor) {
+        $formatadas = [];
+
+        foreach ($partes as [$valor, $emMetros]) {
             $valor = trim((string) ($valor ?? ''));
 
-            if ($valor !== '') {
-                $partes[] = $valor;
+            if ($valor === '' || ! is_numeric($valor)) {
+                continue;
             }
+
+            $mm = (float) $valor;
+
+            if ($emMetros) {
+                $mm *= 1000;
+            }
+
+            $formatadas[] = self::formatarMm($mm);
         }
 
-        if ($partes === []) {
+        if ($formatadas === []) {
             return null;
         }
 
-        return implode('x', $partes).'mm';
+        return implode(' x ', $formatadas).' mm';
+    }
+
+    private static function formatarMm(float $mm): string
+    {
+        $arredondado = round($mm, 2);
+
+        if ((float) (int) $arredondado === $arredondado) {
+            return (string) (int) $arredondado;
+        }
+
+        return rtrim(rtrim(number_format($arredondado, 2, '.', ''), '0'), '.');
     }
 }

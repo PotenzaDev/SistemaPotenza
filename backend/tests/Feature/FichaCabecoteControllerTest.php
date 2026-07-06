@@ -259,4 +259,59 @@ class FichaCabecoteControllerTest extends TestCase
             ->get('/api/produto-pecas/999999/ficha-cabecote-branco/pdf')
             ->assertStatus(404);
     }
+
+    public function test_blank_pdf_lote_retorna_pdf_unico_para_varias_pecas(): void
+    {
+        $funcionario = User::factory()->funcionario(['produtos'])->create();
+        $pecas = ProdutoPeca::factory()->count(3)->create();
+
+        $ids = $pecas->pluck('id')->implode(',');
+
+        $response = $this->actingAs($funcionario, 'sanctum')
+            ->get("/api/produto-pecas/fichas-cabecote-branco/pdf-lote?ids={$ids}");
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', $response->headers->get('Content-Type'));
+    }
+
+    public function test_blank_pdf_lote_retorna_422_sem_ids(): void
+    {
+        $funcionario = User::factory()->funcionario(['produtos'])->create();
+
+        $this->actingAs($funcionario, 'sanctum')
+            ->get('/api/produto-pecas/fichas-cabecote-branco/pdf-lote')
+            ->assertStatus(422);
+    }
+
+    public function test_blank_pdf_lote_retorna_404_quando_nenhuma_peca_encontrada(): void
+    {
+        $funcionario = User::factory()->funcionario(['produtos'])->create();
+
+        $this->actingAs($funcionario, 'sanctum')
+            ->get('/api/produto-pecas/fichas-cabecote-branco/pdf-lote?ids=999999,888888')
+            ->assertStatus(404);
+    }
+
+    public function test_pdf_lote_retorna_pdf_unico_para_varias_fichas(): void
+    {
+        $funcionario = User::factory()->funcionario(['produtos'])->create();
+        $fichas = FichaCabecote::factory()->count(2)->create();
+
+        $ids = $fichas->pluck('id')->implode(',');
+
+        $response = $this->actingAs($funcionario, 'sanctum')
+            ->get("/api/fichas-cabecote/pdf-lote?ids={$ids}");
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', $response->headers->get('Content-Type'));
+    }
+
+    public function test_pdf_lote_retorna_422_sem_ids(): void
+    {
+        $funcionario = User::factory()->funcionario(['produtos'])->create();
+
+        $this->actingAs($funcionario, 'sanctum')
+            ->get('/api/fichas-cabecote/pdf-lote')
+            ->assertStatus(422);
+    }
 }

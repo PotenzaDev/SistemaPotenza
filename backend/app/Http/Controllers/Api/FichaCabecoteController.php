@@ -12,6 +12,7 @@ use App\Models\FichaCabecote;
 use App\Models\ProdutoPeca;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -161,6 +162,78 @@ class FichaCabecoteController extends Controller
         return $pdf->stream("ficha-cabecote-{$peca->id}-em-branco.pdf");
     }
 
+    public function blankPdfLote(Request $request): Response
+    {
+        $ids = $this->parseIds($request);
+
+        if ($ids === []) {
+            return $this->errorResponse('Nenhuma peça selecionada.', 422);
+        }
+
+        $pecas = ProdutoPeca::with('produto')->whereIn('id', $ids)->get()->keyBy('id');
+        $pecasOrdenadas = collect($ids)->map(fn ($id) => $pecas->get($id))->filter()->values();
+
+        if ($pecasOrdenadas->isEmpty()) {
+            return $this->errorResponse('Nenhum semi-acabado encontrado para os IDs informados.', 404);
+        }
+
+        $fichas = $pecasOrdenadas->map(fn (ProdutoPeca $peca) => $this->dadosParaPdf($peca, null))->all();
+
+        $pdf = Pdf::loadView('pdf.ficha-cabecote-lote', ['fichas' => $fichas]);
+
+        return $pdf->stream('fichas-cabecote-em-branco.pdf');
+    }
+
+    public function pdfLote(Request $request): Response
+    {
+        $ids = $this->parseIds($request);
+
+        if ($ids === []) {
+            return $this->errorResponse('Nenhuma ficha selecionada.', 422);
+        }
+
+        $fichasEncontradas = FichaCabecote::with(self::RELACOES_DETALHE)->whereIn('id', $ids)->get()->keyBy('id');
+        $fichasOrdenadas = collect($ids)->map(fn ($id) => $fichasEncontradas->get($id))->filter()->values();
+
+        if ($fichasOrdenadas->isEmpty()) {
+            return $this->errorResponse('Nenhuma ficha encontrada para os IDs informados.', 404);
+        }
+
+        $fichas = $fichasOrdenadas
+            ->map(fn (FichaCabecote $ficha) => $this->dadosParaPdf($ficha->produtoPeca, $ficha))
+            ->all();
+
+        $pdf = Pdf::loadView('pdf.ficha-cabecote-lote', ['fichas' => $fichas]);
+
+        return $pdf->stream('fichas-cabecote.pdf');
+    }
+
+    /**
+     * Lê o parâmetro de query "ids" (lista separada por vírgula, ex.:
+     * "3,4,7") e retorna os inteiros válidos, na ordem informada.
+     *
+     * @return list<int>
+     */
+    private function parseIds(Request $request): array
+    {
+        $bruto = (string) $request->query('ids', '');
+
+        $ids = array_filter(array_map('trim', explode(',', $bruto)), fn ($v) => $v !== '' && ctype_digit($v));
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    private function posicaoLabel(ProdutoPeca $peca): string
+    {
+        $subGrupo = trim((string) ($peca->sub_grupo ?? ''));
+
+        if ($subGrupo === '') {
+            return $peca->nome;
+        }
+
+        return preg_replace('/^\d+\s+/', '', $subGrupo) ?: $peca->nome;
+    }
+
     private function dadosParaPdf(ProdutoPeca $peca, ?FichaCabecote $ficha): array
     {
         $posicoesCabecote = $ficha
@@ -191,7 +264,7 @@ class FichaCabecoteController extends Controller
         return [
             'produtoNome' => $peca->produto?->nome,
             'pecaNumero' => $peca->numero,
-            'pecaNome' => $peca->nome,
+            'pecaNome' => $this->posicaoLabel($peca),
             'pecaDimensao' => $peca->dimensao,
             'data' => $ficha?->data?->format('d/m/Y'),
             'maquinaNome' => $ficha?->maquina?->nome,

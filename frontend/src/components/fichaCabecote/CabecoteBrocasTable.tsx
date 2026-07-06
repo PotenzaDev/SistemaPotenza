@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { SENTIDO_OPTIONS, type SentidoCabecote } from '@/api/fichasCabecote'
 import type { Broca } from '@/api/brocas'
+import { gerarId } from '@/lib/utils'
 
 export interface CabecoteBrocaRow {
   key: string
@@ -16,7 +17,7 @@ export interface CabecoteBrocaRow {
 
 export function novaCabecoteBrocaRow(): CabecoteBrocaRow {
   return {
-    key: crypto.randomUUID(),
+    key: gerarId(),
     cabecote: '',
     sentido: '',
     posicao: '',

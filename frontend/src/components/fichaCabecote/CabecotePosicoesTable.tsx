@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { SENTIDO_OPTIONS, type SentidoCabecote } from '@/api/fichasCabecote'
+import { gerarId } from '@/lib/utils'
 
 export interface CabecotePosicaoRow {
   key: string
@@ -13,7 +14,7 @@ export interface CabecotePosicaoRow {
 
 export function novaCabecotePosicaoRow(): CabecotePosicaoRow {
   return {
-    key: crypto.randomUUID(),
+    key: gerarId(),
     cabecote: '',
     sentido: '',
     largura_mm: '',

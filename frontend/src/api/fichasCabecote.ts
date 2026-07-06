@@ -160,3 +160,19 @@ export async function baixarFichaCabecoteBrancoPdf(pecaId: number): Promise<Blob
   })
   return res.data
 }
+
+export async function baixarFichasCabecoteBrancoPdfLote(pecaIds: number[]): Promise<Blob> {
+  const res = await apiClient.get('/produto-pecas/fichas-cabecote-branco/pdf-lote', {
+    params: { ids: pecaIds.join(',') },
+    responseType: 'blob',
+  })
+  return res.data
+}
+
+export async function baixarFichasCabecotePdfLote(fichaIds: number[]): Promise<Blob> {
+  const res = await apiClient.get('/fichas-cabecote/pdf-lote', {
+    params: { ids: fichaIds.join(',') },
+    responseType: 'blob',
+  })
+  return res.data
+}

@@ -28,20 +28,31 @@ class ProdutoImportTransformTest extends TestCase
         $this->assertSame(12, ProdutoImportTransform::numeroSemi('  12  ', 5));
     }
 
-    public function test_dimensao_monta_string_com_todos_os_valores(): void
+    public function test_dimensao_converte_comprimento_e_largura_de_metros_para_milimetros(): void
     {
-        $this->assertSame('500x300x18mm', ProdutoImportTransform::dimensao('500', '300', '18'));
+        // Comprimento e largura vêm do ERP em metros; espessura já vem em mm.
+        $this->assertSame('321 x 130 x 12 mm', ProdutoImportTransform::dimensao('.3210', '.1300', '12.000000'));
+    }
+
+    public function test_dimensao_mantem_casas_decimais_quando_necessario(): void
+    {
+        $this->assertSame('321.5 x 130 x 12.5 mm', ProdutoImportTransform::dimensao('.3215', '.13', '12.5'));
     }
 
     public function test_dimensao_ignora_valores_ausentes(): void
     {
-        $this->assertSame('500x18mm', ProdutoImportTransform::dimensao('500', null, '18'));
-        $this->assertSame('500mm', ProdutoImportTransform::dimensao('500', null, null));
+        $this->assertSame('500 x 18 mm', ProdutoImportTransform::dimensao('.5', null, '18'));
+        $this->assertSame('500 mm', ProdutoImportTransform::dimensao('.5', null, null));
     }
 
     public function test_dimensao_ignora_strings_vazias(): void
     {
-        $this->assertSame('500x18mm', ProdutoImportTransform::dimensao('500', '', '18'));
+        $this->assertSame('500 x 18 mm', ProdutoImportTransform::dimensao('.5', '', '18'));
+    }
+
+    public function test_dimensao_ignora_valores_nao_numericos(): void
+    {
+        $this->assertSame('500 mm', ProdutoImportTransform::dimensao('.5', 'abc', null));
     }
 
     public function test_dimensao_retorna_null_quando_todos_os_valores_ausentes(): void

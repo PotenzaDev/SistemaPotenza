@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { ArrowLeft, ClipboardList, FileText, Layers, Loader2, Printer } from 'lucide-react'
 import { getProduto, type Produto, type ProdutoPeca } from '@/api/produtos'
-import { baixarFichaCabecoteBrancoPdf, baixarFichaCabecotePdf } from '@/api/fichasCabecote'
+import {
+  baixarFichaCabecoteBrancoPdf,
+  baixarFichaCabecotePdf,
+  baixarFichasCabecoteBrancoPdfLote,
+  baixarFichasCabecotePdfLote,
+} from '@/api/fichasCabecote'
 import { abrirPdfEmNovaAba } from '@/lib/pdf'
 
 export function ProdutoSemiAcabadosPage() {
@@ -15,6 +20,8 @@ export function ProdutoSemiAcabadosPage() {
   const [error, setError]     = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
   const [impressoesEmAndamento, setImpressoesEmAndamento] = useState<Set<string>>(new Set())
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
+  const [loteEmAndamento, setLoteEmAndamento] = useState<'branco' | 'preenchida' | null>(null)
 
   const load = useCallback((signal?: AbortSignal) => {
     if (!id) return
@@ -65,6 +72,56 @@ export function ProdutoSemiAcabadosPage() {
     void executarImpressao(`branco-${peca.id}`, () => baixarFichaCabecoteBrancoPdf(peca.id))
   }, [executarImpressao])
 
+  const toggleSelecionado = useCallback((pecaId: number) => {
+    setSelecionados(prev => {
+      const proximo = new Set(prev)
+      if (proximo.has(pecaId)) {
+        proximo.delete(pecaId)
+      } else {
+        proximo.add(pecaId)
+      }
+      return proximo
+    })
+  }, [])
+
+  const todosSelecionados = pecas.length > 0 && pecas.every(peca => selecionados.has(peca.id))
+
+  const toggleSelecionarTodos = useCallback(() => {
+    setSelecionados(prev => (prev.size === pecas.length ? new Set() : new Set(pecas.map(peca => peca.id))))
+  }, [pecas])
+
+  const pecasSelecionadasComFicha = useMemo(
+    () => pecas.filter(peca => selecionados.has(peca.id) && peca.ultima_ficha_cabecote),
+    [pecas, selecionados],
+  )
+
+  const imprimirLoteBranco = useCallback(async () => {
+    setPrintError(null)
+    setLoteEmAndamento('branco')
+    try {
+      const blob = await baixarFichasCabecoteBrancoPdfLote(Array.from(selecionados))
+      abrirPdfEmNovaAba(blob)
+    } catch {
+      setPrintError('Não foi possível gerar o PDF em lote das fichas em branco.')
+    } finally {
+      setLoteEmAndamento(null)
+    }
+  }, [selecionados])
+
+  const imprimirLotePreenchida = useCallback(async () => {
+    setPrintError(null)
+    setLoteEmAndamento('preenchida')
+    try {
+      const fichaIds = pecasSelecionadasComFicha.map(peca => peca.ultima_ficha_cabecote!.id)
+      const blob = await baixarFichasCabecotePdfLote(fichaIds)
+      abrirPdfEmNovaAba(blob)
+    } catch {
+      setPrintError('Não foi possível gerar o PDF em lote das fichas preenchidas.')
+    } finally {
+      setLoteEmAndamento(null)
+    }
+  }, [pecasSelecionadasComFicha])
+
   return (
     <div className="space-y-6">
 
@@ -97,6 +154,34 @@ export function ProdutoSemiAcabadosPage() {
         </div>
       )}
 
+      {/* impressão em lote */}
+      {pecas.length > 0 && (
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-slate-400">
+            {selecionados.size > 0 ? `${selecionados.size} selecionada(s)` : 'Selecione as peças para imprimir em lote'}
+          </span>
+          <button
+            type="button"
+            onClick={() => void imprimirLoteBranco()}
+            disabled={selecionados.size === 0 || loteEmAndamento !== null}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-30"
+          >
+            {loteEmAndamento === 'branco' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            Imprimir em branco selecionadas
+          </button>
+          <button
+            type="button"
+            onClick={() => void imprimirLotePreenchida()}
+            disabled={pecasSelecionadasComFicha.length === 0 || loteEmAndamento !== null}
+            title={pecasSelecionadasComFicha.length === 0 ? 'Nenhuma peça selecionada tem ficha preenchida' : undefined}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-30"
+          >
+            {loteEmAndamento === 'preenchida' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+            Imprimir preenchidas selecionadas
+          </button>
+        </div>
+      )}
+
       {/* tabela */}
       <div className="bg-[#0f1923] border border-white/5 rounded-xl overflow-hidden">
         {loading && (
@@ -119,6 +204,15 @@ export function ProdutoSemiAcabadosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/5 text-left">
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={todosSelecionados}
+                    onChange={toggleSelecionarTodos}
+                    aria-label="Selecionar todas as peças"
+                    className="w-4 h-4 rounded border-white/20"
+                  />
+                </th>
                 <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Nº</th>
                 <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Nome</th>
                 <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Sub-Grupo</th>
@@ -131,6 +225,15 @@ export function ProdutoSemiAcabadosPage() {
             <tbody className="divide-y divide-white/5">
               {pecas.map(peca => (
                 <tr key={peca.id} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selecionados.has(peca.id)}
+                      onChange={() => toggleSelecionado(peca.id)}
+                      aria-label={`Selecionar peça ${peca.numero}`}
+                      className="w-4 h-4 rounded border-white/20"
+                    />
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs text-slate-300">{peca.numero}</td>
                   <td className="px-4 py-3 text-white">{peca.nome}</td>
                   <td className="px-4 py-3 text-slate-300">{peca.sub_grupo ?? '—'}</td>

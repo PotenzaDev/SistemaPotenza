@@ -143,6 +143,8 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:admin,funciona
     Route::get('/produto-pecas/{pecaId}/fichas-cabecote', [FichaCabecoteController::class, 'index'])->middleware('module:produtos');
     Route::post('/produto-pecas/{pecaId}/fichas-cabecote', [FichaCabecoteController::class, 'store'])->middleware('module:produtos');
     Route::get('/produto-pecas/{pecaId}/ficha-cabecote-branco/pdf', [FichaCabecoteController::class, 'blankPdf'])->middleware('module:produtos');
+    Route::get('/produto-pecas/fichas-cabecote-branco/pdf-lote', [FichaCabecoteController::class, 'blankPdfLote'])->middleware('module:produtos');
+    Route::get('/fichas-cabecote/pdf-lote', [FichaCabecoteController::class, 'pdfLote'])->middleware('module:produtos');
     Route::get('/fichas-cabecote/{id}', [FichaCabecoteController::class, 'show'])->middleware('module:produtos');
     Route::put('/fichas-cabecote/{id}', [FichaCabecoteController::class, 'update'])->middleware('module:produtos');
     Route::get('/fichas-cabecote/{id}/pdf', [FichaCabecoteController::class, 'pdf'])->middleware('module:produtos');

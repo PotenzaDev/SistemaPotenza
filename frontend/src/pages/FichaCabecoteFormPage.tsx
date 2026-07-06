@@ -22,6 +22,7 @@ import {
   novaCabecoteBrocaRow,
   type CabecoteBrocaRow,
 } from '@/components/fichaCabecote/CabecoteBrocasTable'
+import { gerarId } from '@/lib/utils'
 
 function parseError(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {
@@ -82,8 +83,8 @@ export function FichaCabecoteFormPage() {
   const [velocidade, setVelocidade] = useState('')
   const [observacao, setObservacao] = useState('')
 
-  const [posicoesCabecote, setPosicoesCabecote] = useState<CabecotePosicaoRow[]>([novaCabecotePosicaoRow()])
-  const [posicoesBroca, setPosicoesBroca] = useState<CabecoteBrocaRow[]>([novaCabecoteBrocaRow()])
+  const [posicoesCabecote, setPosicoesCabecote] = useState<CabecotePosicaoRow[]>(() => [novaCabecotePosicaoRow()])
+  const [posicoesBroca, setPosicoesBroca] = useState<CabecoteBrocaRow[]>(() => [novaCabecoteBrocaRow()])
 
   const [salvando, setSalvando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -114,7 +115,7 @@ export function FichaCabecoteFormPage() {
 
           if (ficha.posicoes_cabecote.length > 0) {
             setPosicoesCabecote(ficha.posicoes_cabecote.map(p => ({
-              key: crypto.randomUUID(),
+              key: gerarId(),
               cabecote: p.cabecote,
               sentido: p.sentido,
               largura_mm: String(p.largura_mm),
@@ -126,7 +127,7 @@ export function FichaCabecoteFormPage() {
 
           if (ficha.posicoes_broca.length > 0) {
             setPosicoesBroca(ficha.posicoes_broca.map(b => ({
-              key: crypto.randomUUID(),
+              key: gerarId(),
               cabecote: b.cabecote,
               sentido: b.sentido,
               posicao: b.posicao,
