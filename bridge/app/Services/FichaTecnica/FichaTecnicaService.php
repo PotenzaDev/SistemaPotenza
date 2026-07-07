@@ -107,6 +107,30 @@ class FichaTecnicaService implements FichaTecnicaServiceInterface
         ];
     }
 
+    public function buscarVariantesPorPrefixoLote(string $ordemLote, string $prefixoCod): array
+    {
+        $ordemLote = ltrim($ordemLote, '0') ?: '0';
+
+        $rows = DB::select(
+            'SELECT CodiSemiAcabado, DenoSemiAcabado, SUM(Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
+             FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
+             WHERE SUBSTRING(CodiSemiAcabado, 1, 5) = ? AND Lote = ?
+             GROUP BY CodiSemiAcabado, DenoSemiAcabado',
+            [$prefixoCod, $ordemLote]
+        );
+
+        return array_map(function ($row) {
+            $row = (array) $row;
+
+            return [
+                'cod_peca'     => (string) ($row['CodiSemiAcabado'] ?? ''),
+                'desc_peca'    => (string) ($row['DenoSemiAcabado'] ?? ''),
+                'qtde_total'   => (int) ($row['qtde_total'] ?? 0),
+                'total_pilhas' => (int) ($row['total_pilhas'] ?? 0),
+            ];
+        }, $rows);
+    }
+
     private function mapear(array $row, int $qtdeTotal): array
     {
         return [

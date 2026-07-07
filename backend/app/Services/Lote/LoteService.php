@@ -84,6 +84,22 @@ class LoteService implements LoteServiceInterface
         ];
     }
 
+    public function buscarVariantesPorPrefixoLote(string $ordemLote, string $prefixoCod): array
+    {
+        $ordemLote = ltrim($ordemLote, '0') ?: '0';
+
+        $response = $this->get('ficha-tecnica/lote-variantes-detalhe', [
+            'lote'        => $ordemLote,
+            'prefixo_cod' => $prefixoCod,
+        ]);
+
+        if ($response->failed()) {
+            return [];
+        }
+
+        return $response->json('variantes') ?? [];
+    }
+
     private function get(string $uri, array $query): Response
     {
         $url = (string) config('services.bridge.url');

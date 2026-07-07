@@ -9,6 +9,7 @@ use App\Http\Requests\BuscarFichaTecnicaLoteRequest;
 use App\Http\Requests\BuscarFichasLoteCountRequest;
 use App\Http\Requests\BuscarFtecPecaPilhaRequest;
 use App\Http\Requests\BuscarTotaisVariantesLoteRequest;
+use App\Http\Requests\BuscarVariantesDetalheLoteRequest;
 use App\Services\FichaTecnica\FichaTecnicaServiceInterface;
 use Illuminate\Http\JsonResponse;
 
@@ -55,5 +56,15 @@ class FichaTecnicaController extends Controller
         );
 
         return response()->json($totais);
+    }
+
+    public function loteVariantesDetalhe(BuscarVariantesDetalheLoteRequest $request): JsonResponse
+    {
+        $variantes = $this->fichaTecnicaService->buscarVariantesPorPrefixoLote(
+            $request->validated('lote'),
+            $request->validated('prefixo_cod'),
+        );
+
+        return response()->json(['variantes' => $variantes]);
     }
 }

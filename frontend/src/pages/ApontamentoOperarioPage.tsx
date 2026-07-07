@@ -14,11 +14,13 @@ import {
   biparFicha,
   finalizarApontamento,
   getFichasRecentes,
+  getFichasPorCor,
   pausarApontamento,
   retomarApontamento,
   pausarSistemaBeacon,
   type Apontamento,
   type FichaApontamento,
+  type ResumoFichasPorCor,
 } from '@/api/apontamento'
 import { getMotivosAtivos, type MotivoPausa } from '@/api/motivosPausa'
 import { chamarSuporte } from '@/api/suporte'
@@ -44,6 +46,7 @@ export function ApontamentoOperarioPage() {
   const [apontamento, setApontamento]       = useState<Apontamento | null>(null)
   const [fase, setFase]                     = useState<Fase>('aguardando')
   const [fichasRecentes, setFichasRecentes] = useState<FichaApontamento[]>([])
+  const [resumoPorCor, setResumoPorCor]     = useState<ResumoFichasPorCor[]>([])
   const [motivosPausa, setMotivosPausa]     = useState<MotivoPausa[]>([])
   const [loadingInicial, setLoadingInicial] = useState(true)
   const [encerrando, setEncerrando]               = useState(false)
@@ -76,7 +79,8 @@ export function ApontamentoOperarioPage() {
 
   const qtdeTotal   = apontamento?.qtde_total ?? 0
   const totalBipado = apontamento?.fichas.reduce((sum, f) => sum + f.qtd_peca, 0) ?? 0
-  const loteZerado  = qtdeTotal === 0 || totalBipado >= qtdeTotal
+  const todasCoresCompletas = resumoPorCor.length === 0 || resumoPorCor.every(r => r.falta === 0)
+  const loteZerado  = (qtdeTotal === 0 || totalBipado >= qtdeTotal) && todasCoresCompletas
 
   const pausas = useMemo(() => apontamento?.pausas ?? [], [apontamento])
 
@@ -137,6 +141,21 @@ export function ApontamentoOperarioPage() {
     const id = setInterval(() => setNow(new Date()), 60_000)
     return () => clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    if (!apontamento || (fase !== 'em_producao' && fase !== 'em_pausa_producao' && fase !== 'finalizando')) {
+      setResumoPorCor([])
+      return
+    }
+
+    let ativo = true
+
+    getFichasPorCor(apontamento.id).then(resumo => {
+      if (ativo) setResumoPorCor(resumo)
+    })
+
+    return () => { ativo = false }
+  }, [apontamento?.id, apontamento?.fichas.length, fase])
 
   useEffect(() => {
     if (!apontamento || (fase !== 'em_setup' && fase !== 'em_producao')) return
@@ -718,6 +737,7 @@ export function ApontamentoOperarioPage() {
             {!loteZerado && qtdeTotal > 0 && (
               <p className="text-xs text-center text-slate-500">
                 {totalBipado} de {qtdeTotal} peças bipadas
+                {!todasCoresCompletas && ' · faltam cores'}
               </p>
             )}
             <BotaoPausar
@@ -729,7 +749,7 @@ export function ApontamentoOperarioPage() {
 
           {/* Fichas após os botões — scrollável internamente */}
           {apontamento.fichas.length > 0 && (
-            <FichasDoLote apontamentoId={apontamento.id} fichas={apontamento.fichas} qtdeTotal={apontamento.qtde_total} />
+            <FichasDoLote fichas={apontamento.fichas} resumoPorCor={resumoPorCor} />
           )}
 
           <FichasRecentes fichas={fichasRecentes} />
@@ -747,7 +767,7 @@ export function ApontamentoOperarioPage() {
             onRetomar={handleRetomar}
           />
           {apontamento.fichas.length > 0 && (
-            <FichasDoLote apontamentoId={apontamento.id} fichas={apontamento.fichas} qtdeTotal={apontamento.qtde_total} />
+            <FichasDoLote fichas={apontamento.fichas} resumoPorCor={resumoPorCor} />
           )}
         </>
       )}

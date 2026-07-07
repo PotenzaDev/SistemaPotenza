@@ -9,7 +9,7 @@
         <table>
             <tr>
                 <td class="rotulo destaque">PEÇA</td>
-                <td>{{ $pecaNumero }} {{ strtoupper($pecaNome) }}</td>
+                <td>{{ strtoupper($pecaNome) }}</td>
                 <td class="rotulo">CÓDIGO</td>
                 <td>{{ $pecaNumero }}</td>
                 <td class="rotulo">DIMENSÃO</td>

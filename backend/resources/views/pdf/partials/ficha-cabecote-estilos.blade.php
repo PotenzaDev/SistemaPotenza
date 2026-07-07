@@ -59,7 +59,7 @@
 
     .tabela-dados th {
         background-color: #dbe4f0;
-        border: 1px solid #cbd5e1;
+        border: 1px solid #94a3b8;
         padding: 3px 5px;
         font-size: 8px;
         text-transform: uppercase;
@@ -68,9 +68,13 @@
     .tabela-dados.brocas th { background-color: #dcecdf; }
 
     .tabela-dados td {
-        border: 1px solid #cbd5e1;
+        border: 1px solid #94a3b8;
         padding: 4px 5px;
         font-size: 9px;
         height: 14px;
     }
+
+    .tabela-dados tbody tr:nth-child(even) td { background-color: #eef2f7; }
+
+    .tabela-dados.brocas tbody tr:nth-child(even) td { background-color: #e6f2e9; }
 </style>

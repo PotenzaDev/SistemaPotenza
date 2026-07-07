@@ -45,4 +45,15 @@ interface FichaTecnicaServiceInterface
      * @return array  ['qtde_total' => int|null, 'total_pilhas' => int]
      */
     public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array;
+
+    /**
+     * Detalha, um por um, todos os CodiSemiAcabado (cor/variante) que
+     * compartilham os 5 dígitos de prefixo informados no lote dado —
+     * ao contrário de buscarTotaisPorPrefixoLote(), que soma tudo junto.
+     *
+     * @param  string $ordemLote  Código do lote (com ou sem zeros à esquerda).
+     * @param  string $prefixoCod Primeiros 5 dígitos do CodiSemiAcabado.
+     * @return array<int, array{cod_peca: string, desc_peca: string, qtde_total: int, total_pilhas: int}>
+     */
+    public function buscarVariantesPorPrefixoLote(string $ordemLote, string $prefixoCod): array;
 }

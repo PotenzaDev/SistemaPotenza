@@ -41,4 +41,14 @@ interface LoteServiceInterface
      * Em caso de falha retorna fallback seguro: ['qtde_total' => null, 'total_pilhas' => 0].
      */
     public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array;
+
+    /**
+     * Detalha, um por um, todos os cod_peca (cor/variante) que compartilham
+     * os 5 dígitos de prefixo informados no lote dado, cada um com sua
+     * própria qtde_total exigida — ao contrário de buscarTotaisPorPrefixoLote(),
+     * que soma tudo junto. Em caso de falha na Bridge retorna [] (fallback seguro).
+     *
+     * @return array<int, array{cod_peca: string, desc_peca: string, qtde_total: int, total_pilhas: int}>
+     */
+    public function buscarVariantesPorPrefixoLote(string $ordemLote, string $prefixoCod): array;
 }

@@ -1,26 +1,12 @@
-import { useEffect, useState } from 'react'
 import { Layers, Palette } from 'lucide-react'
-import { getFichasPorCor, type FichaApontamento, type ResumoFichasPorCor } from '@/api/apontamento'
+import type { FichaApontamento, ResumoFichasPorCor } from '@/api/apontamento'
 
 interface FichasDoLoteProps {
-  apontamentoId: number
   fichas: FichaApontamento[]
-  qtdeTotal: number | null
+  resumoPorCor: ResumoFichasPorCor[]
 }
 
-export function FichasDoLote({ apontamentoId, fichas }: FichasDoLoteProps) {
-  const [resumoPorCor, setResumoPorCor] = useState<ResumoFichasPorCor[]>([])
-
-  useEffect(() => {
-    let ativo = true
-
-    getFichasPorCor(apontamentoId).then(resumo => {
-      if (ativo) setResumoPorCor(resumo)
-    })
-
-    return () => { ativo = false }
-  }, [apontamentoId, fichas.length])
-
+export function FichasDoLote({ fichas, resumoPorCor }: FichasDoLoteProps) {
   return (
     <div className="bg-[#0f1923] border border-white/5 rounded-xl overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-3 border-b border-white/5">
@@ -38,8 +24,9 @@ export function FichasDoLote({ apontamentoId, fichas }: FichasDoLoteProps) {
                 <span className="text-xs font-medium text-white truncate">{r.cor}</span>
                 <span className="text-[10px] font-mono text-slate-600 shrink-0">{r.cod_peca}</span>
               </div>
-              <span className="text-xs font-semibold text-[#00aa84] tabular-nums shrink-0">
-                {r.qtd_bipadas}{r.qtd_fichas !== null ? ` / ${r.qtd_fichas}` : ''} fichas
+              <span className={`text-xs font-semibold tabular-nums shrink-0 ${r.falta > 0 ? 'text-amber-400' : 'text-[#00aa84]'}`}>
+                {r.qtd_bipada} / {r.qtde_total} pç
+                {r.falta > 0 ? ` · faltam ${r.falta}` : ''}
               </span>
             </div>
           ))}

@@ -156,6 +156,11 @@ class BiparFichaDuplicadaTest extends TestCase
             {
                 return ['qtde_total' => null, 'total_pilhas' => 0];
             }
+
+            public function buscarVariantesPorPrefixoLote(string $ordemLote, string $prefixoCod): array
+            {
+                return [];
+            }
         });
 
         $t0 = Carbon::parse('2026-07-02 08:00:00');

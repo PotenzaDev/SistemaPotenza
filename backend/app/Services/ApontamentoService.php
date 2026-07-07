@@ -312,6 +312,25 @@ class ApontamentoService
             );
         }
 
+        // Gate por cor: o total acima é a soma de todas as cores da peça (mesmo
+        // prefixo de 5 dígitos), então pode bater mesmo faltando uma cor inteira.
+        // Quando a Bridge responde com o detalhe por cor, exige que cada uma
+        // tenha atingido sua própria quantidade antes de liberar a finalização.
+        $progresso = $this->progressoPorCor($apontamento);
+        $pendentes = array_filter($progresso, fn (array $p) => $p['falta'] > 0);
+
+        if ($pendentes !== []) {
+            $lista = implode('; ', array_map(
+                fn (array $p) => "{$p['cor']} ({$p['cod_peca']}): {$p['qtd_bipada']}/{$p['qtde_total']}",
+                $pendentes
+            ));
+
+            throw new BusinessException(
+                "Bipe todas as cores antes de finalizar. Pendente — {$lista}.",
+                422
+            );
+        }
+
         foreach ($fichasQtd as $item) {
             $this->fichaRepo->atualizarQtdProduzida(
                 (int) $item['ficha_id'],
@@ -510,38 +529,50 @@ class ApontamentoService
     }
 
     /**
-     * Agrupa as fichas já bipadas deste apontamento por cod_peca (cor/variante),
-     * quando há mais de um código distinto entre as fichas — caso de peças que
-     * compartilham o mesmo prefixo mas mudam de cor (últimos dígitos). Para cada
-     * grupo, busca a cor (descrição) e a quantidade de fichas esperada na Bridge.
-     * Retorna array vazio quando todas as fichas são do mesmo cod_peca.
+     * Progresso por cor/variante (cod_peca completo) da peça base (prefixo de
+     * 5 dígitos) deste apontamento, usando a quantidade real de peças exigida
+     * por cor (não estimativa por pilha). Busca todas as cores esperadas do
+     * lote na Bridge — inclusive as que ainda não foram bipadas nenhuma vez —
+     * e cruza com o que já foi bipado neste apontamento. Retorna [] quando a
+     * Bridge não responde ou não há variantes cadastradas (fallback seguro:
+     * não bloqueia finalização por cor nesse caso, só o check agregado).
      */
-    public function resumoFichasPorCor(Apontamento $apontamento): array
+    public function progressoPorCor(Apontamento $apontamento): array
     {
-        $porCodigo = $apontamento->fichas->groupBy('cod_peca');
+        $prefixo   = substr($apontamento->cod_peca, 0, 5);
+        $variantes = $this->loteService->buscarVariantesPorPrefixoLote($apontamento->ordem_lote, $prefixo);
 
-        if ($porCodigo->count() <= 1) {
+        if ($variantes === []) {
             return [];
         }
 
-        return $porCodigo->map(function ($fichas, $codPeca) use ($apontamento) {
-            $dados         = $this->loteService->buscarPorOrdemLote($apontamento->ordem_lote, $codPeca);
-            $ftecPecaPilha = $this->loteService->buscarFtecPecaPilha($codPeca);
+        $bipadoPorCodigo = $apontamento->fichas->groupBy('cod_peca')
+            ->map(fn ($fichas) => (int) $fichas->sum('qtd_peca'));
 
-            $qtdFichas = $dados['qtde_total'] && $ftecPecaPilha
-                ? (int) ceil($dados['qtde_total'] / $ftecPecaPilha)
-                : null;
-
+        return array_map(function (array $variante) use ($bipadoPorCodigo) {
             // A cor/acabamento é o último segmento da descrição (ex: "... - Nature").
-            $partesDesc = explode(' - ', (string) $dados['desc_peca']);
+            $partesDesc = explode(' - ', $variante['desc_peca']);
+            $qtdBipada  = (int) ($bipadoPorCodigo[$variante['cod_peca']] ?? 0);
 
             return [
-                'cod_peca'    => $codPeca,
+                'cod_peca'    => $variante['cod_peca'],
                 'cor'         => trim((string) end($partesDesc)),
-                'qtd_fichas'  => $qtdFichas,
-                'qtd_bipadas' => $fichas->count(),
+                'qtde_total'  => $variante['qtde_total'],
+                'qtd_bipada'  => $qtdBipada,
+                'falta'       => max(0, $variante['qtde_total'] - $qtdBipada),
             ];
-        })->values()->all();
+        }, $variantes);
+    }
+
+    /**
+     * Alias de leitura de progressoPorCor(), exposto via API para a tela de
+     * apontamento. Retorna [] quando há só uma cor (nada a destacar).
+     */
+    public function resumoFichasPorCor(Apontamento $apontamento): array
+    {
+        $progresso = $this->progressoPorCor($apontamento);
+
+        return count($progresso) > 1 ? $progresso : [];
     }
 
     /**

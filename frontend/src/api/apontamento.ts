@@ -75,8 +75,9 @@ export interface FinalizarPayload {
 export interface ResumoFichasPorCor {
   cod_peca: string
   cor: string
-  qtd_fichas: number | null
-  qtd_bipadas: number
+  qtde_total: number
+  qtd_bipada: number
+  falta: number
 }
 
 // ── Leitura ───────────────────────────────────────────────────────────────────
