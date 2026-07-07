@@ -78,7 +78,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8000/api)",
       "Bash(echo \"EXIT_CODE=$?\")",
       "Bash(git -C .. diff --stat -- frontend/src/pages/RelatorioProducaoMaquinasPage.tsx)",
-      "Bash(echo \"TSC_EXIT:$?\")"
+      "Bash(echo \"TSC_EXIT:$?\")",
+      "Bash(git *)"
     ]
   }
 }

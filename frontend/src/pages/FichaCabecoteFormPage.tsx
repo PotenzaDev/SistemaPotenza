@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
-import { ArrowLeft, ClipboardList, Loader2, Save } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ClipboardList, Loader2, Save } from 'lucide-react'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { getMaquinas, type Maquina } from '@/api/maquinas'
 import { getOperarios, type Operario } from '@/api/operarios'
 import { getBrocas, type Broca } from '@/api/brocas'
@@ -90,6 +91,9 @@ export function FichaCabecoteFormPage() {
   const [error, setError] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState(false)
 
+  const isWizard = useMediaQuery('(max-width: 1023px)')
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+
   useEffect(() => {
     const controller = new AbortController()
     Promise.all([
@@ -154,7 +158,7 @@ export function FichaCabecoteFormPage() {
   const linhasBrocaInvalidas = posicoesBroca.some(r => linhaBrocaPreenchida(r) && !linhaBrocaValida(r))
   const podeSalvar = !salvando && !linhasCabecoteInvalidas && !linhasBrocaInvalidas
 
-  async function handleSalvar() {
+  async function handleSalvar(opts?: { navegarParaDetalhe?: boolean }) {
     if (!pecaId || !podeSalvar) return
     setError(null)
     setSucesso(false)
@@ -195,9 +199,17 @@ export function FichaCabecoteFormPage() {
 
       if (fichaIdAtual) {
         await updateFichaCabecote(fichaIdAtual, payload)
+        if (opts?.navegarParaDetalhe) {
+          navigate(`/admin/produtos/${produtoId}/semi-acabados/${pecaId}/fichas/${fichaIdAtual}`)
+          return
+        }
       } else {
         const nova = await createFichaCabecote(Number(pecaId), payload)
         setFichaIdAtual(nova.id)
+        if (opts?.navegarParaDetalhe) {
+          navigate(`/admin/produtos/${produtoId}/semi-acabados/${pecaId}/fichas/${nova.id}`)
+          return
+        }
         navigate(`/admin/produtos/${produtoId}/semi-acabados/${pecaId}/fichas/${nova.id}/editar`, { replace: true })
       }
       setSucesso(true)
@@ -208,6 +220,97 @@ export function FichaCabecoteFormPage() {
     }
   }
 
+  function renderIdentificacao() {
+    return (
+      <section className="bg-[#0f1923] border border-white/5 rounded-xl px-6 py-5 space-y-4">
+        <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider">Identificação</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className={LABEL}>Máquina</label>
+            <select value={maquinaId} onChange={e => setMaquinaId(e.target.value)} className={SELECT}>
+              <option value="">Selecione</option>
+              {maquinas.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}>Operador</label>
+            <select value={operarioId} onChange={e => setOperarioId(e.target.value)} className={SELECT}>
+              <option value="">Selecione</option>
+              {operarios.map(o => <option key={o.id} value={o.id}>{o.user.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}>Data</label>
+            <input type="date" value={data} onChange={e => setData(e.target.value)} className={INPUT} />
+          </div>
+          <div>
+            <label className={LABEL}>Quant. Peças/vez</label>
+            <input type="number" min="1" value={quantidadePecas} onChange={e => setQuantidadePecas(e.target.value)} className={INPUT} />
+          </div>
+          <div>
+            <label className={LABEL}>Top Esquerdo (mm)</label>
+            <input type="number" step="0.01" value={topEsquerdo} onChange={e => setTopEsquerdo(e.target.value)} className={INPUT} />
+          </div>
+          <div>
+            <label className={LABEL}>Top Direito (mm)</label>
+            <input type="number" step="0.01" value={topDireito} onChange={e => setTopDireito(e.target.value)} className={INPUT} />
+          </div>
+          <div>
+            <label className={LABEL}>Velocidade de Trabalho</label>
+            <input type="number" step="0.01" value={velocidade} onChange={e => setVelocidade(e.target.value)} className={INPUT} />
+          </div>
+          <div className="md:col-span-4">
+            <label className={LABEL}>Observação</label>
+            <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={2} className={INPUT} />
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  function renderPosicoesCabecote() {
+    return (
+      <section className="bg-[#0f1923] border border-white/5 rounded-xl px-6 py-5 space-y-4">
+        <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider">Levantamento de Posições de Cabeçotes</h2>
+        <CabecotePosicoesTable rows={posicoesCabecote} onChange={setPosicoesCabecote} />
+      </section>
+    )
+  }
+
+  function renderPosicoesBroca() {
+    return (
+      <section className="bg-[#0f1923] border border-white/5 rounded-xl px-6 py-5 space-y-4">
+        <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider">Posição das Brocas</h2>
+        <CabecoteBrocasTable rows={posicoesBroca} onChange={setPosicoesBroca} brocas={brocas} />
+      </section>
+    )
+  }
+
+  const etapas = [
+    { titulo: 'Identificação', render: renderIdentificacao },
+    { titulo: 'Levantamento de Posições de Cabeçotes', render: renderPosicoesCabecote },
+    { titulo: 'Posição das Brocas', render: renderPosicoesBroca },
+  ] as const
+
+  const tituloIndisponivel = linhasCabecoteInvalidas || linhasBrocaInvalidas
+    ? 'Complete ou limpe as linhas iniciadas antes de salvar'
+    : undefined
+
+  const mensagens = (
+    <>
+      {error && (
+        <p className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+          {error}
+        </p>
+      )}
+      {sucesso && !error && (
+        <p className="text-xs text-[#00aa84] bg-[#00aa84]/10 border border-[#00aa84]/20 rounded-lg px-3 py-2">
+          Ficha salva. Você pode continuar preenchendo e salvar novamente quando quiser.
+        </p>
+      )}
+    </>
+  )
+
   return (
     <div className="space-y-6">
 
@@ -215,7 +318,7 @@ export function FichaCabecoteFormPage() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate(`/admin/produtos/${produtoId}/semi-acabados/${pecaId}/fichas`)}
+          onClick={() => navigate(`/admin/produtos/${produtoId}/semi-acabados`)}
           className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
           title="Voltar"
         >
@@ -239,82 +342,86 @@ export function FichaCabecoteFormPage() {
           <Loader2 className="w-5 h-5 animate-spin" />
           <span className="text-sm">Carregando…</span>
         </div>
+      ) : isWizard ? (
+        <>
+          {/* indicador de etapa */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-[#00aa84] uppercase tracking-wider">
+              Etapa {step} de {etapas.length} — {etapas[step - 1].titulo}
+            </p>
+            <div className="flex gap-1.5">
+              {etapas.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1 flex-1 rounded-full ${i + 1 <= step ? 'bg-[#00aa84]' : 'bg-white/10'}`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {etapas[step - 1].render()}
+
+          {mensagens}
+
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setStep(s => (s - 1) as 1 | 2 | 3)}
+              disabled={step === 1}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Voltar
+            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleSalvar()}
+                disabled={!podeSalvar}
+                title={tituloIndisponivel}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-300 border border-white/10 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+              >
+                {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Salvar e continuar depois
+              </button>
+              {step < etapas.length ? (
+                <button
+                  type="button"
+                  onClick={() => setStep(s => (s + 1) as 1 | 2 | 3)}
+                  className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-[#00aa84] hover:bg-[#00aa84]/90 rounded-lg transition-colors"
+                >
+                  Próximo
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSalvar({ navegarParaDetalhe: true })}
+                  disabled={!podeSalvar}
+                  title={tituloIndisponivel}
+                  className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-[#00aa84] hover:bg-[#00aa84]/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                >
+                  {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Finalizar
+                </button>
+              )}
+            </div>
+          </div>
+        </>
       ) : (
         <>
-          {/* Identificação */}
-          <section className="bg-[#0f1923] border border-white/5 rounded-xl px-6 py-5 space-y-4">
-            <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider">Identificação</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className={LABEL}>Máquina</label>
-                <select value={maquinaId} onChange={e => setMaquinaId(e.target.value)} className={SELECT}>
-                  <option value="">Selecione</option>
-                  {maquinas.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={LABEL}>Operador</label>
-                <select value={operarioId} onChange={e => setOperarioId(e.target.value)} className={SELECT}>
-                  <option value="">Selecione</option>
-                  {operarios.map(o => <option key={o.id} value={o.id}>{o.user.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={LABEL}>Data</label>
-                <input type="date" value={data} onChange={e => setData(e.target.value)} className={INPUT} />
-              </div>
-              <div>
-                <label className={LABEL}>Quant. Peças/vez</label>
-                <input type="number" min="1" value={quantidadePecas} onChange={e => setQuantidadePecas(e.target.value)} className={INPUT} />
-              </div>
-              <div>
-                <label className={LABEL}>Top Esquerdo (mm)</label>
-                <input type="number" step="0.01" value={topEsquerdo} onChange={e => setTopEsquerdo(e.target.value)} className={INPUT} />
-              </div>
-              <div>
-                <label className={LABEL}>Top Direito (mm)</label>
-                <input type="number" step="0.01" value={topDireito} onChange={e => setTopDireito(e.target.value)} className={INPUT} />
-              </div>
-              <div>
-                <label className={LABEL}>Velocidade de Trabalho</label>
-                <input type="number" step="0.01" value={velocidade} onChange={e => setVelocidade(e.target.value)} className={INPUT} />
-              </div>
-              <div className="md:col-span-4">
-                <label className={LABEL}>Observação</label>
-                <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={2} className={INPUT} />
-              </div>
-            </div>
-          </section>
+          {renderIdentificacao()}
+          {renderPosicoesCabecote()}
+          {renderPosicoesBroca()}
 
-          {/* Levantamento de Posições de Cabeçotes */}
-          <section className="bg-[#0f1923] border border-white/5 rounded-xl px-6 py-5 space-y-4">
-            <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider">Levantamento de Posições de Cabeçotes</h2>
-            <CabecotePosicoesTable rows={posicoesCabecote} onChange={setPosicoesCabecote} />
-          </section>
-
-          {/* Posição das Brocas */}
-          <section className="bg-[#0f1923] border border-white/5 rounded-xl px-6 py-5 space-y-4">
-            <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider">Posição das Brocas</h2>
-            <CabecoteBrocasTable rows={posicoesBroca} onChange={setPosicoesBroca} brocas={brocas} />
-          </section>
-
-          {error && (
-            <p className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
-          {sucesso && !error && (
-            <p className="text-xs text-[#00aa84] bg-[#00aa84]/10 border border-[#00aa84]/20 rounded-lg px-3 py-2">
-              Ficha salva. Você pode continuar preenchendo e salvar novamente quando quiser.
-            </p>
-          )}
+          {mensagens}
 
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={handleSalvar}
+              onClick={() => handleSalvar()}
               disabled={!podeSalvar}
-              title={linhasCabecoteInvalidas || linhasBrocaInvalidas ? 'Complete ou limpe as linhas iniciadas antes de salvar' : undefined}
+              title={tituloIndisponivel}
               className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-[#00aa84] hover:bg-[#00aa84]/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
             >
               {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

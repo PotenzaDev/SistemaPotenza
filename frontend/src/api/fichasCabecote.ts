@@ -53,14 +53,6 @@ export interface FichaCabecoteOperario {
   user: FichaCabecoteOperarioUser
 }
 
-export interface FichaCabecoteResumo {
-  id: number
-  data: string | null
-  maquina: FichaCabecoteMaquina | null
-  operario: FichaCabecoteOperario | null
-  completa: boolean
-}
-
 export interface FichaCabecote {
   id: number
   produto_peca_id: number
@@ -113,17 +105,6 @@ export interface CreateFichaCabecotePayload {
 }
 
 export type UpdateFichaCabecotePayload = CreateFichaCabecotePayload
-
-export async function listFichasCabecote(
-  pecaId: number,
-  signal?: AbortSignal,
-): Promise<FichaCabecoteResumo[]> {
-  const res = await apiClient.get<ApiEnvelope<FichaCabecoteResumo[]>>(
-    `/produto-pecas/${pecaId}/fichas-cabecote`,
-    { signal },
-  )
-  return res.data.data
-}
 
 export async function getFichaCabecote(id: number, signal?: AbortSignal): Promise<FichaCabecote> {
   const res = await apiClient.get<ApiEnvelope<FichaCabecote>>(`/fichas-cabecote/${id}`, { signal })

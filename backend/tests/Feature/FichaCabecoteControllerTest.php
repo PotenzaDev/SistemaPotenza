@@ -75,6 +75,25 @@ class FichaCabecoteControllerTest extends TestCase
         $this->assertDatabaseCount('ficha_cabecote_brocas', 1);
     }
 
+    public function test_store_retorna_409_quando_peca_ja_possui_ficha(): void
+    {
+        $funcionario = User::factory()->funcionario(['produtos'])->create();
+        $peca = ProdutoPeca::factory()->create();
+        $maquina = Maquina::factory()->create();
+        $operario = Operario::factory()->create();
+        $broca = Broca::factory()->create();
+
+        FichaCabecote::factory()->create(['produto_peca_id' => $peca->id]);
+
+        $payload = $this->payloadValido($maquina, $operario, $broca);
+
+        $this->actingAs($funcionario, 'sanctum')
+            ->postJson("/api/produto-pecas/{$peca->id}/fichas-cabecote", $payload)
+            ->assertStatus(409);
+
+        $this->assertDatabaseCount('fichas_cabecote', 1);
+    }
+
     public function test_store_falha_quando_broca_nao_passante_sem_profundidade(): void
     {
         $funcionario = User::factory()->funcionario(['produtos'])->create();
@@ -169,12 +188,12 @@ class FichaCabecoteControllerTest extends TestCase
     {
         $funcionario = User::factory()->funcionario(['produtos'])->create();
         $peca = ProdutoPeca::factory()->create();
-        FichaCabecote::factory()->count(2)->create(['produto_peca_id' => $peca->id]);
+        FichaCabecote::factory()->create(['produto_peca_id' => $peca->id]);
 
         $this->actingAs($funcionario, 'sanctum')
             ->getJson("/api/produto-pecas/{$peca->id}/fichas-cabecote")
             ->assertOk()
-            ->assertJsonCount(2, 'data');
+            ->assertJsonCount(1, 'data');
     }
 
     public function test_index_retorna_404_quando_peca_nao_existe(): void

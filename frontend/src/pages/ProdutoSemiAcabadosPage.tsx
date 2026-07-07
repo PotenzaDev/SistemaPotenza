@@ -263,8 +263,10 @@ export function ProdutoSemiAcabadosPage() {
             renderActions={(peca) => (
               <>
                 <Link
-                  to={`/admin/produtos/${id}/semi-acabados/${peca.id}/fichas`}
-                  title="Fichas de Cabeçote"
+                  to={peca.ultima_ficha_cabecote
+                    ? `/admin/produtos/${id}/semi-acabados/${peca.id}/fichas/${peca.ultima_ficha_cabecote.id}`
+                    : `/admin/produtos/${id}/semi-acabados/${peca.id}/fichas/nova`}
+                  title={peca.ultima_ficha_cabecote ? 'Ver Ficha de Cabeçote' : 'Cadastrar Ficha de Cabeçote'}
                   className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors"
                 >
                   <ClipboardList className="w-4 h-4" />

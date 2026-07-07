@@ -73,7 +73,7 @@ export function FichaCabecoteDetalhePage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(`/admin/produtos/${produtoId}/semi-acabados/${pecaId}/fichas`)}
+            onClick={() => navigate(`/admin/produtos/${produtoId}/semi-acabados`)}
             className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
             title="Voltar"
           >

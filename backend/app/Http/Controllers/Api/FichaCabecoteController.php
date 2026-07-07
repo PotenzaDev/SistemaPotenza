@@ -11,6 +11,7 @@ use App\Http\Traits\ApiResponseTrait;
 use App\Models\FichaCabecote;
 use App\Models\ProdutoPeca;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -65,25 +66,37 @@ class FichaCabecoteController extends Controller
             return $this->errorResponse('Semi-acabado não encontrado.', 404);
         }
 
+        if (FichaCabecote::where('produto_peca_id', $pecaId)->exists()) {
+            return $this->errorResponse('Esta peça já possui uma ficha cadastrada.', 409);
+        }
+
         $data = $request->validated();
 
-        $ficha = DB::transaction(function () use ($data, $pecaId) {
-            $ficha = FichaCabecote::create([
-                'produto_peca_id' => $pecaId,
-                'maquina_id' => $data['maquina_id'] ?? null,
-                'operario_id' => $data['operario_id'] ?? null,
-                'data' => $data['data'] ?? null,
-                'top_esquerdo_mm' => $data['top_esquerdo_mm'] ?? null,
-                'top_direito_mm' => $data['top_direito_mm'] ?? null,
-                'quantidade_pecas_vez' => $data['quantidade_pecas_vez'] ?? null,
-                'velocidade_trabalho' => $data['velocidade_trabalho'] ?? null,
-                'observacao' => $data['observacao'] ?? null,
-            ]);
+        try {
+            $ficha = DB::transaction(function () use ($data, $pecaId) {
+                $ficha = FichaCabecote::create([
+                    'produto_peca_id' => $pecaId,
+                    'maquina_id' => $data['maquina_id'] ?? null,
+                    'operario_id' => $data['operario_id'] ?? null,
+                    'data' => $data['data'] ?? null,
+                    'top_esquerdo_mm' => $data['top_esquerdo_mm'] ?? null,
+                    'top_direito_mm' => $data['top_direito_mm'] ?? null,
+                    'quantidade_pecas_vez' => $data['quantidade_pecas_vez'] ?? null,
+                    'velocidade_trabalho' => $data['velocidade_trabalho'] ?? null,
+                    'observacao' => $data['observacao'] ?? null,
+                ]);
 
-            $this->salvarPosicoes($ficha, $data);
+                $this->salvarPosicoes($ficha, $data);
 
-            return $ficha;
-        });
+                return $ficha;
+            });
+        } catch (QueryException $e) {
+            if ($this->isUniqueViolation($e)) {
+                return $this->errorResponse('Esta peça já possui uma ficha cadastrada.', 409);
+            }
+
+            throw $e;
+        }
 
         return $this->successResponse(
             $ficha->load(self::RELACOES_DETALHE),
@@ -221,6 +234,11 @@ class FichaCabecoteController extends Controller
         $ids = array_filter(array_map('trim', explode(',', $bruto)), fn ($v) => $v !== '' && ctype_digit($v));
 
         return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    private function isUniqueViolation(QueryException $e): bool
+    {
+        return ($e->errorInfo[0] ?? null) === '23505';
     }
 
     private function posicaoLabel(ProdutoPeca $peca): string

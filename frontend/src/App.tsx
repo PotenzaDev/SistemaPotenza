@@ -10,7 +10,6 @@ import { BrocasPage }              from '@/pages/BrocasPage'
 import { ProdutosPage }            from '@/pages/ProdutosPage'
 import { ImportarProdutoPage }     from '@/pages/ImportarProdutoPage'
 import { ProdutoSemiAcabadosPage } from '@/pages/ProdutoSemiAcabadosPage'
-import { FichaCabecoteListPage }   from '@/pages/FichaCabecoteListPage'
 import { FichaCabecoteFormPage }   from '@/pages/FichaCabecoteFormPage'
 import { FichaCabecoteDetalhePage } from '@/pages/FichaCabecoteDetalhePage'
 import { TurnosPage }              from '@/pages/TurnosPage'
@@ -84,9 +83,6 @@ function App() {
           } />
           <Route path="produtos/:id/semi-acabados" element={
             <ProtectedRoute requiredRotina="produtos"><ProdutoSemiAcabadosPage /></ProtectedRoute>
-          } />
-          <Route path="produtos/:produtoId/semi-acabados/:pecaId/fichas" element={
-            <ProtectedRoute requiredRotina="produtos"><FichaCabecoteListPage /></ProtectedRoute>
           } />
           <Route path="produtos/:produtoId/semi-acabados/:pecaId/fichas/nova" element={
             <ProtectedRoute requiredRotina="produtos"><FichaCabecoteFormPage /></ProtectedRoute>
