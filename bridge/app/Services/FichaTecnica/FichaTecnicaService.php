@@ -122,9 +122,13 @@ class FichaTecnicaService implements FichaTecnicaServiceInterface
         return array_map(function ($row) {
             $row = (array) $row;
 
+            // CodiSemiAcabado/DenoSemiAcabado costumam vir com espaços à direita
+            // (coluna CHAR de largura fixa no SQL Server) — sem o trim, o valor
+            // não bate com o cod_peca vindo do código de barras/fichas já
+            // gravadas, e a contagem por cor nunca casa (sempre fica em 0).
             return [
-                'cod_peca'     => (string) ($row['CodiSemiAcabado'] ?? ''),
-                'desc_peca'    => (string) ($row['DenoSemiAcabado'] ?? ''),
+                'cod_peca'     => trim((string) ($row['CodiSemiAcabado'] ?? '')),
+                'desc_peca'    => trim((string) ($row['DenoSemiAcabado'] ?? '')),
                 'qtde_total'   => (int) ($row['qtde_total'] ?? 0),
                 'total_pilhas' => (int) ($row['total_pilhas'] ?? 0),
             ];
