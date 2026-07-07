@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { getMaquinas, type Maquina } from '@/api/maquinas'
 import { MaquinaFormModal } from '@/components/MaquinaFormModal'
 import { useAuth } from '@/hooks/useAuth'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 type Filtro = 'todos' | 'ativos' | 'inativos'
 
@@ -12,6 +13,56 @@ const FILTROS: { value: Filtro; label: string }[] = [
   { value: 'todos',    label: 'Todos'    },
   { value: 'ativos',   label: 'Ativos'   },
   { value: 'inativos', label: 'Inativos' },
+]
+
+const maquinaColumns: ResponsiveTableColumn<Maquina>[] = [
+  {
+    key: 'foto',
+    header: '',
+    render: (m) =>
+      m.foto_url ? (
+        <img
+          src={m.foto_url}
+          alt={m.nome}
+          className="w-10 h-10 rounded-lg object-cover border border-white/10"
+        />
+      ) : (
+        <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+          <ImageIcon className="w-4 h-4 text-slate-600" />
+        </div>
+      ),
+    headerClassName: 'px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-14',
+    cellClassName: 'px-4 py-3',
+  },
+  {
+    key: 'nome',
+    header: 'Modelo',
+    render: (m) => m.nome,
+    cellClassName: 'px-4 py-3 font-medium text-white',
+  },
+  {
+    key: 'codigo',
+    header: 'Código',
+    render: (m) => m.codigo ?? '—',
+    cellClassName: 'px-4 py-3 text-slate-400 font-mono text-xs',
+  },
+  { key: 'ano', header: 'Ano', render: (m) => m.ano ?? '—' },
+  { key: 'grupo', header: 'Grupo', render: (m) => m.etapa_fluxo?.nome ?? '—' },
+  {
+    key: 'status',
+    header: 'Status',
+    render: (m) =>
+      m.ativa ? (
+        <span className="inline-flex items-center gap-1.5 text-[#00aa84]">
+          <CheckCircle2 className="w-4 h-4" /> Ativa
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 text-slate-500">
+          <XCircle className="w-4 h-4" /> Inativa
+        </span>
+      ),
+    cellClassName: 'px-4 py-3',
+  },
 ]
 
 export function MaquinasPage() {
@@ -180,73 +231,31 @@ export function MaquinasPage() {
           </div>
         )}
         {!loading && !error && filtered.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/5 text-left">
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-14"></th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Modelo</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Código</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Ano</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Grupo</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-20"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filtered.map((m) => (
-                <tr key={m.id} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="px-4 py-3">
-                    {m.foto_url ? (
-                      <img
-                        src={m.foto_url}
-                        alt={m.nome}
-                        className="w-10 h-10 rounded-lg object-cover border border-white/10"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                        <ImageIcon className="w-4 h-4 text-slate-600" />
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-white">{m.nome}</td>
-                  <td className="px-4 py-3 text-slate-400 font-mono text-xs">{m.codigo ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-300">{m.ano ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-300">{m.etapa_fluxo?.nome ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    {m.ativa ? (
-                      <span className="inline-flex items-center gap-1.5 text-[#00aa84]">
-                        <CheckCircle2 className="w-4 h-4" /> Ativa
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-slate-500">
-                        <XCircle className="w-4 h-4" /> Inativa
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => openQr(m)}
-                        title="QR Code de manutenção"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors"
-                      >
-                        <QrCode className="w-4 h-4" />
-                      </button>
-                      {canCreate && (
-                        <button
-                          onClick={() => openEdit(m)}
-                          title="Editar"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ResponsiveTable
+            columns={maquinaColumns}
+            data={filtered}
+            keyExtractor={(m) => m.id}
+            renderActions={(m) => (
+              <>
+                <button
+                  onClick={() => openQr(m)}
+                  title="QR Code de manutenção"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors"
+                >
+                  <QrCode className="w-4 h-4" />
+                </button>
+                {canCreate && (
+                  <button
+                    onClick={() => openEdit(m)}
+                    title="Editar"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                )}
+              </>
+            )}
+          />
         )}
       </div>
 

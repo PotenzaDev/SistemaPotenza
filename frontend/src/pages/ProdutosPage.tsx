@@ -4,6 +4,7 @@ import axios from 'axios'
 import { Package, CheckCircle2, XCircle, Loader2, Plus, Trash2, Layers } from 'lucide-react'
 import { getProdutos, deleteProduto, type Produto } from '@/api/produtos'
 import { useAuth } from '@/hooks/useAuth'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 type Filtro = 'todos' | 'ativos' | 'inativos'
 
@@ -11,6 +12,34 @@ const FILTROS: { value: Filtro; label: string }[] = [
   { value: 'todos',    label: 'Todos'    },
   { value: 'ativos',   label: 'Ativos'   },
   { value: 'inativos', label: 'Inativos' },
+]
+
+const produtoColumns: ResponsiveTableColumn<Produto>[] = [
+  {
+    key: 'cod_produto',
+    header: 'Código',
+    render: (p) => p.cod_produto,
+    cellClassName: 'px-4 py-3 font-medium text-white font-mono text-xs',
+  },
+  { key: 'nome', header: 'Nome', render: (p) => p.nome },
+  { key: 'grupo', header: 'Grupo', render: (p) => p.grupo },
+  { key: 'sub_grupo', header: 'Sub-Grupo', render: (p) => p.sub_grupo },
+  { key: 'empresa', header: 'Empresa', render: (p) => p.empresa },
+  { key: 'semis', header: 'Semis', render: (p) => p.pecas_count ?? '—' },
+  {
+    key: 'status',
+    header: 'Status',
+    render: (p) =>
+      p.ativo ? (
+        <span className="inline-flex items-center gap-1.5 text-[#00aa84]">
+          <CheckCircle2 className="w-4 h-4" /> Ativo
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 text-slate-500">
+          <XCircle className="w-4 h-4" /> Inativo
+        </span>
+      ),
+  },
 ]
 
 export function ProdutosPage() {
@@ -130,71 +159,34 @@ export function ProdutosPage() {
           </div>
         )}
         {!loading && !error && filtered.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/5 text-left">
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Código</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Nome</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Grupo</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Sub-Grupo</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Empresa</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Semis</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-16"></th>
-                {canCreate && (
-                  <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-16"></th>
+          <ResponsiveTable
+            columns={produtoColumns}
+            data={filtered}
+            keyExtractor={(p) => p.id}
+            renderActions={(p) => (
+              <>
+                <button
+                  onClick={() => navigate(`/admin/produtos/${p.id}/semi-acabados`)}
+                  title="Ver semi-acabados"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors"
+                >
+                  <Layers className="w-4 h-4" />
+                </button>
+                {canCreate && p.ativo && (
+                  <button
+                    onClick={() => handleDesativar(p)}
+                    disabled={deletingId === p.id}
+                    title="Desativar"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {deletingId === p.id
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Trash2 className="w-4 h-4" />}
+                  </button>
                 )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filtered.map((p) => (
-                <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="px-4 py-3 font-medium text-white font-mono text-xs">{p.cod_produto}</td>
-                  <td className="px-4 py-3 text-slate-300">{p.nome}</td>
-                  <td className="px-4 py-3 text-slate-300">{p.grupo}</td>
-                  <td className="px-4 py-3 text-slate-300">{p.sub_grupo}</td>
-                  <td className="px-4 py-3 text-slate-300">{p.empresa}</td>
-                  <td className="px-4 py-3 text-slate-300">{p.pecas_count ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    {p.ativo ? (
-                      <span className="inline-flex items-center gap-1.5 text-[#00aa84]">
-                        <CheckCircle2 className="w-4 h-4" /> Ativo
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-slate-500">
-                        <XCircle className="w-4 h-4" /> Inativo
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => navigate(`/admin/produtos/${p.id}/semi-acabados`)}
-                      title="Ver semi-acabados"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors"
-                    >
-                      <Layers className="w-4 h-4" />
-                    </button>
-                  </td>
-                  {canCreate && (
-                    <td className="px-4 py-3">
-                      {p.ativo && (
-                        <button
-                          onClick={() => handleDesativar(p)}
-                          disabled={deletingId === p.id}
-                          title="Desativar"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {deletingId === p.id
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <Trash2 className="w-4 h-4" />}
-                        </button>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </>
+            )}
+          />
         )}
       </div>
     </div>

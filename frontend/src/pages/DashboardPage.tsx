@@ -5,6 +5,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import { getDashboard, type DashboardData, type MaquinaDashboard } from '@/api/dashboard'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 const STATUS_CONFIG: Record<MaquinaDashboard['status'], { label: string; dot: string; text: string }> = {
   livre: { label: 'Livre', dot: 'bg-slate-500', text: 'text-slate-400' },
@@ -23,6 +24,86 @@ function fmt(min: number | null): string {
   if (min < 60) return `${min}min`
   return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`
 }
+
+const MAQUINA_HEADER_CLASS_FIRST = 'px-5 py-3 text-xs text-slate-500 uppercase'
+const MAQUINA_HEADER_CLASS = 'px-4 py-3 text-xs text-slate-500 uppercase'
+
+const maquinaColumns: ResponsiveTableColumn<MaquinaDashboard>[] = [
+  {
+    key: 'nome',
+    header: 'Máquina',
+    render: (m) => m.nome,
+    headerClassName: MAQUINA_HEADER_CLASS_FIRST,
+    cellClassName: 'px-5 py-3 font-medium text-white',
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    render: (m) => {
+      const cfg = STATUS_CONFIG[m.status]
+      return (
+        <span className={`flex items-center gap-1.5 ${cfg.text}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+          {cfg.label}
+        </span>
+      )
+    },
+    headerClassName: MAQUINA_HEADER_CLASS,
+    cellClassName: 'px-4 py-3',
+  },
+  {
+    key: 'operario',
+    header: 'Operário',
+    render: (m) => m.operario ?? <span className="text-slate-600">—</span>,
+    headerClassName: MAQUINA_HEADER_CLASS,
+    cellClassName: 'px-4 py-3 text-slate-300',
+  },
+  {
+    key: 'lote',
+    header: 'Lote / Peça',
+    render: (m) =>
+      m.lote
+        ? <div><p className="text-white">{m.lote}</p><p className="text-slate-500 text-xs">{m.cod_peca}</p></div>
+        : <span className="text-slate-600">—</span>,
+    headerClassName: MAQUINA_HEADER_CLASS,
+    cellClassName: 'px-4 py-3',
+  },
+  {
+    key: 'qtde_total',
+    header: 'Qtd',
+    render: (m) => m.qtde_total ?? <span className="text-slate-600">—</span>,
+    headerClassName: MAQUINA_HEADER_CLASS,
+    cellClassName: 'px-4 py-3 text-slate-300',
+  },
+  {
+    key: 'setup_duracao_min',
+    header: 'Setup',
+    render: (m) => fmt(m.setup_duracao_min),
+    headerClassName: MAQUINA_HEADER_CLASS,
+    cellClassName: 'px-4 py-3 text-slate-300',
+  },
+  {
+    key: 'producao_duracao_min',
+    header: 'Produção',
+    render: (m) => fmt(m.producao_duracao_min),
+    headerClassName: MAQUINA_HEADER_CLASS,
+    cellClassName: 'px-4 py-3 text-slate-300',
+  },
+  {
+    key: 'total_pausa_min',
+    header: 'Pausas',
+    render: (m) => fmt(m.total_pausa_min),
+    headerClassName: MAQUINA_HEADER_CLASS,
+    cellClassName: 'px-4 py-3 text-orange-400',
+  },
+  {
+    key: 'inicio',
+    header: 'Início',
+    render: (m) => m.inicio ?? '—',
+    headerClassName: MAQUINA_HEADER_CLASS,
+    cellClassName: 'px-4 py-3 text-slate-400',
+  },
+]
 
 
 function KpiCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
@@ -102,50 +183,7 @@ export function DashboardPage() {
         <div className="px-5 py-4 border-b border-white/10">
           <h2 className="text-sm font-semibold text-white">Estado das Máquinas</h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-slate-500 uppercase border-b border-white/5">
-                <th className="text-left px-5 py-3">Máquina</th>
-                <th className="text-left px-4 py-3">Status</th>
-                <th className="text-left px-4 py-3">Operário</th>
-                <th className="text-left px-4 py-3">Lote / Peça</th>
-                <th className="text-left px-4 py-3">Qtd</th>
-                <th className="text-left px-4 py-3">Setup</th>
-                <th className="text-left px-4 py-3">Produção</th>
-                <th className="text-left px-4 py-3">Pausas</th>
-                <th className="text-left px-4 py-3">Início</th>
-              </tr>
-            </thead>
-            <tbody>
-              {maquinas.map((m) => {
-                const cfg = STATUS_CONFIG[m.status]
-                return (
-                  <tr key={m.id} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
-                    <td className="px-5 py-3 font-medium text-white">{m.nome}</td>
-                    <td className="px-4 py-3">
-                      <span className={`flex items-center gap-1.5 ${cfg.text}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                        {cfg.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-300">{m.operario ?? <span className="text-slate-600">—</span>}</td>
-                    <td className="px-4 py-3">
-                      {m.lote
-                        ? <div><p className="text-white">{m.lote}</p><p className="text-slate-500 text-xs">{m.cod_peca}</p></div>
-                        : <span className="text-slate-600">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-300">{m.qtde_total ?? <span className="text-slate-600">—</span>}</td>
-                    <td className="px-4 py-3 text-slate-300">{fmt(m.setup_duracao_min)}</td>
-                    <td className="px-4 py-3 text-slate-300">{fmt(m.producao_duracao_min)}</td>
-                    <td className="px-4 py-3 text-orange-400">{fmt(m.total_pausa_min)}</td>
-                    <td className="px-4 py-3 text-slate-400">{m.inicio ?? '—'}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ResponsiveTable columns={maquinaColumns} data={maquinas} keyExtractor={(m) => m.id} />
       </div>
 
       {/* Gráficos */}

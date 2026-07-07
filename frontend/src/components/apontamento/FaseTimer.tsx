@@ -37,7 +37,7 @@ export function FaseTimer({
           <p className="text-xs text-slate-500 mb-1">Tempo decorrido</p>
           <p className={`text-3xl font-mono font-bold tabular-nums ${corTimer}`}>{timer}</p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {produto && (
             <div className="col-span-2 bg-white/[0.03] rounded-lg px-3 py-2">
               <p className="text-xs text-slate-500">Produto</p>

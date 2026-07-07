@@ -248,7 +248,7 @@ export function OrdemManutencaoModal({ ordem, onClose, onUpdate }: OrdemManutenc
           </div>
 
           {/* Campos informativos */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Solicitante</span>
               <span className="text-sm text-slate-300">{ordem.solicitante}</span>

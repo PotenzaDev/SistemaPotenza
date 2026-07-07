@@ -10,6 +10,7 @@ import {
   baixarFichasCabecotePdfLote,
 } from '@/api/fichasCabecote'
 import { abrirPdfEmNovaAba } from '@/lib/pdf'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 export function ProdutoSemiAcabadosPage() {
   const navigate = useNavigate()
@@ -122,6 +123,50 @@ export function ProdutoSemiAcabadosPage() {
     }
   }, [pecasSelecionadasComFicha])
 
+  const semiAcabadoColumns: ResponsiveTableColumn<ProdutoPeca>[] = [
+    {
+      key: 'select',
+      header: '',
+      headerClassName: 'px-4 py-3 w-10',
+      cellClassName: 'px-4 py-3',
+      render: (peca) => (
+        <input
+          type="checkbox"
+          checked={selecionados.has(peca.id)}
+          onChange={() => toggleSelecionado(peca.id)}
+          aria-label={`Selecionar peça ${peca.numero}`}
+          className="w-4 h-4 rounded border-white/20"
+        />
+      ),
+    },
+    {
+      key: 'numero',
+      header: 'Nº',
+      cellClassName: 'px-4 py-3 font-mono text-xs text-slate-300',
+      render: (peca) => peca.numero,
+    },
+    {
+      key: 'nome',
+      header: 'Nome',
+      cellClassName: 'px-4 py-3 text-white',
+      render: (peca) => peca.nome,
+    },
+    { key: 'sub_grupo', header: 'Sub-Grupo', render: (peca) => peca.sub_grupo ?? '—' },
+    { key: 'material', header: 'Material', render: (peca) => peca.material ?? '—' },
+    { key: 'dimensao', header: 'Dimensão', render: (peca) => peca.dimensao ?? '—' },
+    {
+      key: 'ficha',
+      header: 'Ficha',
+      cellClassName: 'px-4 py-3',
+      render: (peca) =>
+        (peca.fichas_cabecote_count ?? 0) > 0 ? (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-[#00aa84]/10 text-[#00aa84]">Preenchida</span>
+        ) : (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-slate-500">Pendente</span>
+        ),
+    },
+  ]
+
   return (
     <div className="space-y-6">
 
@@ -157,6 +202,16 @@ export function ProdutoSemiAcabadosPage() {
       {/* impressão em lote */}
       {pecas.length > 0 && (
         <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-slate-400">
+            <input
+              type="checkbox"
+              checked={todosSelecionados}
+              onChange={toggleSelecionarTodos}
+              aria-label="Selecionar todas as peças"
+              className="w-4 h-4 rounded border-white/20"
+            />
+            Selecionar todos
+          </label>
           <span className="text-sm text-slate-400">
             {selecionados.size > 0 ? `${selecionados.size} selecionada(s)` : 'Selecione as peças para imprimir em lote'}
           </span>
@@ -201,88 +256,44 @@ export function ProdutoSemiAcabadosPage() {
           </div>
         )}
         {!loading && !error && pecas.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/5 text-left">
-                <th className="px-4 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={todosSelecionados}
-                    onChange={toggleSelecionarTodos}
-                    aria-label="Selecionar todas as peças"
-                    className="w-4 h-4 rounded border-white/20"
-                  />
-                </th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Nº</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Nome</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Sub-Grupo</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Material</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Dimensão</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Ficha</th>
-                <th className="px-4 py-3 w-10"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {pecas.map(peca => (
-                <tr key={peca.id} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selecionados.has(peca.id)}
-                      onChange={() => toggleSelecionado(peca.id)}
-                      aria-label={`Selecionar peça ${peca.numero}`}
-                      className="w-4 h-4 rounded border-white/20"
-                    />
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-300">{peca.numero}</td>
-                  <td className="px-4 py-3 text-white">{peca.nome}</td>
-                  <td className="px-4 py-3 text-slate-300">{peca.sub_grupo ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-300">{peca.material ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-300">{peca.dimensao ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    {(peca.fichas_cabecote_count ?? 0) > 0 ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#00aa84]/10 text-[#00aa84]">Preenchida</span>
-                    ) : (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-slate-500">Pendente</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <Link
-                        to={`/admin/produtos/${id}/semi-acabados/${peca.id}/fichas`}
-                        title="Fichas de Cabeçote"
-                        className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors"
-                      >
-                        <ClipboardList className="w-4 h-4" />
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => imprimirFichaPreenchida(peca)}
-                        disabled={!peca.ultima_ficha_cabecote || impressoesEmAndamento.has(`preenchida-${peca.id}`)}
-                        title={peca.ultima_ficha_cabecote ? 'Imprimir ficha preenchida' : 'Nenhuma ficha cadastrada'}
-                        className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                      >
-                        {impressoesEmAndamento.has(`preenchida-${peca.id}`)
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <Printer className="w-4 h-4" />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => imprimirFichaBranco(peca)}
-                        disabled={impressoesEmAndamento.has(`branco-${peca.id}`)}
-                        title="Imprimir ficha em branco"
-                        className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors disabled:opacity-30"
-                      >
-                        {impressoesEmAndamento.has(`branco-${peca.id}`)
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <FileText className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ResponsiveTable
+            columns={semiAcabadoColumns}
+            data={pecas}
+            keyExtractor={(peca) => peca.id}
+            renderActions={(peca) => (
+              <>
+                <Link
+                  to={`/admin/produtos/${id}/semi-acabados/${peca.id}/fichas`}
+                  title="Fichas de Cabeçote"
+                  className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => imprimirFichaPreenchida(peca)}
+                  disabled={!peca.ultima_ficha_cabecote || impressoesEmAndamento.has(`preenchida-${peca.id}`)}
+                  title={peca.ultima_ficha_cabecote ? 'Imprimir ficha preenchida' : 'Nenhuma ficha cadastrada'}
+                  className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                >
+                  {impressoesEmAndamento.has(`preenchida-${peca.id}`)
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Printer className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => imprimirFichaBranco(peca)}
+                  disabled={impressoesEmAndamento.has(`branco-${peca.id}`)}
+                  title="Imprimir ficha em branco"
+                  className="inline-flex p-1.5 rounded-lg text-slate-400 hover:text-[#00aa84] hover:bg-white/10 transition-colors disabled:opacity-30"
+                >
+                  {impressoesEmAndamento.has(`branco-${peca.id}`)
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <FileText className="w-4 h-4" />}
+                </button>
+              </>
+            )}
+          />
         )}
       </div>
     </div>

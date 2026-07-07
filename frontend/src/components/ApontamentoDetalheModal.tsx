@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Loader2, X } from 'lucide-react'
 import { getApontamentoDetalhe, type ApontamentoDoDia } from '@/api/apontamentos'
-import type { Apontamento } from '@/api/apontamento'
+import type { Apontamento, FichaApontamento } from '@/api/apontamento'
 import { STATUS_LABEL, fmtDuracao, fmtDataHora } from '@/lib/apontamentoFormat'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 interface Props {
   resumo: ApontamentoDoDia | null
@@ -13,6 +14,10 @@ interface Props {
 const SECTION_TITLE = 'text-xs font-medium text-slate-400 uppercase tracking-wider mb-3'
 const FIELD_LABEL   = 'text-xs text-slate-500'
 const FIELD_VALUE   = 'text-sm text-white'
+const TH = 'px-4 py-2 text-xs font-medium text-slate-400 uppercase tracking-wider'
+const TH_RIGHT = `${TH} text-right`
+const TD = 'px-4 py-2 text-xs text-slate-300'
+const TD_RIGHT = `${TD} text-right`
 
 export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
   const [detalhe, setDetalhe] = useState<Apontamento | null>(null)
@@ -111,7 +116,7 @@ export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
               {/* Produção */}
               <section>
                 <h3 className={SECTION_TITLE}>Produção</h3>
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                   <div>
                     <p className={FIELD_LABEL}>Início</p>
                     <p className={FIELD_VALUE}>{fmtDataHora(detalhe.producao_inicio)}</p>
@@ -128,35 +133,61 @@ export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
 
                 {detalhe.fichas.length > 0 ? (
                   <div className="bg-white/[0.02] border border-white/5 rounded-lg overflow-hidden">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="text-left bg-white/[0.02]">
-                          <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Pilha</th>
-                          <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Produto</th>
-                          <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider text-right">Qtd. Bipada</th>
-                          <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider text-right">Qtd. Produzida</th>
-                          <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Início</th>
-                          <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Fim</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {detalhe.fichas.map(ficha => (
-                          <tr key={ficha.id}>
-                            <td className="px-4 py-2 text-white">{ficha.pilha}</td>
-                            <td className="px-4 py-2">
+                    <ResponsiveTable
+                      columns={[
+                        {
+                          key: 'pilha',
+                          header: 'Pilha',
+                          headerClassName: TH,
+                          cellClassName: `${TD} text-white`,
+                          render: (ficha) => ficha.pilha,
+                        },
+                        {
+                          key: 'produto',
+                          header: 'Produto',
+                          headerClassName: TH,
+                          cellClassName: TD,
+                          render: (ficha) => (
+                            <>
                               <span className="font-mono text-white">{ficha.cod_peca}</span>
                               {detalhe.desc_peca && (
                                 <span className="block text-xs text-slate-500 truncate max-w-[180px]">{detalhe.desc_peca}</span>
                               )}
-                            </td>
-                            <td className="px-4 py-2 text-right text-slate-300">{ficha.qtd_peca}</td>
-                            <td className="px-4 py-2 text-right text-slate-300">{ficha.qtd_produzida ?? '—'}</td>
-                            <td className="px-4 py-2 text-slate-300">{fmtDataHora(ficha.bipada_at)}</td>
-                            <td className="px-4 py-2 text-slate-300">{fmtDataHora(ficha.fim_producao)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </>
+                          ),
+                        },
+                        {
+                          key: 'qtd_peca',
+                          header: 'Qtd. Bipada',
+                          headerClassName: TH_RIGHT,
+                          cellClassName: TD_RIGHT,
+                          render: (ficha) => ficha.qtd_peca,
+                        },
+                        {
+                          key: 'qtd_produzida',
+                          header: 'Qtd. Produzida',
+                          headerClassName: TH_RIGHT,
+                          cellClassName: TD_RIGHT,
+                          render: (ficha) => ficha.qtd_produzida ?? '—',
+                        },
+                        {
+                          key: 'bipada_at',
+                          header: 'Início',
+                          headerClassName: TH,
+                          cellClassName: TD,
+                          render: (ficha) => fmtDataHora(ficha.bipada_at),
+                        },
+                        {
+                          key: 'fim_producao',
+                          header: 'Fim',
+                          headerClassName: TH,
+                          cellClassName: TD,
+                          render: (ficha) => fmtDataHora(ficha.fim_producao),
+                        },
+                      ] satisfies ResponsiveTableColumn<FichaApontamento>[]}
+                      data={detalhe.fichas}
+                      keyExtractor={(ficha) => ficha.id}
+                    />
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500">Nenhuma ficha bipada.</p>

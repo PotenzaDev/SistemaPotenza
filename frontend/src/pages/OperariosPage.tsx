@@ -4,6 +4,7 @@ import { Users, Loader2, Plus, Pencil, Barcode } from 'lucide-react'
 import { getOperarios, type Operario } from '@/api/operarios'
 import { OperarioFormModal } from '@/components/OperarioFormModal'
 import { CrachaOperarioModal } from '@/components/CrachaOperarioModal'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 type Filtro = 'todos' | 'ativos' | 'inativos'
 
@@ -11,6 +12,52 @@ const FILTROS: { value: Filtro; label: string }[] = [
   { value: 'todos',    label: 'Todos'    },
   { value: 'ativos',   label: 'Ativos'   },
   { value: 'inativos', label: 'Inativos' },
+]
+
+const HEADER_CLASS = 'px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider'
+
+const operarioColumns: ResponsiveTableColumn<Operario>[] = [
+  {
+    key: 'nome',
+    header: 'Nome',
+    render: (o) => o.user.name,
+    headerClassName: HEADER_CLASS,
+    cellClassName: 'px-6 py-4 font-medium text-white',
+  },
+  {
+    key: 'matricula',
+    header: 'Matrícula',
+    render: (o) => o.matricula,
+    headerClassName: HEADER_CLASS,
+    cellClassName: 'px-6 py-4 text-slate-300',
+  },
+  {
+    key: 'setor',
+    header: 'Setor',
+    render: (o) =>
+      o.etapa_fluxo
+        ? <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-[#00aa84]/10 text-[#00aa84]">{o.etapa_fluxo.nome}</span>
+        : <span className="text-slate-600">—</span>,
+    headerClassName: HEADER_CLASS,
+    cellClassName: 'px-6 py-4',
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    render: (o) =>
+      o.user.ativo
+        ? <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-400">Ativo</span>
+        : <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/10 text-red-400">Inativo</span>,
+    headerClassName: HEADER_CLASS,
+    cellClassName: 'px-6 py-4',
+  },
+  {
+    key: 'email',
+    header: 'E-mail',
+    render: (o) => o.user.email,
+    headerClassName: HEADER_CLASS,
+    cellClassName: 'px-6 py-4 text-slate-400',
+  },
 ]
 
 export function OperariosPage() {
@@ -131,57 +178,29 @@ export function OperariosPage() {
             </div>
           )}
           {!loading && !error && filtered.length > 0 && (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5 text-left">
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Nome</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Matrícula</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Setor</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">E-mail</th>
-                  <th className="px-6 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filtered.map((o) => (
-                  <tr key={o.id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="px-6 py-4 font-medium text-white">{o.user.name}</td>
-                    <td className="px-6 py-4 text-slate-300">{o.matricula}</td>
-                    <td className="px-6 py-4">
-                      {o.etapa_fluxo
-                        ? <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-[#00aa84]/10 text-[#00aa84]">{o.etapa_fluxo.nome}</span>
-                        : <span className="text-slate-600">—</span>
-                      }
-                    </td>
-                    <td className="px-6 py-4">
-                      {o.user.ativo
-                        ? <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-400">Ativo</span>
-                        : <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/10 text-red-400">Inativo</span>
-                      }
-                    </td>
-                    <td className="px-6 py-4 text-slate-400">{o.user.email}</td>
-                    <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => setCrachaTarget(o)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                          title="Imprimir crachá"
-                        >
-                          <Barcode className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => openEdit(o)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                          title="Editar operário"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ResponsiveTable
+              columns={operarioColumns}
+              data={filtered}
+              keyExtractor={(o) => o.id}
+              renderActions={(o) => (
+                <>
+                  <button
+                    onClick={() => setCrachaTarget(o)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    title="Imprimir crachá"
+                  >
+                    <Barcode className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => openEdit(o)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    title="Editar operário"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            />
           )}
         </div>
       </div>

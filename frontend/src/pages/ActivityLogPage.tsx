@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Search, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react'
 import { getActivityLogs, type ActivityLog, type ActivityLogFilters } from '@/api/activityLogs'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 const ACTION_LABELS: Record<string, string> = {
   login:            'Login',
@@ -28,6 +29,50 @@ function formatDate(iso: string): string {
     hour: '2-digit', minute: '2-digit',
   })
 }
+
+const LOG_HEADER_CLASS = 'px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide'
+
+const activityLogColumns: ResponsiveTableColumn<ActivityLog>[] = [
+  {
+    key: 'created_at',
+    header: 'Data/Hora',
+    render: (log) => formatDate(log.created_at),
+    headerClassName: LOG_HEADER_CLASS,
+    cellClassName: 'px-4 py-3 text-slate-300 whitespace-nowrap',
+  },
+  {
+    key: 'user_name',
+    header: 'Usuário',
+    render: (log) => log.user_name,
+    headerClassName: LOG_HEADER_CLASS,
+    cellClassName: 'px-4 py-3 text-white font-medium',
+  },
+  {
+    key: 'action',
+    header: 'Ação',
+    render: (log) => (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${ACTION_COLORS[log.action] ?? 'text-slate-400 bg-slate-400/10'}`}>
+        {ACTION_LABELS[log.action] ?? log.action}
+      </span>
+    ),
+    headerClassName: LOG_HEADER_CLASS,
+    cellClassName: 'px-4 py-3',
+  },
+  {
+    key: 'description',
+    header: 'Descrição',
+    render: (log) => log.description,
+    headerClassName: LOG_HEADER_CLASS,
+    cellClassName: 'px-4 py-3 text-slate-400 max-w-xs truncate',
+  },
+  {
+    key: 'ip_address',
+    header: 'IP',
+    render: (log) => log.ip_address ?? '—',
+    headerClassName: LOG_HEADER_CLASS,
+    cellClassName: 'px-4 py-3 text-slate-500 text-xs font-mono',
+  },
+]
 
 export function ActivityLogPage() {
   const today = new Date().toISOString().slice(0, 10)
@@ -119,38 +164,13 @@ export function ActivityLogPage() {
       )}
 
       <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-left">
-                <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Data/Hora</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Usuário</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Ação</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Descrição</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">IP</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {loading ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Carregando…</td></tr>
-              ) : logs.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Nenhum registro encontrado.</td></tr>
-              ) : logs.map(log => (
-                <tr key={log.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{formatDate(log.created_at)}</td>
-                  <td className="px-4 py-3 text-white font-medium">{log.user_name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${ACTION_COLORS[log.action] ?? 'text-slate-400 bg-slate-400/10'}`}>
-                      {ACTION_LABELS[log.action] ?? log.action}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-400 max-w-xs truncate">{log.description}</td>
-                  <td className="px-4 py-3 text-slate-500 text-xs font-mono">{log.ip_address ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {loading ? (
+          <div className="px-4 py-8 text-center text-slate-500 text-sm">Carregando…</div>
+        ) : logs.length === 0 ? (
+          <div className="px-4 py-8 text-center text-slate-500 text-sm">Nenhum registro encontrado.</div>
+        ) : (
+          <ResponsiveTable columns={activityLogColumns} data={logs} keyExtractor={(log) => log.id} />
+        )}
 
         {lastPage > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-white/10">

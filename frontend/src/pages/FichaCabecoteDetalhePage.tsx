@@ -2,18 +2,40 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { ArrowLeft, ClipboardList, Loader2, Pencil } from 'lucide-react'
-import { getFichaCabecote, type FichaCabecote } from '@/api/fichasCabecote'
+import { getFichaCabecote, type FichaCabecote, type FichaCabecotePosicao, type FichaCabecoteBrocaItem } from '@/api/fichasCabecote'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 const FIELD_LABEL = 'text-xs text-slate-500'
 const FIELD_VALUE = 'text-sm text-white'
 const TH = 'px-3 py-2 text-xs font-medium text-slate-400 uppercase tracking-wider'
 const TD = 'px-3 py-2 text-slate-300'
+const TD_WHITE = 'px-3 py-2 text-white'
+const TD_CAPITALIZE = `${TD} capitalize`
 
 function formatDataBr(iso: string | null): string {
   if (!iso) return '—'
   const [y, m, d] = iso.slice(0, 10).split('-')
   return `${d}/${m}/${y}`
 }
+
+const posicoesCabecoteColumns: ResponsiveTableColumn<FichaCabecotePosicao>[] = [
+  { key: 'cabecote', header: 'Cabeçote', render: (p) => p.cabecote, headerClassName: TH, cellClassName: TD_WHITE },
+  { key: 'sentido', header: 'Sentido', render: (p) => p.sentido, headerClassName: TH, cellClassName: TD_CAPITALIZE },
+  { key: 'largura_mm', header: 'Largura (mm)', render: (p) => p.largura_mm, headerClassName: TH, cellClassName: TD },
+  { key: 'deslocamento_mm', header: 'Deslocamento (mm)', render: (p) => p.deslocamento_mm, headerClassName: TH, cellClassName: TD },
+  { key: 'altura_cabecote_mm', header: 'Altura Cabeçote (mm)', render: (p) => p.altura_cabecote_mm, headerClassName: TH, cellClassName: TD },
+  { key: 'obs', header: 'Obs', render: (p) => p.obs ?? '—', headerClassName: TH, cellClassName: TD },
+]
+
+const posicoesBrocaColumns: ResponsiveTableColumn<FichaCabecoteBrocaItem>[] = [
+  { key: 'cabecote', header: 'Cabeçote', render: (b) => b.cabecote, headerClassName: TH, cellClassName: TD_WHITE },
+  { key: 'sentido', header: 'Sentido', render: (b) => b.sentido, headerClassName: TH, cellClassName: TD_CAPITALIZE },
+  { key: 'posicao', header: 'Posição', render: (b) => b.posicao, headerClassName: TH, cellClassName: TD },
+  { key: 'broca', header: 'Broca', render: (b) => b.broca?.codigo ?? '—', headerClassName: TH, cellClassName: TD },
+  { key: 'passante', header: 'Passante / Prof. (mm)', render: (b) => (b.passante ? 'Passante (S)' : `${b.profundidade_mm} mm`), headerClassName: TH, cellClassName: TD },
+  { key: 'agregado', header: 'Agregado', render: (b) => b.agregado ?? '—', headerClassName: TH, cellClassName: TD },
+  { key: 'obs', header: 'Obs', render: (b) => b.obs ?? '—', headerClassName: TH, cellClassName: TD },
+]
 
 export function FichaCabecoteDetalhePage() {
   const navigate = useNavigate()
@@ -124,30 +146,11 @@ export function FichaCabecoteDetalhePage() {
           <section className="bg-[#0f1923] border border-white/5 rounded-xl px-6 py-5">
             <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Levantamento de Posições de Cabeçotes</h2>
             <div className="bg-white/[0.02] border border-white/5 rounded-lg overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left bg-white/[0.02]">
-                    <th className={TH}>Cabeçote</th>
-                    <th className={TH}>Sentido</th>
-                    <th className={TH}>Largura (mm)</th>
-                    <th className={TH}>Deslocamento (mm)</th>
-                    <th className={TH}>Altura Cabeçote (mm)</th>
-                    <th className={TH}>Obs</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {ficha.posicoes_cabecote.map(p => (
-                    <tr key={p.id}>
-                      <td className="px-3 py-2 text-white">{p.cabecote}</td>
-                      <td className={`${TD} capitalize`}>{p.sentido}</td>
-                      <td className={TD}>{p.largura_mm}</td>
-                      <td className={TD}>{p.deslocamento_mm}</td>
-                      <td className={TD}>{p.altura_cabecote_mm}</td>
-                      <td className={TD}>{p.obs ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <ResponsiveTable
+                columns={posicoesCabecoteColumns}
+                data={ficha.posicoes_cabecote}
+                keyExtractor={(p) => p.id}
+              />
             </div>
           </section>
 
@@ -155,32 +158,11 @@ export function FichaCabecoteDetalhePage() {
           <section className="bg-[#0f1923] border border-white/5 rounded-xl px-6 py-5">
             <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Posição das Brocas</h2>
             <div className="bg-white/[0.02] border border-white/5 rounded-lg overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left bg-white/[0.02]">
-                    <th className={TH}>Cabeçote</th>
-                    <th className={TH}>Sentido</th>
-                    <th className={TH}>Posição</th>
-                    <th className={TH}>Broca</th>
-                    <th className={TH}>Passante / Prof. (mm)</th>
-                    <th className={TH}>Agregado</th>
-                    <th className={TH}>Obs</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {ficha.posicoes_broca.map(b => (
-                    <tr key={b.id}>
-                      <td className="px-3 py-2 text-white">{b.cabecote}</td>
-                      <td className={`${TD} capitalize`}>{b.sentido}</td>
-                      <td className={TD}>{b.posicao}</td>
-                      <td className={TD}>{b.broca?.codigo ?? '—'}</td>
-                      <td className={TD}>{b.passante ? 'Passante (S)' : `${b.profundidade_mm} mm`}</td>
-                      <td className={TD}>{b.agregado ?? '—'}</td>
-                      <td className={TD}>{b.obs ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <ResponsiveTable
+                columns={posicoesBrocaColumns}
+                data={ficha.posicoes_broca}
+                keyExtractor={(b) => b.id}
+              />
             </div>
           </section>
         </>

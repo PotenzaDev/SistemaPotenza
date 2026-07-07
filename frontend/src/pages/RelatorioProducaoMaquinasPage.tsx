@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import axios from 'axios'
 import { Cpu, Loader2, Printer } from 'lucide-react'
 import {
@@ -16,6 +16,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
 import type { TooltipValueType } from 'recharts'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 const INPUT_CLASS =
   'w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white ' +
@@ -64,6 +65,9 @@ function inicioDoMes(): string {
 function formatTempoTooltip(value: TooltipValueType | undefined): string {
   return typeof value === 'number' ? fmtDuracao(value) : '—'
 }
+
+const RELATORIO_HEADER_CLASS = 'px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider'
+const RELATORIO_HEADER_CLASS_RIGHT = `${RELATORIO_HEADER_CLASS} text-right`
 
 export function RelatorioProducaoMaquinasPage() {
   const [filtros, setFiltros] = useState<RelatorioMaquinasFiltros>(() => ({ dataInicio: hoje(), dataFim: hoje() }))
@@ -135,6 +139,81 @@ export function RelatorioProducaoMaquinasPage() {
     Setup:    m.tempo_setup_segundos,
     Parado:   m.tempo_parado_segundos,
   }))
+
+  const maquinaColumns = useMemo<ResponsiveTableColumn<RelatorioMaquina>[]>(() => [
+    {
+      key: 'maquina',
+      header: 'Máquina',
+      render: (m) => (
+        <div onClick={() => setMaquinaSelecionada(m)} className="cursor-pointer">{m.maquina}</div>
+      ),
+      headerClassName: RELATORIO_HEADER_CLASS,
+      cellClassName: 'px-6 py-3 text-white',
+    },
+    {
+      key: 'grupo',
+      header: 'Grupo',
+      render: (m) => (
+        <div onClick={() => setMaquinaSelecionada(m)} className="cursor-pointer">{m.grupo?.nome ?? '—'}</div>
+      ),
+      headerClassName: RELATORIO_HEADER_CLASS,
+      cellClassName: 'px-6 py-3 text-slate-300',
+    },
+    {
+      key: 'tempo_setup_segundos',
+      header: 'Tempo Setup',
+      render: (m) => (
+        <div onClick={() => setMaquinaSelecionada(m)} className="cursor-pointer">{fmtDuracao(m.tempo_setup_segundos)}</div>
+      ),
+      headerClassName: RELATORIO_HEADER_CLASS_RIGHT,
+      cellClassName: 'px-6 py-3 text-right text-slate-300',
+    },
+    {
+      key: 'tempo_producao_segundos',
+      header: 'Tempo Produção',
+      render: (m) => (
+        <div onClick={() => setMaquinaSelecionada(m)} className="cursor-pointer">{fmtDuracao(m.tempo_producao_segundos)}</div>
+      ),
+      headerClassName: RELATORIO_HEADER_CLASS_RIGHT,
+      cellClassName: 'px-6 py-3 text-right text-slate-300',
+    },
+    {
+      key: 'tempo_parado_segundos',
+      header: 'Tempo Parado',
+      render: (m) => (
+        <div onClick={() => setMaquinaSelecionada(m)} className="cursor-pointer">{fmtDuracao(m.tempo_parado_segundos)}</div>
+      ),
+      headerClassName: RELATORIO_HEADER_CLASS_RIGHT,
+      cellClassName: 'px-6 py-3 text-right text-slate-300',
+    },
+    {
+      key: 'percentual_utilizacao',
+      header: '% Utilização',
+      render: (m) => (
+        <div onClick={() => setMaquinaSelecionada(m)} className="cursor-pointer">{m.percentual_utilizacao.toFixed(1)}%</div>
+      ),
+      headerClassName: RELATORIO_HEADER_CLASS_RIGHT,
+      cellClassName: 'px-6 py-3 text-right text-slate-300',
+    },
+    {
+      key: 'qtd_pecas',
+      header: 'Peças Produzidas',
+      render: (m) => (
+        <div onClick={() => setMaquinaSelecionada(m)} className="cursor-pointer">{m.qtd_pecas}</div>
+      ),
+      headerClassName: RELATORIO_HEADER_CLASS_RIGHT,
+      cellClassName: 'px-6 py-3 text-right text-slate-300',
+    },
+    {
+      key: 'dias_com_movimentacao',
+      header: 'Dias c/ Movimentação',
+      render: (m) => (
+        <div onClick={() => setMaquinaSelecionada(m)} className="cursor-pointer">{m.dias_com_movimentacao}</div>
+      ),
+      headerClassName: RELATORIO_HEADER_CLASS_RIGHT,
+      cellClassName: 'px-6 py-3 text-right text-slate-300',
+    },
+  ], [])
 
   return (
     <div className="space-y-6">
@@ -283,51 +362,53 @@ export function RelatorioProducaoMaquinasPage() {
           </div>
 
           <div className="bg-[#0f1923] border border-white/5 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left">
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Máquina</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Grupo</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">Tempo Setup</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">Tempo Produção</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">Tempo Parado</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">% Utilização</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">Peças Produzidas</th>
-                  <th className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">Dias c/ Movimentação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {maquinas.map(maquina => (
-                  <tr
-                    key={maquina.maquina_id}
-                    onClick={() => setMaquinaSelecionada(maquina)}
-                    className="hover:bg-white/[0.02] transition-colors cursor-pointer"
-                  >
-                    <td className="px-6 py-3 text-white">{maquina.maquina}</td>
-                    <td className="px-6 py-3 text-slate-300">{maquina.grupo?.nome ?? '—'}</td>
-                    <td className="px-6 py-3 text-right text-slate-300">{fmtDuracao(maquina.tempo_setup_segundos)}</td>
-                    <td className="px-6 py-3 text-right text-slate-300">{fmtDuracao(maquina.tempo_producao_segundos)}</td>
-                    <td className="px-6 py-3 text-right text-slate-300">{fmtDuracao(maquina.tempo_parado_segundos)}</td>
-                    <td className="px-6 py-3 text-right text-slate-300">{maquina.percentual_utilizacao.toFixed(1)}%</td>
-                    <td className="px-6 py-3 text-right text-slate-300">{maquina.qtd_pecas}</td>
-                    <td className="px-6 py-3 text-right text-slate-300">{maquina.dias_com_movimentacao}</td>
+            <ResponsiveTable
+              columns={maquinaColumns}
+              data={maquinas}
+              keyExtractor={(m) => m.maquina_id}
+            />
+
+            {/* Total — desktop */}
+            <div className="hidden md:block">
+              <table className="w-full text-sm">
+                <tfoot>
+                  <tr className="border-t border-white/10 bg-white/[0.02]">
+                    <td colSpan={2} className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      Total ({dados.dias_considerados} {dados.dias_considerados === 1 ? 'dia' : 'dias'} com movimentação)
+                    </td>
+                    <td className="px-6 py-3 text-right font-semibold text-white">{fmtDuracao(totais.tempo_setup_segundos)}</td>
+                    <td className="px-6 py-3 text-right font-semibold text-white">{fmtDuracao(totais.tempo_producao_segundos)}</td>
+                    <td className="px-6 py-3 text-right font-semibold text-white">{fmtDuracao(totais.tempo_parado_segundos)}</td>
+                    <td className="px-6 py-3 text-right font-semibold text-white">—</td>
+                    <td className="px-6 py-3 text-right font-semibold text-white">{totais.qtd_pecas}</td>
+                    <td className="px-6 py-3 text-right font-semibold text-white">—</td>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-white/10 bg-white/[0.02]">
-                  <td colSpan={2} className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    Total ({dados.dias_considerados} {dados.dias_considerados === 1 ? 'dia' : 'dias'} com movimentação)
-                  </td>
-                  <td className="px-6 py-3 text-right font-semibold text-white">{fmtDuracao(totais.tempo_setup_segundos)}</td>
-                  <td className="px-6 py-3 text-right font-semibold text-white">{fmtDuracao(totais.tempo_producao_segundos)}</td>
-                  <td className="px-6 py-3 text-right font-semibold text-white">{fmtDuracao(totais.tempo_parado_segundos)}</td>
-                  <td className="px-6 py-3 text-right font-semibold text-white">—</td>
-                  <td className="px-6 py-3 text-right font-semibold text-white">{totais.qtd_pecas}</td>
-                  <td className="px-6 py-3 text-right font-semibold text-white">—</td>
-                </tr>
-              </tfoot>
-            </table>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Total — mobile */}
+            <div className="md:hidden px-4 py-3 border-t border-white/10 bg-white/[0.02] space-y-1.5">
+              <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                Total ({dados.dias_considerados} {dados.dias_considerados === 1 ? 'dia' : 'dias'} com movimentação)
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-xs text-slate-500">Tempo Setup</span>
+                <span className="font-semibold text-white">{fmtDuracao(totais.tempo_setup_segundos)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-xs text-slate-500">Tempo Produção</span>
+                <span className="font-semibold text-white">{fmtDuracao(totais.tempo_producao_segundos)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-xs text-slate-500">Tempo Parado</span>
+                <span className="font-semibold text-white">{fmtDuracao(totais.tempo_parado_segundos)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-xs text-slate-500">Peças Produzidas</span>
+                <span className="font-semibold text-white">{totais.qtd_pecas}</span>
+              </div>
+            </div>
           </div>
         </>
       )}

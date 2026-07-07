@@ -1,10 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import axios from 'axios'
 import { Loader2, X } from 'lucide-react'
 import { getApontamentosDoDia, type ApontamentoDoDia, type ApontamentosDoDia } from '@/api/apontamentos'
 import type { RelatorioMaquinasFiltros } from '@/api/relatorios'
 import { ApontamentoDetalheModal } from '@/components/ApontamentoDetalheModal'
 import { STATUS_LABEL, fmtDuracao, fmtDataHora } from '@/lib/apontamentoFormat'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
+
+const TH = 'px-4 py-2 text-xs font-medium text-slate-400 uppercase tracking-wider'
+const TH_RIGHT = `${TH} text-right`
+const TD = 'px-4 py-2 text-xs text-slate-300'
+const TD_RIGHT = `${TD} text-right`
 
 interface MaquinaSelecionada {
   maquina_id: number
@@ -53,6 +59,91 @@ export function ApontamentosMaquinaModal({ maquina, filtros, onClose }: Props) {
 
   const apontamentos = dados?.apontamentos ?? []
 
+  function wrapClickable(content: ReactNode, apontamento: ApontamentoDoDia) {
+    return (
+      <div onClick={() => setSelecionado(apontamento)} className="cursor-pointer">
+        {content}
+      </div>
+    )
+  }
+
+  const apontamentoColumns: ResponsiveTableColumn<ApontamentoDoDia>[] = [
+    {
+      key: 'operario',
+      header: 'Operário',
+      headerClassName: TH,
+      cellClassName: `${TD} text-white`,
+      render: (a) => wrapClickable(a.operario ?? '—', a),
+    },
+    {
+      key: 'ordem_lote',
+      header: 'Ordem / Lote',
+      headerClassName: TH,
+      cellClassName: TD,
+      render: (a) => wrapClickable(
+        <>
+          <span className="font-mono text-white">{a.ordem_lote}</span>
+          {a.desc_peca && (
+            <span className="block text-slate-500 truncate max-w-[160px]">{a.desc_peca}</span>
+          )}
+        </>,
+        a,
+      ),
+    },
+    {
+      key: 'setup_inicio',
+      header: 'Início',
+      headerClassName: TH,
+      cellClassName: TD,
+      render: (a) => wrapClickable(fmtDataHora(a.setup_inicio), a),
+    },
+    {
+      key: 'termino',
+      header: 'Término',
+      headerClassName: TH,
+      cellClassName: TD,
+      render: (a) => wrapClickable(fmtDataHora(a.producao_fim ?? a.setup_fim), a),
+    },
+    {
+      key: 'qtd_pecas',
+      header: 'Peças',
+      headerClassName: TH_RIGHT,
+      cellClassName: TD_RIGHT,
+      render: (a) => wrapClickable(a.qtd_pecas, a),
+    },
+    {
+      key: 'qtd_pilhas',
+      header: 'Pilhas',
+      headerClassName: TH_RIGHT,
+      cellClassName: TD_RIGHT,
+      render: (a) => wrapClickable(a.qtd_pilhas, a),
+    },
+    {
+      key: 'tempo_setup_segundos',
+      header: 'Setup',
+      headerClassName: TH_RIGHT,
+      cellClassName: TD_RIGHT,
+      render: (a) => wrapClickable(fmtDuracao(a.tempo_setup_segundos), a),
+    },
+    {
+      key: 'tempo_producao_segundos',
+      header: 'Produção',
+      headerClassName: TH_RIGHT,
+      cellClassName: TD_RIGHT,
+      render: (a) => wrapClickable(fmtDuracao(a.tempo_producao_segundos), a),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      headerClassName: TH,
+      cellClassName: 'px-4 py-2 text-xs font-medium',
+      render: (a) => {
+        const s = STATUS_LABEL[a.status] ?? { label: a.status, color: 'text-slate-400' }
+        return wrapClickable(<span className={s.color}>{s.label}</span>, a)
+      },
+    },
+  ]
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -99,49 +190,11 @@ export function ApontamentosMaquinaModal({ maquina, filtros, onClose }: Props) {
                   {apontamentos.length} {apontamentos.length === 1 ? 'apontamento' : 'apontamentos'} · {dados.totais.qtd_pecas} peças · {dados.totais.qtd_pilhas} pilhas
                 </p>
                 <div className="bg-white/[0.02] border border-white/5 rounded-lg overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-left bg-white/[0.02]">
-                        <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Operário</th>
-                        <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Ordem / Lote</th>
-                        <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Início</th>
-                        <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Término</th>
-                        <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider text-right">Peças</th>
-                        <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider text-right">Pilhas</th>
-                        <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider text-right">Setup</th>
-                        <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider text-right">Produção</th>
-                        <th className="px-4 py-2 font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {apontamentos.map(apontamento => {
-                        const s = STATUS_LABEL[apontamento.status] ?? { label: apontamento.status, color: 'text-slate-400' }
-                        const termino = apontamento.producao_fim ?? apontamento.setup_fim
-                        return (
-                          <tr
-                            key={apontamento.id}
-                            onClick={() => setSelecionado(apontamento)}
-                            className="hover:bg-white/[0.04] transition-colors cursor-pointer"
-                          >
-                            <td className="px-4 py-2 text-white">{apontamento.operario ?? '—'}</td>
-                            <td className="px-4 py-2">
-                              <span className="font-mono text-white">{apontamento.ordem_lote}</span>
-                              {apontamento.desc_peca && (
-                                <span className="block text-slate-500 truncate max-w-[160px]">{apontamento.desc_peca}</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2 text-slate-300">{fmtDataHora(apontamento.setup_inicio)}</td>
-                            <td className="px-4 py-2 text-slate-300">{fmtDataHora(termino)}</td>
-                            <td className="px-4 py-2 text-right text-slate-300">{apontamento.qtd_pecas}</td>
-                            <td className="px-4 py-2 text-right text-slate-300">{apontamento.qtd_pilhas}</td>
-                            <td className="px-4 py-2 text-right text-slate-300">{fmtDuracao(apontamento.tempo_setup_segundos)}</td>
-                            <td className="px-4 py-2 text-right text-slate-300">{fmtDuracao(apontamento.tempo_producao_segundos)}</td>
-                            <td className={`px-4 py-2 font-medium ${s.color}`}>{s.label}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                  <ResponsiveTable
+                    columns={apontamentoColumns}
+                    data={apontamentos}
+                    keyExtractor={(a) => a.id}
+                  />
                 </div>
               </>
             )}

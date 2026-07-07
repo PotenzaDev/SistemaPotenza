@@ -331,7 +331,7 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
           {/* aba Configuração de Cabeçote */}
           {mostrarAbaCabecote && activeTab === 'cabecote' && (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">Cabeçotes Inferiores</label>
                   <input

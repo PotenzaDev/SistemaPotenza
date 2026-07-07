@@ -9,6 +9,19 @@ import {
   type ErpProduto,
   type EmpresaErp,
 } from '@/api/produtos'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
+
+const erpProdutoColumns: ResponsiveTableColumn<ErpProduto>[] = [
+  {
+    key: 'cod_produto',
+    header: 'Código',
+    cellClassName: 'px-4 py-3 font-medium text-white font-mono text-xs',
+    render: (p) => p.cod_produto,
+  },
+  { key: 'nome', header: 'Nome', render: (p) => p.nome },
+  { key: 'grupo', header: 'Grupo', render: (p) => p.grupo },
+  { key: 'sub_grupo', header: 'Sub-Grupo', render: (p) => p.sub_grupo },
+]
 
 interface FiltrosState {
   empresa: EmpresaErp | ''
@@ -216,39 +229,23 @@ export function ImportarProdutoPage() {
               <p className="text-sm text-slate-500">Nenhum produto encontrado no ERP.</p>
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5 text-left">
-                  <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Código</th>
-                  <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Nome</th>
-                  <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Grupo</th>
-                  <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Sub-Grupo</th>
-                  <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-24"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {resultado.map((produto) => (
-                  <tr key={produto.cod_produto} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="px-4 py-3 font-medium text-white font-mono text-xs">{produto.cod_produto}</td>
-                    <td className="px-4 py-3 text-slate-300">{produto.nome}</td>
-                    <td className="px-4 py-3 text-slate-300">{produto.grupo}</td>
-                    <td className="px-4 py-3 text-slate-300">{produto.sub_grupo}</td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleImportar(produto)}
-                        disabled={importingCod === produto.cod_produto}
-                        className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#00aa84] hover:bg-[#00aa84]/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-                      >
-                        {importingCod === produto.cod_produto
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <><Upload className="w-3.5 h-3.5" />Importar</>}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ResponsiveTable
+              columns={erpProdutoColumns}
+              data={resultado}
+              keyExtractor={(produto) => produto.cod_produto}
+              renderActions={(produto) => (
+                <button
+                  type="button"
+                  onClick={() => handleImportar(produto)}
+                  disabled={importingCod === produto.cod_produto}
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#00aa84] hover:bg-[#00aa84]/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                >
+                  {importingCod === produto.cod_produto
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <><Upload className="w-3.5 h-3.5" />Importar</>}
+                </button>
+              )}
+            />
           )}
         </div>
       )}

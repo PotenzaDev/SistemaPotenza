@@ -137,7 +137,7 @@ export function BrocaFormModal({ open, onClose, onSuccess, initialData }: Props)
           </div>
 
           {/* espessura + altura */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1.5">
                 Espessura / Diâmetro (mm) <span className="text-red-400">*</span>
@@ -188,7 +188,7 @@ export function BrocaFormModal({ open, onClose, onSuccess, initialData }: Props)
           </div>
 
           {/* furo passante + ativo */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex items-center justify-between py-1">
               <span className="text-xs font-medium text-slate-400">Furo Passante</span>
               <button

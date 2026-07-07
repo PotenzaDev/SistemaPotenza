@@ -234,7 +234,7 @@ export function RotinaFormModal({ open, onClose, onSuccess, initialData, paisDis
           </div>
 
           {/* ordem + ativo */}
-          <div className="grid grid-cols-2 gap-3 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1.5">Ordem</label>
               <input

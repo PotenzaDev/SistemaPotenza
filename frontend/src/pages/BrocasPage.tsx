@@ -4,6 +4,7 @@ import { Boxes, CheckCircle2, XCircle, Loader2, Plus, Pencil } from 'lucide-reac
 import { getBrocas, type Broca } from '@/api/brocas'
 import { BrocaFormModal } from '@/components/BrocaFormModal'
 import { useAuth } from '@/hooks/useAuth'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 type Filtro = 'todos' | 'ativos' | 'inativos'
 
@@ -11,6 +12,43 @@ const FILTROS: { value: Filtro; label: string }[] = [
   { value: 'todos',    label: 'Todos'    },
   { value: 'ativos',   label: 'Ativos'   },
   { value: 'inativos', label: 'Inativos' },
+]
+
+const brocaColumns: ResponsiveTableColumn<Broca>[] = [
+  {
+    key: 'codigo',
+    header: 'Código',
+    render: (b) => b.codigo,
+    cellClassName: 'px-4 py-3 font-medium text-white font-mono text-xs',
+  },
+  {
+    key: 'espessura',
+    header: 'Espessura / Diâmetro',
+    render: (b) => `${b.espessura_mm} mm`,
+  },
+  {
+    key: 'rotacao',
+    header: 'Rotação',
+    render: (b) => b.rotacao,
+    cellClassName: 'px-4 py-3 text-slate-300 capitalize',
+  },
+  { key: 'altura', header: 'Altura', render: (b) => `${b.altura_mm} mm` },
+  { key: 'furo_passante', header: 'Furo Passante', render: (b) => (b.furo_passante ? 'Sim' : 'Não') },
+  {
+    key: 'status',
+    header: 'Status',
+    render: (b) =>
+      b.ativo ? (
+        <span className="inline-flex items-center gap-1.5 text-[#00aa84]">
+          <CheckCircle2 className="w-4 h-4" /> Ativa
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 text-slate-500">
+          <XCircle className="w-4 h-4" /> Inativa
+        </span>
+      ),
+    cellClassName: 'px-4 py-3',
+  },
 ]
 
 export function BrocasPage() {
@@ -132,54 +170,24 @@ export function BrocasPage() {
           </div>
         )}
         {!loading && !error && filtered.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/5 text-left">
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Código</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Espessura / Diâmetro</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Rotação</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Altura</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Furo Passante</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                {canCreate && (
-                  <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-16"></th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filtered.map((b) => (
-                <tr key={b.id} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="px-4 py-3 font-medium text-white font-mono text-xs">{b.codigo}</td>
-                  <td className="px-4 py-3 text-slate-300">{b.espessura_mm} mm</td>
-                  <td className="px-4 py-3 text-slate-300 capitalize">{b.rotacao}</td>
-                  <td className="px-4 py-3 text-slate-300">{b.altura_mm} mm</td>
-                  <td className="px-4 py-3 text-slate-300">{b.furo_passante ? 'Sim' : 'Não'}</td>
-                  <td className="px-4 py-3">
-                    {b.ativo ? (
-                      <span className="inline-flex items-center gap-1.5 text-[#00aa84]">
-                        <CheckCircle2 className="w-4 h-4" /> Ativa
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-slate-500">
-                        <XCircle className="w-4 h-4" /> Inativa
-                      </span>
-                    )}
-                  </td>
-                  {canCreate && (
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => openEdit(b)}
-                        title="Editar"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ResponsiveTable
+            columns={brocaColumns}
+            data={filtered}
+            keyExtractor={(b) => b.id}
+            renderActions={
+              canCreate
+                ? (b) => (
+                    <button
+                      onClick={() => openEdit(b)}
+                      title="Editar"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )
+                : undefined
+            }
+          />
         )}
       </div>
 

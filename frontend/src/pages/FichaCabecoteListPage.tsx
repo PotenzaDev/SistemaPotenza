@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { ArrowLeft, ClipboardList, Loader2, Plus } from 'lucide-react'
 import { listFichasCabecote, type FichaCabecoteResumo } from '@/api/fichasCabecote'
 import { getProduto, type Produto } from '@/api/produtos'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 function formatDataBr(iso: string | null): string {
   if (!iso) return '—'
@@ -47,6 +48,46 @@ export function FichaCabecoteListPage() {
   }, [load])
 
   const peca = produto?.pecas?.find(p => p.id === Number(pecaId))
+
+  const irParaFicha = useCallback((ficha: FichaCabecoteResumo) => {
+    navigate(`/admin/produtos/${produtoId}/semi-acabados/${pecaId}/fichas/${ficha.id}`)
+  }, [navigate, produtoId, pecaId])
+
+  const renderClicavel = useCallback((ficha: FichaCabecoteResumo, conteudo: ReactNode) => (
+    <span onClick={() => irParaFicha(ficha)} className="block cursor-pointer">
+      {conteudo}
+    </span>
+  ), [irParaFicha])
+
+  const fichaColumns: ResponsiveTableColumn<FichaCabecoteResumo>[] = [
+    {
+      key: 'data',
+      header: 'Data',
+      render: (ficha) => renderClicavel(ficha, formatDataBr(ficha.data)),
+    },
+    {
+      key: 'maquina',
+      header: 'Máquina',
+      cellClassName: 'px-4 py-3 text-white',
+      render: (ficha) => renderClicavel(ficha, ficha.maquina?.nome ?? '—'),
+    },
+    {
+      key: 'operador',
+      header: 'Operador',
+      render: (ficha) => renderClicavel(ficha, ficha.operario?.user.name ?? '—'),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      cellClassName: 'px-4 py-3',
+      render: (ficha) => renderClicavel(
+        ficha,
+        <span className={`text-xs px-2 py-0.5 rounded-full ${ficha.completa ? 'bg-[#00aa84]/10 text-[#00aa84]' : 'bg-amber-400/10 text-amber-400'}`}>
+          {ficha.completa ? 'Completa' : 'Rascunho'}
+        </span>,
+      ),
+    },
+  ]
 
   return (
     <div className="space-y-6">
@@ -101,34 +142,11 @@ export function FichaCabecoteListPage() {
           </div>
         )}
         {!loading && !error && fichas.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/5 text-left">
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Data</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Máquina</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Operador</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {fichas.map(ficha => (
-                <tr
-                  key={ficha.id}
-                  onClick={() => navigate(`/admin/produtos/${produtoId}/semi-acabados/${pecaId}/fichas/${ficha.id}`)}
-                  className="hover:bg-white/[0.02] transition-colors cursor-pointer"
-                >
-                  <td className="px-4 py-3 text-slate-300">{formatDataBr(ficha.data)}</td>
-                  <td className="px-4 py-3 text-white">{ficha.maquina?.nome ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-300">{ficha.operario?.user.name ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${ficha.completa ? 'bg-[#00aa84]/10 text-[#00aa84]' : 'bg-amber-400/10 text-amber-400'}`}>
-                      {ficha.completa ? 'Completa' : 'Rascunho'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ResponsiveTable
+            columns={fichaColumns}
+            data={fichas}
+            keyExtractor={(ficha) => ficha.id}
+          />
         )}
       </div>
     </div>

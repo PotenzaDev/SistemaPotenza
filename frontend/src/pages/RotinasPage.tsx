@@ -5,6 +5,12 @@ import { getRotinas, type Rotina } from '@/api/rotinas'
 import { RotinaFormModal } from '@/components/RotinaFormModal'
 import { getIcon } from '@/lib/iconRegistry'
 import { useAuth } from '@/hooks/useAuth'
+import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
+
+interface RotinaRow {
+  rotina: Rotina
+  isFilho: boolean
+}
 
 export function RotinasPage() {
   const { user } = useAuth()
@@ -51,46 +57,56 @@ export function RotinasPage() {
     setEditingRotina(undefined)
   }
 
-  function renderLinha(rotina: Rotina, isFilho = false) {
-    const Icon = getIcon(rotina.icone)
+  const rotinaRows: RotinaRow[] = rotinas.flatMap((rotina) => [
+    { rotina, isFilho: false },
+    ...(rotina.filhos ?? []).map((filho) => ({ rotina: filho, isFilho: true })),
+  ])
 
-    return (
-      <tr key={rotina.id} className="hover:bg-white/[0.02] transition-colors">
-        <td className="px-4 py-3">
+  const rotinaColumns: ResponsiveTableColumn<RotinaRow>[] = [
+    {
+      key: 'nome',
+      header: 'Nome',
+      cellClassName: 'px-4 py-3',
+      render: ({ rotina, isFilho }) => {
+        const Icon = getIcon(rotina.icone)
+        return (
           <div className={`flex items-center gap-2 ${isFilho ? 'pl-6 text-slate-400' : 'text-white font-medium'}`}>
             {isFilho && <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0" />}
             <Icon className="w-4 h-4 shrink-0" />
             {rotina.nome}
           </div>
-        </td>
-        <td className="px-4 py-3 text-slate-400 font-mono text-xs">{rotina.slug}</td>
-        <td className="px-4 py-3 text-slate-300 font-mono text-xs">{rotina.pagina}</td>
-        <td className="px-4 py-3 text-slate-300">{rotina.ordem}</td>
-        <td className="px-4 py-3">
-          {rotina.ativo ? (
-            <span className="inline-flex items-center gap-1.5 text-[#00aa84]">
-              <CheckCircle2 className="w-4 h-4" /> Ativa
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-slate-500">
-              <XCircle className="w-4 h-4" /> Inativa
-            </span>
-          )}
-        </td>
-        {canCreate && (
-          <td className="px-4 py-3">
-            <button
-              onClick={() => openEdit(rotina)}
-              title="Editar"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-          </td>
-        )}
-      </tr>
-    )
-  }
+        )
+      },
+    },
+    {
+      key: 'slug',
+      header: 'Slug',
+      cellClassName: 'px-4 py-3 text-slate-400 font-mono text-xs',
+      render: ({ rotina }) => rotina.slug,
+    },
+    {
+      key: 'pagina',
+      header: 'Página',
+      cellClassName: 'px-4 py-3 text-slate-300 font-mono text-xs',
+      render: ({ rotina }) => rotina.pagina,
+    },
+    { key: 'ordem', header: 'Ordem', render: ({ rotina }) => rotina.ordem },
+    {
+      key: 'status',
+      header: 'Status',
+      cellClassName: 'px-4 py-3',
+      render: ({ rotina }) =>
+        rotina.ativo ? (
+          <span className="inline-flex items-center gap-1.5 text-[#00aa84]">
+            <CheckCircle2 className="w-4 h-4" /> Ativa
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-slate-500">
+            <XCircle className="w-4 h-4" /> Inativa
+          </span>
+        ),
+    },
+  ]
 
   return (
     <div className="space-y-6">
@@ -137,26 +153,20 @@ export function RotinasPage() {
           </div>
         )}
         {!loading && !error && rotinas.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/5 text-left">
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Nome</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Slug</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Página</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Ordem</th>
-                <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                {canCreate && (
-                  <th className="px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider w-16"></th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {rotinas.map((rotina) => [
-                renderLinha(rotina),
-                ...(rotina.filhos ?? []).map((filho) => renderLinha(filho, true)),
-              ])}
-            </tbody>
-          </table>
+          <ResponsiveTable
+            columns={rotinaColumns}
+            data={rotinaRows}
+            keyExtractor={(row) => row.rotina.id}
+            renderActions={canCreate ? (row) => (
+              <button
+                onClick={() => openEdit(row.rotina)}
+                title="Editar"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            ) : undefined}
+          />
         )}
       </div>
 
