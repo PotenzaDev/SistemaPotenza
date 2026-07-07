@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { Upload, Search, ArrowLeft, Loader2 } from 'lucide-react'
+import { Upload, Search, ArrowLeft, Loader2, CheckCircle } from 'lucide-react'
 import {
   buscarProdutosErp,
   buscarSubGruposErp,
@@ -21,6 +21,14 @@ const erpProdutoColumns: ResponsiveTableColumn<ErpProduto>[] = [
   { key: 'nome', header: 'Nome', render: (p) => p.nome },
   { key: 'grupo', header: 'Grupo', render: (p) => p.grupo },
   { key: 'sub_grupo', header: 'Sub-Grupo', render: (p) => p.sub_grupo },
+  {
+    key: 'ja_importado',
+    header: 'Status',
+    render: (p) =>
+      p.ja_importado
+        ? <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-400">Já importado</span>
+        : <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-500/10 text-slate-400">Novo</span>,
+  },
 ]
 
 interface FiltrosState {
@@ -60,6 +68,7 @@ export function ImportarProdutoPage() {
   const [buscando, setBuscando] = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const [importingCod, setImportingCod] = useState<string | null>(null)
+  const [sucesso, setSucesso]   = useState<string | null>(null)
 
   useEffect(() => {
     if (!filtros.empresa) {
@@ -82,6 +91,7 @@ export function ImportarProdutoPage() {
   async function handleBuscar() {
     if (!filtros.empresa || !canBuscar) return
     setError(null)
+    setSucesso(null)
     setBuscando(true)
     try {
       const produtos = await buscarProdutosErp({
@@ -101,6 +111,7 @@ export function ImportarProdutoPage() {
   async function handleImportar(produto: ErpProduto) {
     if (!filtros.empresa) return
     setError(null)
+    setSucesso(null)
     setImportingCod(produto.cod_produto)
     try {
       await importarProduto({
@@ -110,7 +121,12 @@ export function ImportarProdutoPage() {
         sub_grupo:   produto.sub_grupo,
         empresa:     filtros.empresa,
       })
-      navigate('/admin/produtos')
+      setSucesso(`Produto "${produto.nome}" importado com sucesso.`)
+      setResultado(prev =>
+        prev?.map(p =>
+          p.cod_produto === produto.cod_produto ? { ...p, ja_importado: true } : p
+        ) ?? prev
+      )
     } catch (err: unknown) {
       setError(parseError(err, 'Não foi possível importar o produto.'))
     } finally {
@@ -139,6 +155,14 @@ export function ImportarProdutoPage() {
           <p className="text-sm text-slate-400">Busque produtos no ERP e importe junto com seus semi-acabados</p>
         </div>
       </div>
+
+      {/* sucesso */}
+      {sucesso && (
+        <div className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
+          <CheckCircle className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-emerald-400 font-medium">{sucesso}</p>
+        </div>
+      )}
 
       {/* filtros */}
       <div className="bg-[#0f1923] border border-white/5 rounded-xl px-6 py-5 space-y-4">

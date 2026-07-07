@@ -32,6 +32,7 @@ export interface ErpProduto {
   nome: string
   grupo: string
   sub_grupo: string
+  ja_importado: boolean
 }
 
 export interface BuscarProdutosErpParams {

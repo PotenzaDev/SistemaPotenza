@@ -84,8 +84,12 @@ class ProdutoService implements ProdutoServiceInterface
 
     private function mapear(array $row): array
     {
+        // Prod_Codi é CHAR de largura fixa no SQL Server e costuma vir com
+        // espaços à direita — sem o trim, a comparação de "já importado" no
+        // backend (por cod_produto) nunca bate (mesma causa raiz já corrigida
+        // para CodiSemiAcabado/DenoSemiAcabado em FichaTecnicaService).
         return [
-            'cod_produto' => (string) ($row['Prod_Codi'] ?? ''),
+            'cod_produto' => trim((string) ($row['Prod_Codi'] ?? '')),
             'nome' => $row['Prod_Deno'] ?? null,
             'grupo' => $row['Prod_Grupo'] ?? null,
             'sub_grupo' => $row['Prod_Sub_Grupo'] ?? null,

@@ -33,6 +33,7 @@ class ProdutoImportServiceTest extends TestCase
         $produtos = (new ProdutoImportService)->buscarNoErp('FBM', 'Cadeira', null);
 
         $this->assertSame('123', $produtos[0]['cod_produto']);
+        $this->assertFalse($produtos[0]['ja_importado']);
 
         Http::assertSent(function ($request) {
             return str_starts_with($request->url(), 'http://bridge.test/api/produtos?')

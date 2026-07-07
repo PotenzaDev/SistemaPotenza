@@ -27,7 +27,20 @@ class ProdutoImportService implements ProdutoImportServiceInterface
             throw new BusinessException('Falha ao consultar produtos no ERP.', 503);
         }
 
-        return $response->json();
+        $produtosErp = $response->json();
+
+        $codigosImportados = Produto::query()
+            ->where('empresa', $empresa)
+            ->whereIn('cod_produto', array_column($produtosErp, 'cod_produto'))
+            ->pluck('cod_produto')
+            ->all();
+
+        return array_map(
+            fn (array $produtoErp) => $produtoErp + [
+                'ja_importado' => in_array($produtoErp['cod_produto'], $codigosImportados, true),
+            ],
+            $produtosErp
+        );
     }
 
     public function buscarSubGruposNoErp(string $empresa): array

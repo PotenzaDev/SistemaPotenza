@@ -12,8 +12,10 @@ interface ProdutoImportServiceInterface
     /**
      * Busca produtos no ERP legado (via API Bridge) filtrando por empresa,
      * nome e/ou sub-grupo, restrito a uma janela relativa de 12 meses.
+     * Cada item é marcado com `ja_importado` indicando se já existe um
+     * `Produto` local com o mesmo `cod_produto` + `empresa`.
      *
-     * @return array<int, array{cod_produto: string, nome: string, grupo: string, sub_grupo: string}>
+     * @return array<int, array{cod_produto: string, nome: string, grupo: string, sub_grupo: string, ja_importado: bool}>
      *
      * @throws BusinessException quando a API Bridge está indisponível (503).
      */
