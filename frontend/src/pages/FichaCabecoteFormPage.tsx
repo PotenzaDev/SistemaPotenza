@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import { ArrowLeft, ArrowRight, ClipboardList, Loader2, Save } from 'lucide-react'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { getMaquinas, type Maquina } from '@/api/maquinas'
 import { getOperarios, type Operario } from '@/api/operarios'
 import { getBrocas, type Broca } from '@/api/brocas'
@@ -91,7 +90,6 @@ export function FichaCabecoteFormPage() {
   const [error, setError] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState(false)
 
-  const isWizard = useMediaQuery('(max-width: 1023px)')
   const [step, setStep] = useState<1 | 2 | 3>(1)
 
   useEffect(() => {
@@ -342,7 +340,7 @@ export function FichaCabecoteFormPage() {
           <Loader2 className="w-5 h-5 animate-spin" />
           <span className="text-sm">Carregando…</span>
         </div>
-      ) : isWizard ? (
+      ) : (
         <>
           {/* indicador de etapa */}
           <div className="space-y-2">
@@ -406,27 +404,6 @@ export function FichaCabecoteFormPage() {
                 </button>
               )}
             </div>
-          </div>
-        </>
-      ) : (
-        <>
-          {renderIdentificacao()}
-          {renderPosicoesCabecote()}
-          {renderPosicoesBroca()}
-
-          {mensagens}
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => handleSalvar()}
-              disabled={!podeSalvar}
-              title={tituloIndisponivel}
-              className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-[#00aa84] hover:bg-[#00aa84]/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-            >
-              {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Salvar Ficha
-            </button>
           </div>
         </>
       )}
