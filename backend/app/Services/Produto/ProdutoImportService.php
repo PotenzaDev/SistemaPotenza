@@ -63,6 +63,7 @@ class ProdutoImportService implements ProdutoImportServiceInterface
                     'grupo' => $dadosProdutoErp['grupo'] ?? null,
                     'sub_grupo' => $dadosProdutoErp['sub_grupo'] ?? null,
                     'empresa' => $dadosProdutoErp['empresa'],
+                    'ativo' => true,
                 ]
             );
 

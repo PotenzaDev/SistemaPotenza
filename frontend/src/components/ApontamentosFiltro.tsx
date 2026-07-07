@@ -27,7 +27,7 @@ export function ApontamentosFiltro({ value, onChange }: Props) {
 
     Promise.all([getOperarios(controller.signal), getMaquinas(controller.signal)])
       .then(([op, maq]) => {
-        setOperarios(op)
+        setOperarios(op.filter(o => o.user.ativo))
         setMaquinas(maq)
       })
       .catch((err: unknown) => {

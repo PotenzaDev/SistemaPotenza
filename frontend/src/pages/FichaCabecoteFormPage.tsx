@@ -100,7 +100,7 @@ export function FichaCabecoteFormPage() {
     ])
       .then(([m, o, b, ficha]) => {
         setMaquinas(m.filter(maq => maq.ativa && maq.etapa_fluxo?.requer_config_cabecote))
-        setOperarios(o)
+        setOperarios(o.filter(op => op.user.ativo))
         setBrocas(b.filter(broca => broca.ativo))
 
         if (ficha) {

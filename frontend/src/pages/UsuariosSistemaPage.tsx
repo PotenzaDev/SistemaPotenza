@@ -1,13 +1,22 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { ShieldCheck, Loader2, Plus, Pencil, Trash2 } from 'lucide-react'
 import { getUsuariosSistema, deleteUsuarioSistema, type UsuarioSistema } from '@/api/usuarios'
 import { UsuarioSistemaFormModal } from '@/components/UsuarioSistemaFormModal'
 
+type Filtro = 'todos' | 'ativos' | 'inativos'
+
+const FILTROS: { value: Filtro; label: string }[] = [
+  { value: 'todos',    label: 'Todos'    },
+  { value: 'ativos',   label: 'Ativos'   },
+  { value: 'inativos', label: 'Inativos' },
+]
+
 export function UsuariosSistemaPage() {
   const [usuarios, setUsuarios]     = useState<UsuarioSistema[]>([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState<string | null>(null)
+  const [filtro, setFiltro]         = useState<Filtro>('ativos')
   const [modalOpen, setModalOpen]   = useState(false)
   const [editTarget, setEditTarget] = useState<UsuarioSistema | undefined>(undefined)
 
@@ -32,6 +41,12 @@ export function UsuariosSistemaPage() {
     load(controller.signal)
     return () => controller.abort()
   }, [load])
+
+  const filtered = useMemo(() => {
+    if (filtro === 'ativos')   return usuarios.filter(u => u.ativo)
+    if (filtro === 'inativos') return usuarios.filter(u => !u.ativo)
+    return usuarios
+  }, [usuarios, filtro])
 
   function openCreate() {
     setEditTarget(undefined)
@@ -83,6 +98,23 @@ export function UsuariosSistemaPage() {
           </button>
         </div>
 
+        {/* filtros */}
+        <div className="flex items-center gap-1 p-1 bg-white/5 rounded-lg w-fit">
+          {FILTROS.map(f => (
+            <button
+              key={f.value}
+              onClick={() => setFiltro(f.value)}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                filtro === f.value
+                  ? 'bg-[#00aa84] text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         {/* tabela */}
         <div className="bg-[#0f1923] border border-white/5 rounded-xl overflow-hidden">
           {loading && (
@@ -96,12 +128,18 @@ export function UsuariosSistemaPage() {
               <p className="text-sm text-red-400">{error}</p>
             </div>
           )}
-          {!loading && !error && usuarios.length === 0 && (
+          {!loading && !error && filtered.length === 0 && (
             <div className="flex items-center justify-center py-16">
-              <p className="text-sm text-slate-500">Nenhum usuário cadastrado.</p>
+              <p className="text-sm text-slate-500">
+                {filtro === 'todos'
+                  ? 'Nenhum usuário cadastrado.'
+                  : filtro === 'ativos'
+                    ? 'Nenhum usuário ativo.'
+                    : 'Nenhum usuário inativo.'}
+              </p>
             </div>
           )}
-          {!loading && !error && usuarios.length > 0 && (
+          {!loading && !error && filtered.length > 0 && (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/5 text-left">
@@ -114,7 +152,7 @@ export function UsuariosSistemaPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {usuarios.map((u) => (
+                {filtered.map((u) => (
                   <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="px-6 py-4 font-medium text-white">{u.name}</td>
                     <td className="px-6 py-4 text-slate-400">{u.email}</td>

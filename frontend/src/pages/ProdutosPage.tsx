@@ -19,7 +19,7 @@ export function ProdutosPage() {
   const [produtos, setProdutos]     = useState<Produto[]>([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState<string | null>(null)
-  const [filtro, setFiltro]         = useState<Filtro>('todos')
+  const [filtro, setFiltro]         = useState<Filtro>('ativos')
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const canCreate = user?.role === 'admin' || user?.role === 'funcionario'

@@ -1,14 +1,23 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { Users, Loader2, Plus, Pencil, Barcode } from 'lucide-react'
 import { getOperarios, type Operario } from '@/api/operarios'
 import { OperarioFormModal } from '@/components/OperarioFormModal'
 import { CrachaOperarioModal } from '@/components/CrachaOperarioModal'
 
+type Filtro = 'todos' | 'ativos' | 'inativos'
+
+const FILTROS: { value: Filtro; label: string }[] = [
+  { value: 'todos',    label: 'Todos'    },
+  { value: 'ativos',   label: 'Ativos'   },
+  { value: 'inativos', label: 'Inativos' },
+]
+
 export function OperariosPage() {
   const [operarios, setOperarios]   = useState<Operario[]>([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState<string | null>(null)
+  const [filtro, setFiltro]         = useState<Filtro>('ativos')
   const [modalOpen, setModalOpen]   = useState(false)
   const [editTarget, setEditTarget] = useState<Operario | undefined>(undefined)
   const [crachaTarget, setCrachaTarget] = useState<Operario | null>(null)
@@ -34,6 +43,12 @@ export function OperariosPage() {
     load(controller.signal)
     return () => controller.abort()
   }, [load])
+
+  const filtered = useMemo(() => {
+    if (filtro === 'ativos')   return operarios.filter(o => o.user.ativo)
+    if (filtro === 'inativos') return operarios.filter(o => !o.user.ativo)
+    return operarios
+  }, [operarios, filtro])
 
   function openCreate() {
     setEditTarget(undefined)
@@ -74,6 +89,23 @@ export function OperariosPage() {
           </button>
         </div>
 
+        {/* filtros */}
+        <div className="flex items-center gap-1 p-1 bg-white/5 rounded-lg w-fit">
+          {FILTROS.map(f => (
+            <button
+              key={f.value}
+              onClick={() => setFiltro(f.value)}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                filtro === f.value
+                  ? 'bg-[#00aa84] text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         {/* tabela */}
         <div className="bg-[#0f1923] border border-white/5 rounded-xl overflow-hidden">
           {loading && (
@@ -87,12 +119,18 @@ export function OperariosPage() {
               <p className="text-sm text-red-400">{error}</p>
             </div>
           )}
-          {!loading && !error && operarios.length === 0 && (
+          {!loading && !error && filtered.length === 0 && (
             <div className="flex items-center justify-center py-16">
-              <p className="text-sm text-slate-500">Nenhum operário cadastrado.</p>
+              <p className="text-sm text-slate-500">
+                {filtro === 'todos'
+                  ? 'Nenhum operário cadastrado.'
+                  : filtro === 'ativos'
+                    ? 'Nenhum operário ativo.'
+                    : 'Nenhum operário inativo.'}
+              </p>
             </div>
           )}
-          {!loading && !error && operarios.length > 0 && (
+          {!loading && !error && filtered.length > 0 && (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/5 text-left">
@@ -105,7 +143,7 @@ export function OperariosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {operarios.map((o) => (
+                {filtered.map((o) => (
                   <tr key={o.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="px-6 py-4 font-medium text-white">{o.user.name}</td>
                     <td className="px-6 py-4 text-slate-300">{o.matricula}</td>

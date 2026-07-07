@@ -92,4 +92,32 @@ class CheckRotinaAccessTest extends TestCase
             ->getJson('/api/kanban')
             ->assertForbidden();
     }
+
+    public function test_funcionario_com_operarios_liberado_lista_etapas_fluxo(): void
+    {
+        $funcionario = User::factory()->funcionario(['operarios'])->create();
+
+        $this->actingAs($funcionario, 'sanctum')
+            ->getJson('/api/etapas-fluxo')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+    }
+
+    public function test_funcionario_sem_operarios_liberado_nao_lista_etapas_fluxo(): void
+    {
+        $funcionario = User::factory()->funcionario(['dashboard'])->create();
+
+        $this->actingAs($funcionario, 'sanctum')
+            ->getJson('/api/etapas-fluxo')
+            ->assertForbidden();
+    }
+
+    public function test_funcionario_com_operarios_liberado_nao_pode_criar_etapa_fluxo(): void
+    {
+        $funcionario = User::factory()->funcionario(['operarios'])->create();
+
+        $this->actingAs($funcionario, 'sanctum')
+            ->postJson('/api/etapas-fluxo', ['nome' => 'Corte', 'ordem' => 1])
+            ->assertForbidden();
+    }
 }

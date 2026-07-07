@@ -19,7 +19,7 @@ export function MaquinasPage() {
   const [maquinas, setMaquinas]         = useState<Maquina[]>([])
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState<string | null>(null)
-  const [filtro, setFiltro]             = useState<Filtro>('todos')
+  const [filtro, setFiltro]             = useState<Filtro>('ativos')
   const [modalOpen, setModalOpen]       = useState(false)
   const [editingMaquina, setEditingMaquina] = useState<Maquina | undefined>()
 
