@@ -51,6 +51,10 @@ export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
 
   const s = STATUS_LABEL[resumo.status] ?? { label: resumo.status, color: 'text-slate-400' }
 
+  const fichasOrdenadas = [...(detalhe?.fichas ?? [])].sort(
+    (a, b) => new Date(b.bipada_at).getTime() - new Date(a.bipada_at).getTime()
+  )
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -131,7 +135,7 @@ export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
                   </div>
                 </div>
 
-                {detalhe.fichas.length > 0 ? (
+                {fichasOrdenadas.length > 0 ? (
                   <div className="bg-white/[0.02] border border-white/5 rounded-lg overflow-hidden">
                     <ResponsiveTable
                       columns={[
@@ -185,7 +189,7 @@ export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
                           render: (ficha) => fmtDataHora(ficha.fim_producao),
                         },
                       ] satisfies ResponsiveTableColumn<FichaApontamento>[]}
-                      data={detalhe.fichas}
+                      data={fichasOrdenadas}
                       keyExtractor={(ficha) => ficha.id}
                     />
                   </div>
