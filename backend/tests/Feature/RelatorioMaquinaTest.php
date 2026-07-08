@@ -375,6 +375,56 @@ class RelatorioMaquinaTest extends TestCase
         $this->assertSame(50400, $relatorioHoje['maquinas'][0]['tempo_turno_segundos']); // 14h, turno novo
     }
 
+    public function test_relatorio_conta_peca_finalizada_apos_a_janela_de_turno_e_hora_extra(): void
+    {
+        // Regressão: qtd_pecas deve seguir a mesma regra do relatório de
+        // apontamentos (dia calendário completo — ver ApontamentoService::
+        // fichasNoPeriodo()), não a janela do turno. Turno de segunda vai
+        // até 17:00, janela de hora extra vai até 19:00 — uma peça
+        // finalizada às 20:30 fica fora de ambas, mas ainda dentro do dia
+        // calendário, e por isso precisa contar igual contaria na tela de
+        // apontamentos.
+        $segunda = Carbon::parse('2026-06-08 00:00:00'); // turno 08:00-17:00
+
+        $etapa   = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+
+        $sessao = $this->criarSessao($maquina, $segunda->copy()->setTime(7, 30));
+
+        $apontamento = Apontamento::create([
+            'sessao_trabalho_id'        => $sessao->id,
+            'etapa_fluxo_id'            => $etapa->id,
+            'cod_peca'                  => '9998887',
+            'ordem_lote'                => '00009',
+            'desc_peca'                 => 'Peça Fora do Turno',
+            'cod_produto'               => 'PROD-0009',
+            'qtde_total'                => 40,
+            'status'                    => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio'              => $segunda->copy()->setTime(8, 0),
+            'setup_fim'                 => $segunda->copy()->setTime(8, 30),
+            'setup_duracao_segundos'    => 1800,
+            'producao_inicio'           => $segunda->copy()->setTime(8, 30),
+            'producao_fim'              => $segunda->copy()->setTime(20, 30),
+            'producao_duracao_segundos' => 43200,
+            'total_pausa_segundos'      => 0,
+        ]);
+
+        FichaApontamento::create([
+            'apontamento_id' => $apontamento->id,
+            'cod_peca'       => '9998887',
+            'pilha'          => 1,
+            'qtd_peca'       => 40,
+            'qtd_produzida'  => 40,
+            'bipada_at'      => $segunda->copy()->setTime(20, 30),
+            'fim_producao'   => $segunda->copy()->setTime(20, 30),
+        ]);
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioMaquinasPorPeriodo($segunda, $segunda);
+
+        $this->assertSame(40, $relatorio['maquinas'][0]['qtd_pecas']);
+        $this->assertSame(40, $relatorio['totais']['qtd_pecas']);
+    }
+
     public function test_relatorio_nao_inclui_maquina_inativa(): void
     {
         $segunda = Carbon::parse('2026-06-08 00:00:00');

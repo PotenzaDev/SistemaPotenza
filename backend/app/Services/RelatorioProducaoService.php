@@ -276,6 +276,8 @@ class RelatorioProducaoService
                             $sessao,
                             $janelasCompartilhadas,
                             $janelaExtraCompartilhada,
+                            $inicioDia,
+                            $fimDia,
                             $agora,
                         );
                     }
@@ -302,6 +304,8 @@ class RelatorioProducaoService
                         $sessao,
                         $janelasSessao,
                         $janelaExtraSessao,
+                        $inicioDia,
+                        $fimDia,
                         $agora,
                     );
 
@@ -444,10 +448,8 @@ class RelatorioProducaoService
      * @param  array{inicio: Carbon, fim: Carbon}|null  $janelaExtra
      * @return int Segundos trabalhados dentro da janela de hora extra.
      */
-    private function acumularSessaoNoDia(array &$acumulado, int $maquinaId, SessaoTrabalho $sessao, array $janelas, ?array $janelaExtra, Carbon $agora): int
+    private function acumularSessaoNoDia(array &$acumulado, int $maquinaId, SessaoTrabalho $sessao, array $janelas, ?array $janelaExtra, Carbon $inicioDia, Carbon $fimDia, Carbon $agora): int
     {
-        $diaInicio       = $janelas[0]['inicio'];
-        $diaFim          = $janelas[array_key_last($janelas)]['fim'];
         $trabalhadoExtra = 0;
 
         foreach ($sessao->apontamentos as $apontamento) {
@@ -466,18 +468,17 @@ class RelatorioProducaoService
 
             // Mesma regra do relatório de apontamentos (ApontamentoService::
             // fichasNoPeriodo): conta pela data de fim_producao (pilha
-            // finalizada), não pela de bipada_at (início) — senão uma pilha
-            // que atravessa a virada do dia seria contada em um relatório e
-            // não no outro. Fichas ainda sem fim_producao não contam.
+            // finalizada) dentro do dia calendário inteiro — não pela janela
+            // do turno/hora extra, senão uma peça finalizada fora do horário
+            // de turno (ex.: hora extra além das 19h) contaria na tela de
+            // apontamentos mas sumiria deste relatório. Fichas ainda sem
+            // fim_producao não contam.
             foreach ($apontamento->fichas as $ficha) {
                 if (! $ficha->fim_producao) {
                     continue;
                 }
 
-                $noDiaBase  = $ficha->fim_producao->between($diaInicio, $diaFim);
-                $noDiaExtra = $janelaExtra && $ficha->fim_producao->between($janelaExtra['inicio'], $janelaExtra['fim']);
-
-                if ($noDiaBase || $noDiaExtra) {
+                if ($ficha->fim_producao->between($inicioDia, $fimDia)) {
                     $acumulado[$maquinaId]['qtd_pecas'] += $ficha->qtd_peca;
                 }
             }
