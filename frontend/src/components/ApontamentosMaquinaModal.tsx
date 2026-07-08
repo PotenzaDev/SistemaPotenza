@@ -202,7 +202,11 @@ export function ApontamentosMaquinaModal({ maquina, filtros, onClose }: Props) {
         </div>
       </div>
 
-      <ApontamentoDetalheModal resumo={selecionado} onClose={() => setSelecionado(null)} />
+      <ApontamentoDetalheModal
+        resumo={selecionado}
+        filtros={{ dataInicio: filtros.dataInicio, dataFim: filtros.dataFim }}
+        onClose={() => setSelecionado(null)}
+      />
     </>
   )
 }

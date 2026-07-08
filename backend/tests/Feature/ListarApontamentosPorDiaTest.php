@@ -22,6 +22,73 @@ class ListarApontamentosPorDiaTest extends TestCase
 
     public function test_conta_apenas_pilhas_finalizadas_no_dia_filtrado_em_apontamento_de_dois_dias(): void
     {
+        [$apontamento, $segunda, $terca] = $this->criarApontamentoDeDoisDias();
+
+        $service = app(ApontamentoService::class);
+
+        $ambosOsDias = $service->listarApontamentos([
+            'data_inicio' => $segunda->toDateString(),
+            'data_fim'    => $terca->toDateString(),
+        ]);
+
+        $this->assertCount(1, $ambosOsDias['apontamentos']);
+        $this->assertSame(2, $ambosOsDias['apontamentos'][0]['qtd_pilhas']);
+        $this->assertSame(80, $ambosOsDias['apontamentos'][0]['qtd_pecas']);
+        $this->assertSame(2, $ambosOsDias['totais']['qtd_pilhas']);
+        $this->assertSame(80, $ambosOsDias['totais']['qtd_pecas']);
+
+        $somenteSegunda = $service->listarApontamentos([
+            'data_inicio' => $segunda->toDateString(),
+            'data_fim'    => $segunda->toDateString(),
+        ]);
+
+        $this->assertCount(1, $somenteSegunda['apontamentos'], 'apontamento deve aparecer mesmo só contando a pilha de segunda');
+        $this->assertSame(1, $somenteSegunda['apontamentos'][0]['qtd_pilhas']);
+        $this->assertSame(50, $somenteSegunda['apontamentos'][0]['qtd_pecas']);
+
+        $somenteTerca = $service->listarApontamentos([
+            'data_inicio' => $terca->toDateString(),
+            'data_fim'    => $terca->toDateString(),
+        ]);
+
+        $this->assertCount(1, $somenteTerca['apontamentos'], 'apontamento deve aparecer mesmo só contando a pilha de terça');
+        $this->assertSame(1, $somenteTerca['apontamentos'][0]['qtd_pilhas']);
+        $this->assertSame(30, $somenteTerca['apontamentos'][0]['qtd_pecas']);
+    }
+
+    public function test_buscarDetalhe_restringe_fichas_ao_periodo_filtrado(): void
+    {
+        [$apontamento, $segunda, $terca] = $this->criarApontamentoDeDoisDias();
+
+        $service = app(ApontamentoService::class);
+
+        $ambosOsDias = $service->buscarDetalhe($apontamento->id, [
+            'data_inicio' => $segunda->toDateString(),
+            'data_fim'    => $terca->toDateString(),
+        ]);
+
+        $this->assertCount(2, $ambosOsDias->fichas, 'selecionando os 2 dias, as 2 pilhas devem aparecer');
+
+        $somenteSegunda = $service->buscarDetalhe($apontamento->id, [
+            'data_inicio' => $segunda->toDateString(),
+            'data_fim'    => $segunda->toDateString(),
+        ]);
+
+        $this->assertCount(1, $somenteSegunda->fichas, 'selecionando só segunda, a pilha de terça não deve aparecer');
+        $this->assertSame(1, $somenteSegunda->fichas->first()->pilha);
+
+        $somenteTerca = $service->buscarDetalhe($apontamento->id, [
+            'data_inicio' => $terca->toDateString(),
+            'data_fim'    => $terca->toDateString(),
+        ]);
+
+        $this->assertCount(1, $somenteTerca->fichas, 'selecionando só terça, a pilha de segunda não deve aparecer');
+        $this->assertSame(2, $somenteTerca->fichas->first()->pilha);
+    }
+
+    /** @return array{0: Apontamento, 1: Carbon, 2: Carbon} */
+    private function criarApontamentoDeDoisDias(): array
+    {
         $segunda = Carbon::parse('2026-06-08 00:00:00');
         $terca   = $segunda->copy()->addDay();
 
@@ -74,35 +141,6 @@ class ListarApontamentosPorDiaTest extends TestCase
             'fim_producao'   => $terca->copy()->setTime(12, 0),
         ]);
 
-        $service = app(ApontamentoService::class);
-
-        $ambosOsDias = $service->listarApontamentos([
-            'data_inicio' => $segunda->toDateString(),
-            'data_fim'    => $terca->toDateString(),
-        ]);
-
-        $this->assertCount(1, $ambosOsDias['apontamentos']);
-        $this->assertSame(2, $ambosOsDias['apontamentos'][0]['qtd_pilhas']);
-        $this->assertSame(80, $ambosOsDias['apontamentos'][0]['qtd_pecas']);
-        $this->assertSame(2, $ambosOsDias['totais']['qtd_pilhas']);
-        $this->assertSame(80, $ambosOsDias['totais']['qtd_pecas']);
-
-        $somenteSegunda = $service->listarApontamentos([
-            'data_inicio' => $segunda->toDateString(),
-            'data_fim'    => $segunda->toDateString(),
-        ]);
-
-        $this->assertCount(1, $somenteSegunda['apontamentos'], 'apontamento deve aparecer mesmo só contando a pilha de segunda');
-        $this->assertSame(1, $somenteSegunda['apontamentos'][0]['qtd_pilhas']);
-        $this->assertSame(50, $somenteSegunda['apontamentos'][0]['qtd_pecas']);
-
-        $somenteTerca = $service->listarApontamentos([
-            'data_inicio' => $terca->toDateString(),
-            'data_fim'    => $terca->toDateString(),
-        ]);
-
-        $this->assertCount(1, $somenteTerca['apontamentos'], 'apontamento deve aparecer mesmo só contando a pilha de terça');
-        $this->assertSame(1, $somenteTerca['apontamentos'][0]['qtd_pilhas']);
-        $this->assertSame(30, $somenteTerca['apontamentos'][0]['qtd_pecas']);
+        return [$apontamento->fresh(['fichas']), $segunda, $terca];
     }
 }

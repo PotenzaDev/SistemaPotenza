@@ -21,7 +21,7 @@ function formatDataBr(iso: string | null): string {
 const posicoesCabecoteColumns: ResponsiveTableColumn<FichaCabecotePosicao>[] = [
   { key: 'cabecote', header: 'Cabeçote', render: (p) => p.cabecote, headerClassName: TH, cellClassName: TD_WHITE },
   { key: 'sentido', header: 'Sentido', render: (p) => p.sentido, headerClassName: TH, cellClassName: TD_CAPITALIZE },
-  { key: 'largura_mm', header: 'Largura (mm)', render: (p) => p.largura_mm, headerClassName: TH, cellClassName: TD },
+  { key: 'largura_mm', header: 'Posição (mm)', render: (p) => p.largura_mm, headerClassName: TH, cellClassName: TD },
   { key: 'deslocamento_mm', header: 'Deslocamento (mm)', render: (p) => p.deslocamento_mm, headerClassName: TH, cellClassName: TD },
   { key: 'altura_cabecote_mm', header: 'Altura Cabeçote (mm)', render: (p) => p.altura_cabecote_mm, headerClassName: TH, cellClassName: TD },
   { key: 'obs', header: 'Obs', render: (p) => p.obs ?? '—', headerClassName: TH, cellClassName: TD },
@@ -30,7 +30,7 @@ const posicoesCabecoteColumns: ResponsiveTableColumn<FichaCabecotePosicao>[] = [
 const posicoesBrocaColumns: ResponsiveTableColumn<FichaCabecoteBrocaItem>[] = [
   { key: 'cabecote', header: 'Cabeçote', render: (b) => b.cabecote, headerClassName: TH, cellClassName: TD_WHITE },
   { key: 'sentido', header: 'Sentido', render: (b) => b.sentido, headerClassName: TH, cellClassName: TD_CAPITALIZE },
-  { key: 'posicao', header: 'Posição', render: (b) => b.posicao, headerClassName: TH, cellClassName: TD },
+  { key: 'posicao', header: 'N Pino', render: (b) => b.posicao, headerClassName: TH, cellClassName: TD },
   { key: 'broca', header: 'Broca', render: (b) => b.broca?.codigo ?? '—', headerClassName: TH, cellClassName: TD },
   { key: 'passante', header: 'Passante / Prof. (mm)', render: (b) => (b.passante ? 'Passante (S)' : `${b.profundidade_mm} mm`), headerClassName: TH, cellClassName: TD },
   { key: 'agregado', header: 'Agregado', render: (b) => b.agregado ?? '—', headerClassName: TH, cellClassName: TD },

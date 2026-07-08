@@ -57,7 +57,17 @@ export async function getApontamentosDoDia(
   return res.data.data
 }
 
-export async function getApontamentoDetalhe(id: number, signal?: AbortSignal): Promise<Apontamento> {
-  const res = await apiClient.get<ApiEnvelope<Apontamento>>(`/apontamentos/${id}`, { signal })
+export async function getApontamentoDetalhe(
+  id: number,
+  filtros?: Pick<ApontamentoFiltros, 'dataInicio' | 'dataFim'>,
+  signal?: AbortSignal,
+): Promise<Apontamento> {
+  const res = await apiClient.get<ApiEnvelope<Apontamento>>(`/apontamentos/${id}`, {
+    signal,
+    params: {
+      data_inicio: filtros?.dataInicio,
+      data_fim:    filtros?.dataFim,
+    },
+  })
   return res.data.data
 }

@@ -464,13 +464,18 @@ class RelatorioProducaoService
                 }
             }
 
+            // Mesma regra do relatório de apontamentos (ApontamentoService::
+            // fichasNoPeriodo): conta pela data de fim_producao (pilha
+            // finalizada), não pela de bipada_at (início) — senão uma pilha
+            // que atravessa a virada do dia seria contada em um relatório e
+            // não no outro. Fichas ainda sem fim_producao não contam.
             foreach ($apontamento->fichas as $ficha) {
-                if (! $ficha->bipada_at) {
+                if (! $ficha->fim_producao) {
                     continue;
                 }
 
-                $noDiaBase  = $ficha->bipada_at->between($diaInicio, $diaFim);
-                $noDiaExtra = $janelaExtra && $ficha->bipada_at->between($janelaExtra['inicio'], $janelaExtra['fim']);
+                $noDiaBase  = $ficha->fim_producao->between($diaInicio, $diaFim);
+                $noDiaExtra = $janelaExtra && $ficha->fim_producao->between($janelaExtra['inicio'], $janelaExtra['fim']);
 
                 if ($noDiaBase || $noDiaExtra) {
                     $acumulado[$maquinaId]['qtd_pecas'] += $ficha->qtd_peca;

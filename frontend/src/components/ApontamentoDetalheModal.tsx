@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Loader2, X } from 'lucide-react'
-import { getApontamentoDetalhe, type ApontamentoDoDia } from '@/api/apontamentos'
+import { getApontamentoDetalhe, type ApontamentoDoDia, type ApontamentoFiltros } from '@/api/apontamentos'
 import type { Apontamento, FichaApontamento } from '@/api/apontamento'
 import { STATUS_LABEL, fmtDuracao, fmtDataHora } from '@/lib/apontamentoFormat'
 import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 interface Props {
   resumo: ApontamentoDoDia | null
+  filtros: Pick<ApontamentoFiltros, 'dataInicio' | 'dataFim'>
   onClose: () => void
 }
 
@@ -19,7 +20,7 @@ const TH_RIGHT = `${TH} text-right`
 const TD = 'px-4 py-2 text-xs text-slate-300'
 const TD_RIGHT = `${TD} text-right`
 
-export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
+export function ApontamentoDetalheModal({ resumo, filtros, onClose }: Props) {
   const [detalhe, setDetalhe] = useState<Apontamento | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
@@ -35,7 +36,7 @@ export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
     setLoading(true)
     setError(null)
 
-    getApontamentoDetalhe(resumo.id, controller.signal)
+    getApontamentoDetalhe(resumo.id, filtros, controller.signal)
       .then(setDetalhe)
       .catch((err: unknown) => {
         if (!axios.isCancel(err)) setError('Não foi possível carregar os detalhes do apontamento.')
@@ -45,7 +46,7 @@ export function ApontamentoDetalheModal({ resumo, onClose }: Props) {
       })
 
     return () => controller.abort()
-  }, [resumo])
+  }, [resumo, filtros.dataInicio, filtros.dataFim])
 
   if (!resumo) return null
 

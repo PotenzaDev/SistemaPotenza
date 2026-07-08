@@ -81,7 +81,7 @@ export function CabecoteBrocasTable({ rows, onChange, brocas }: Props) {
     },
     {
       key: 'posicao',
-      header: 'Posição',
+      header: 'N Pino',
       headerClassName: 'px-3 py-2 text-xs font-medium text-slate-400 uppercase tracking-wider',
       cellClassName: 'px-3 py-2',
       render: (row) => (

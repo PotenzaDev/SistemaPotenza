@@ -50,7 +50,7 @@
             <tr>
                 <th>Cabeçote</th>
                 <th>Sentido</th>
-                <th>Largura (X)</th>
+                <th>Posição (X)</th>
                 <th>Deslocamento (Y)</th>
                 <th>Altura Cabeçote (Z)</th>
                 <th>Obs</th>
@@ -82,7 +82,7 @@
             <tr>
                 <th>Cabeçote</th>
                 <th>Sentido</th>
-                <th>Posição</th>
+                <th>N Pino</th>
                 <th>Broca (mm)</th>
                 <th>Passante (Sim ou Prof)</th>
                 <th>Agregado</th>

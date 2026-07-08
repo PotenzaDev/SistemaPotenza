@@ -154,7 +154,7 @@ export function FichaCabecoteFormPage() {
 
   const linhasCabecoteInvalidas = posicoesCabecote.some(r => linhaCabecotePreenchida(r) && !linhaCabecoteValida(r))
   const linhasBrocaInvalidas = posicoesBroca.some(r => linhaBrocaPreenchida(r) && !linhaBrocaValida(r))
-  const podeSalvar = !salvando && !linhasCabecoteInvalidas && !linhasBrocaInvalidas
+  const podeSalvar = !salvando
 
   async function handleSalvar(opts?: { navegarParaDetalhe?: boolean }) {
     if (!pecaId || !podeSalvar) return
@@ -290,8 +290,8 @@ export function FichaCabecoteFormPage() {
     { titulo: 'Posição das Brocas', render: renderPosicoesBroca },
   ] as const
 
-  const tituloIndisponivel = linhasCabecoteInvalidas || linhasBrocaInvalidas
-    ? 'Complete ou limpe as linhas iniciadas antes de salvar'
+  const tituloLinhasIncompletas = linhasCabecoteInvalidas || linhasBrocaInvalidas
+    ? 'Linhas iniciadas e incompletas serão ignoradas ao salvar'
     : undefined
 
   const mensagens = (
@@ -299,6 +299,11 @@ export function FichaCabecoteFormPage() {
       {error && (
         <p className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
           {error}
+        </p>
+      )}
+      {(linhasCabecoteInvalidas || linhasBrocaInvalidas) && (
+        <p className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
+          Há linhas iniciadas e incompletas — elas serão ignoradas ao salvar. Complete-as depois, se quiser incluí-las.
         </p>
       )}
       {sucesso && !error && (
@@ -376,7 +381,7 @@ export function FichaCabecoteFormPage() {
                 type="button"
                 onClick={() => handleSalvar()}
                 disabled={!podeSalvar}
-                title={tituloIndisponivel}
+                title={tituloLinhasIncompletas}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-300 border border-white/10 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -396,7 +401,7 @@ export function FichaCabecoteFormPage() {
                   type="button"
                   onClick={() => handleSalvar({ navegarParaDetalhe: true })}
                   disabled={!podeSalvar}
-                  title={tituloIndisponivel}
+                  title={tituloLinhasIncompletas}
                   className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-[#00aa84] hover:bg-[#00aa84]/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
                   {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

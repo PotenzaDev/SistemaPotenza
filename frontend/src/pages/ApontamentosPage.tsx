@@ -249,7 +249,7 @@ export function ApontamentosPage() {
         </div>
       )}
 
-      <ApontamentoDetalheModal resumo={selecionado} onClose={() => setSelecionado(null)} />
+      <ApontamentoDetalheModal resumo={selecionado} filtros={filtros} onClose={() => setSelecionado(null)} />
     </div>
   )
 }

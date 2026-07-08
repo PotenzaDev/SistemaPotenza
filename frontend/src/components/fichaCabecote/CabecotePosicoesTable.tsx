@@ -75,7 +75,7 @@ export function CabecotePosicoesTable({ rows, onChange }: Props) {
     },
     {
       key: 'largura_mm',
-      header: 'Largura (mm)',
+      header: 'Posição (mm)',
       headerClassName: 'px-3 py-2 text-xs font-medium text-slate-400 uppercase tracking-wider',
       cellClassName: 'px-3 py-2',
       render: (row) => (

@@ -22,6 +22,7 @@ use App\Models\Turno;
 use App\Services\Lote\LoteServiceInterface;
 use App\Services\Produto\ProdutoPecaLookupService;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 class ApontamentoService
 {
@@ -498,13 +499,7 @@ class ApontamentoService
         ['inicio' => $inicio, 'fim' => $fim] = $this->apontamentoRepo->resolverPeriodo($filtros);
 
         $linhas = $apontamentos->map(function (Apontamento $apontamento) use ($inicio, $fim) {
-            // Só conta pilhas finalizadas dentro do período filtrado — um
-            // apontamento que atravessa a virada do dia só deve contribuir,
-            // para cada dia, com as fichas cujo fim_producao caiu nele.
-            // Fichas ainda sem fim_producao (pilha em produção) nunca contam.
-            $fichasNoPeriodo = $apontamento->fichas->filter(
-                fn (FichaApontamento $ficha) => $ficha->fim_producao?->between($inicio, $fim) ?? false
-            );
+            $fichasNoPeriodo = $this->fichasNoPeriodo($apontamento, $inicio, $fim);
 
             $qtdPecas  = (int) $fichasNoPeriodo->sum('qtd_peca');
             $qtdPilhas = $fichasNoPeriodo->count();
@@ -539,6 +534,42 @@ class ApontamentoService
                 'qtd_pilhas' => (int) $linhas->sum('qtd_pilhas'),
             ],
         ];
+    }
+
+    /**
+     * Detalhe do apontamento com as fichas restritas ao período filtrado —
+     * mesma regra de listarApontamentos(): só entram fichas cujo fim_producao
+     * caiu dentro do período (hoje, na ausência de filtros). Evita que o
+     * modal de detalhe mostre pilhas de um dia diferente do selecionado no
+     * relatório, quando o apontamento atravessa a virada do dia.
+     *
+     * Filtros aceitos (todos opcionais): data_inicio, data_fim (Y-m-d).
+     */
+    public function buscarDetalhe(int $id, array $filtros = []): ?Apontamento
+    {
+        $apontamento = $this->apontamentoRepo->buscarPorId($id);
+
+        if (! $apontamento) {
+            return null;
+        }
+
+        ['inicio' => $inicio, 'fim' => $fim] = $this->apontamentoRepo->resolverPeriodo($filtros);
+
+        $apontamento->setRelation('fichas', $this->fichasNoPeriodo($apontamento, $inicio, $fim)->values());
+
+        return $apontamento;
+    }
+
+    /**
+     * Fichas do apontamento cujo fim_producao (pilha finalizada) caiu dentro
+     * de [inicio, fim]. Fichas ainda sem fim_producao (pilha em produção)
+     * nunca entram.
+     */
+    private function fichasNoPeriodo(Apontamento $apontamento, Carbon $inicio, Carbon $fim): Collection
+    {
+        return $apontamento->fichas->filter(
+            fn (FichaApontamento $ficha) => $ficha->fim_producao?->between($inicio, $fim) ?? false
+        );
     }
 
     /**

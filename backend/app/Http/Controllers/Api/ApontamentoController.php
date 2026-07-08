@@ -168,7 +168,10 @@ class ApontamentoController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $apontamento = $this->apontamentoRepo->buscarPorId($id);
+        $apontamento = $this->apontamentoService->buscarDetalhe(
+            $id,
+            $request->only(['data_inicio', 'data_fim']),
+        );
 
         if (! $apontamento) {
             return $this->errorResponse('Apontamento não encontrado.', 404);
