@@ -31,17 +31,20 @@ class RelatorioProducaoService
      * tempo trabalhado).
      *
      * Retorna [] se não houver turno ativo configurado para o dia da semana
-     * E nenhuma movimentação (setup/produção) real tiver ocorrido nesse dia
-     * — nesse segundo caso (ex.: sábado avulso), usa-se a janela de fallback
-     * de TurnoCalculoService::turnoFallback() para o cálculo.
+     * E nenhuma movimentação (setup/produção) real tiver ocorrido nesse dia.
+     * Quando não há turno cadastrado (ex.: fim de semana), cada sessão usa sua
+     * própria janela: o turno informado pelo próprio operário ao iniciá-la
+     * (ver TurnoCalculoService::janelasInformadas()) ou, para sessões antigas
+     * sem essa informação, a janela de fallback fixa de turnoFallback() — ver
+     * janelasParaSessao().
      *
      * @return array<int, array<string, mixed>>
      */
     public function relatorioPorDia(Carbon $data, ?int $operarioId = null, ?int $maquinaId = null): array
     {
-        $turno = Turno::doDia($data->dayOfWeekIso, $data);
+        $turnoDoDia = Turno::doDia($data->dayOfWeekIso, $data);
 
-        if (! $turno) {
+        if (! $turnoDoDia) {
             $temMovimentacao = $this->movimentacao->existeParaSessao(
                 $data->copy()->startOfDay(),
                 $data->copy()->endOfDay(),
@@ -52,25 +55,22 @@ class RelatorioProducaoService
             if (! $temMovimentacao) {
                 return [];
             }
-
-            $turno = $this->calculo->turnoFallback();
         }
 
-        $janelas            = $this->calculo->janelasUteis($turno, $data);
-        $diaInicio          = $janelas[0]['inicio'];
-        $diaFim             = $janelas[array_key_last($janelas)]['fim'];
-        $tempoTurnoSegundos = $this->calculo->somaDuracaoJanelas($janelas);
-        $agora              = Carbon::now();
+        $agora = Carbon::now();
 
+        // Limites amplos (dia calendário inteiro, não a janela do turno): cada
+        // sessão pode ter sua própria janela (turno do dia, turno informado
+        // pelo operário no fim de semana, ou fallback) — ver janelasParaSessao().
         // withTrashed(): sessões canceladas (soft-deleted) só entram se ainda
         // restar algum apontamento (necessariamente finalizado, já que os não
         // finalizados são excluídos no cancelamento) — evita linhas "fantasma"
         // de sessões totalmente canceladas sem nenhuma produção real.
         $sessoes = SessaoTrabalho::withTrashed()
             ->with(['operario.user', 'maquina', 'apontamentos.pausas.motivoPausa', 'pausasOciosas.motivoPausa'])
-            ->where('inicio', '<=', $diaFim)
-            ->where(function ($query) use ($diaInicio) {
-                $query->whereNull('fim')->orWhere('fim', '>=', $diaInicio);
+            ->where('inicio', '<=', $data->copy()->endOfDay())
+            ->where(function ($query) use ($data) {
+                $query->whereNull('fim')->orWhere('fim', '>=', $data->copy()->startOfDay());
             })
             ->where(function ($query) {
                 $query->whereNull('deleted_at')->orWhereHas('apontamentos');
@@ -79,18 +79,39 @@ class RelatorioProducaoService
             ->when($maquinaId, fn ($query) => $query->where('maquina_id', $maquinaId))
             ->get();
 
-        return $sessoes->map(function (SessaoTrabalho $sessao) use ($janelas, $tempoTurnoSegundos, $agora) {
-            $trabalhadoSegundos = 0;
-            $pausasPorMotivo    = [];
+        return $sessoes->map(function (SessaoTrabalho $sessao) use ($turnoDoDia, $data, $agora) {
+            $janelas            = $this->janelasParaSessao($turnoDoDia, $sessao, $data);
+            $diaFim             = $janelas[array_key_last($janelas)]['fim'];
+            $tempoTurnoSegundos = $this->calculo->somaDuracaoJanelas($janelas);
+            $janelaExtra        = $this->calculo->janelaHoraExtra($diaFim, $data);
+
+            $trabalhadoSegundos      = 0;
+            $trabalhadoExtraSegundos = 0;
+            $pausaExtraSegundos      = 0;
+            $pausasPorMotivo         = [];
+
+            $somarPausas = function (array $pausas) use (&$pausasPorMotivo) {
+                foreach ($pausas as $motivo => $segundos) {
+                    $pausasPorMotivo[$motivo] = ($pausasPorMotivo[$motivo] ?? 0) + $segundos;
+                }
+            };
 
             foreach ($sessao->apontamentos as $apontamento) {
                 foreach (['setup', 'producao'] as $fase) {
                     [$trabalhado, $pausas] = $this->calculo->calcularFaseNoDia($apontamento, $fase, $janelas, $agora);
 
                     $trabalhadoSegundos += $trabalhado;
+                    $somarPausas($pausas);
 
-                    foreach ($pausas as $motivo => $segundos) {
-                        $pausasPorMotivo[$motivo] = ($pausasPorMotivo[$motivo] ?? 0) + $segundos;
+                    // Hora extra: apontamento além do hora_fim do turno, até 19h —
+                    // só entra se realmente houve atividade nessa janela (nunca
+                    // fabrica ocioso/turno para o período sem apontamento).
+                    if ($janelaExtra) {
+                        [$trabalhadoExtra, $pausasExtra] = $this->calculo->calcularFaseNoDia($apontamento, $fase, [$janelaExtra], $agora);
+
+                        $trabalhadoExtraSegundos += $trabalhadoExtra;
+                        $pausaExtraSegundos      += array_sum($pausasExtra);
+                        $somarPausas($pausasExtra);
                     }
                 }
 
@@ -98,18 +119,31 @@ class RelatorioProducaoService
                 // nessa fase entram no total de pausa (o restante vira ocioso).
                 $pausasAguardando = $apontamento->pausas->where('fase', 'aguardando');
 
-                foreach ($this->calculo->calcularPausasAvulsas($pausasAguardando, $janelas, $agora) as $motivo => $segundos) {
-                    $pausasPorMotivo[$motivo] = ($pausasPorMotivo[$motivo] ?? 0) + $segundos;
+                $somarPausas($this->calculo->calcularPausasAvulsas($pausasAguardando, $janelas, $agora));
+
+                if ($janelaExtra) {
+                    $pausasAguardandoExtra = $this->calculo->calcularPausasAvulsas($pausasAguardando, [$janelaExtra], $agora);
+                    $pausaExtraSegundos   += array_sum($pausasAguardandoExtra);
+                    $somarPausas($pausasAguardandoExtra);
                 }
             }
 
             // Pausas ociosas: sessão pausada sem nenhum apontamento em andamento.
-            foreach ($this->calculo->calcularPausasAvulsas($sessao->pausasOciosas, $janelas, $agora) as $motivo => $segundos) {
-                $pausasPorMotivo[$motivo] = ($pausasPorMotivo[$motivo] ?? 0) + $segundos;
+            $somarPausas($this->calculo->calcularPausasAvulsas($sessao->pausasOciosas, $janelas, $agora));
+
+            if ($janelaExtra) {
+                $pausasOciosasExtra = $this->calculo->calcularPausasAvulsas($sessao->pausasOciosas, [$janelaExtra], $agora);
+                $pausaExtraSegundos += array_sum($pausasOciosasExtra);
+                $somarPausas($pausasOciosasExtra);
             }
 
-            $pausaSegundos  = array_sum($pausasPorMotivo);
-            $ociosoSegundos = max(0, $tempoTurnoSegundos - $trabalhadoSegundos - $pausaSegundos);
+            // tempo_turno_segundos só cresce pelo tanto de hora extra realmente
+            // trabalhada/pausada — se não houve atividade após o hora_fim, os
+            // três valores abaixo ficam idênticos ao cálculo sem hora extra.
+            $pausaSegundos      = array_sum($pausasPorMotivo);
+            $tempoTurnoComExtra = $tempoTurnoSegundos + $trabalhadoExtraSegundos + $pausaExtraSegundos;
+            $trabalhadoComExtra = $trabalhadoSegundos + $trabalhadoExtraSegundos;
+            $ociosoSegundos     = max(0, $tempoTurnoComExtra - $trabalhadoComExtra - $pausaSegundos);
 
             return [
                 'sessao_id'                 => $sessao->id,
@@ -117,13 +151,14 @@ class RelatorioProducaoService
                 'operario'                  => $sessao->operario?->user?->name,
                 'maquina_id'                => $sessao->maquina_id,
                 'maquina'                   => $sessao->maquina?->nome,
-                'tempo_turno_segundos'      => $tempoTurnoSegundos,
-                'tempo_trabalhado_segundos' => $trabalhadoSegundos,
+                'tempo_turno_segundos'      => $tempoTurnoComExtra,
+                'tempo_trabalhado_segundos' => $trabalhadoComExtra,
+                'tempo_extra_segundos'      => $trabalhadoExtraSegundos,
                 'tempo_pausa_segundos'      => $pausaSegundos,
                 'tempo_ocioso_segundos'     => $ociosoSegundos,
                 'pausas_por_motivo'         => $pausasPorMotivo,
-                'percentual_produtivo'      => $tempoTurnoSegundos > 0
-                    ? round($trabalhadoSegundos / $tempoTurnoSegundos * 100, 1)
+                'percentual_produtivo'      => $tempoTurnoComExtra > 0
+                    ? round($trabalhadoComExtra / $tempoTurnoComExtra * 100, 1)
                     : 0.0,
             ];
         })->values()->all();
@@ -138,10 +173,11 @@ class RelatorioProducaoService
      * semana ter turno ativo configurado. Isso evita que feriados caídos em
      * dia de semana normalmente ativo inflem o tempo de turno sem nenhuma
      * produção real, e permite que sábados/domingos com serviço avulso
-     * apareçam no relatório mesmo sem turno cadastrado (usando, nesse caso,
-     * a janela de fallback de TurnoCalculoService::turnoFallback()). Cada
-     * máquina conta seus próprios dias com movimentação de forma
-     * independente das demais.
+     * apareçam no relatório mesmo sem turno cadastrado — nesse caso, cada
+     * sessão usa a janela informada pelo próprio operário ao iniciá-la, ou a
+     * janela de fallback fixa 06:00-12:00 para sessões antigas sem essa
+     * informação (ver janelasParaSessao()). Cada máquina conta seus próprios
+     * dias com movimentação de forma independente das demais.
      *
      * @return array{maquinas: array<int, array<string, mixed>>, totais: array<string, mixed>, dias_considerados: int}
      */
@@ -190,6 +226,7 @@ class RelatorioProducaoService
                 'tempo_turno_segundos'    => 0,
                 'tempo_setup_segundos'    => 0,
                 'tempo_producao_segundos' => 0,
+                'tempo_extra_segundos'    => 0,
                 'qtd_pecas'               => 0,
                 'dias_com_movimentacao'   => 0,
             ];
@@ -202,11 +239,21 @@ class RelatorioProducaoService
             $inicioDia = $cursor->copy()->startOfDay();
             $fimDia    = $cursor->copy()->endOfDay();
 
-            $turno              = Turno::doDia($cursor->dayOfWeekIso, $cursor) ?? $this->calculo->turnoFallback();
-            $janelas            = $this->calculo->janelasUteis($turno, $cursor);
-            $diaInicio          = $janelas[0]['inicio'];
-            $diaFimDia          = $janelas[array_key_last($janelas)]['fim'];
-            $tempoTurnoSegundos = $this->calculo->somaDuracaoJanelas($janelas);
+            $turnoDoDia = Turno::doDia($cursor->dayOfWeekIso, $cursor);
+
+            // Turno cadastrado: janela única, compartilhada por todas as sessões
+            // do dia — tempo_turno_segundos é somado uma única vez por máquina
+            // (nunca por sessão, senão duplicaria em dias com 2+ sessões).
+            $janelasCompartilhadas = null;
+            $janelaExtraCompartilhada = null;
+            $tempoTurnoCompartilhado = 0;
+
+            if ($turnoDoDia) {
+                $janelasCompartilhadas    = $this->calculo->janelasUteis($turnoDoDia, $cursor);
+                $diaFimCompartilhado      = $janelasCompartilhadas[array_key_last($janelasCompartilhadas)]['fim'];
+                $tempoTurnoCompartilhado  = $this->calculo->somaDuracaoJanelas($janelasCompartilhadas);
+                $janelaExtraCompartilhada = $this->calculo->janelaHoraExtra($diaFimCompartilhado, $cursor);
+            }
 
             foreach ($maquinas as $maquina) {
                 /** @var Collection<int, SessaoTrabalho> $sessoes */
@@ -218,23 +265,48 @@ class RelatorioProducaoService
 
                 $diasComMovimentoNoPeriodo[$cursor->toDateString()] = true;
                 $acumulado[$maquina->id]['dias_com_movimentacao']++;
-                $acumulado[$maquina->id]['tempo_turno_segundos'] += $tempoTurnoSegundos;
 
-                foreach ($sessoes as $sessao) {
-                    foreach ($sessao->apontamentos as $apontamento) {
-                        foreach (['setup', 'producao'] as $fase) {
-                            [$trabalhado] = $this->calculo->calcularFaseNoDia($apontamento, $fase, $janelas, $agora);
+                if ($turnoDoDia) {
+                    $trabalhadoExtraMaquina = 0;
 
-                            $chave = $fase === 'setup' ? 'tempo_setup_segundos' : 'tempo_producao_segundos';
-                            $acumulado[$maquina->id][$chave] += $trabalhado;
-                        }
-
-                        foreach ($apontamento->fichas as $ficha) {
-                            if ($ficha->bipada_at && $ficha->bipada_at->between($diaInicio, $diaFimDia)) {
-                                $acumulado[$maquina->id]['qtd_pecas'] += $ficha->qtd_peca;
-                            }
-                        }
+                    foreach ($sessoes as $sessao) {
+                        $trabalhadoExtraMaquina += $this->acumularSessaoNoDia(
+                            $acumulado,
+                            $maquina->id,
+                            $sessao,
+                            $janelasCompartilhadas,
+                            $janelaExtraCompartilhada,
+                            $agora,
+                        );
                     }
+
+                    $acumulado[$maquina->id]['tempo_turno_segundos'] += $tempoTurnoCompartilhado + $trabalhadoExtraMaquina;
+                    $acumulado[$maquina->id]['tempo_extra_segundos'] += $trabalhadoExtraMaquina;
+
+                    continue;
+                }
+
+                // Sem turno cadastrado (fim de semana): cada sessão define sua
+                // própria janela (turno informado pelo operário ou fallback) —
+                // somada de forma independente por sessão, já que 2 sessões no
+                // mesmo dia/máquina podem ter janelas distintas.
+                foreach ($sessoes as $sessao) {
+                    $janelasSessao   = $this->janelasParaSessao(null, $sessao, $cursor);
+                    $diaFimSessao    = $janelasSessao[array_key_last($janelasSessao)]['fim'];
+                    $tempoTurnoSessao = $this->calculo->somaDuracaoJanelas($janelasSessao);
+                    $janelaExtraSessao = $this->calculo->janelaHoraExtra($diaFimSessao, $cursor);
+
+                    $trabalhadoExtraSessao = $this->acumularSessaoNoDia(
+                        $acumulado,
+                        $maquina->id,
+                        $sessao,
+                        $janelasSessao,
+                        $janelaExtraSessao,
+                        $agora,
+                    );
+
+                    $acumulado[$maquina->id]['tempo_turno_segundos'] += $tempoTurnoSessao + $trabalhadoExtraSessao;
+                    $acumulado[$maquina->id]['tempo_extra_segundos'] += $trabalhadoExtraSessao;
                 }
             }
 
@@ -258,6 +330,7 @@ class RelatorioProducaoService
                 'tempo_setup_segundos'    => $tempoSetup,
                 'tempo_producao_segundos' => $tempoProducao,
                 'tempo_parado_segundos'   => $tempoParado,
+                'tempo_extra_segundos'    => $dados['tempo_extra_segundos'],
                 'qtd_pecas'               => $dados['qtd_pecas'],
                 'dias_com_movimentacao'   => $dados['dias_com_movimentacao'],
                 'percentual_utilizacao'   => $tempoTurno > 0
@@ -269,6 +342,7 @@ class RelatorioProducaoService
             $totais['tempo_setup_segundos']    += $tempoSetup;
             $totais['tempo_producao_segundos'] += $tempoProducao;
             $totais['tempo_parado_segundos']   += $tempoParado;
+            $totais['tempo_extra_segundos']    += $dados['tempo_extra_segundos'];
             $totais['qtd_pecas']               += $dados['qtd_pecas'];
         }
 
@@ -329,8 +403,82 @@ class RelatorioProducaoService
             'tempo_setup_segundos'    => 0,
             'tempo_producao_segundos' => 0,
             'tempo_parado_segundos'   => 0,
+            'tempo_extra_segundos'    => 0,
             'qtd_pecas'               => 0,
         ];
+    }
+
+    /**
+     * Janela útil a considerar para uma sessão no dia informado:
+     * - turno cadastrado para o dia da semana → mesma janela para todas as
+     *   sessões desse dia;
+     * - sem turno cadastrado, sessão com turno informado pelo próprio
+     *   operário ao iniciá-la (fim de semana avulso) → janela definida por
+     *   ele para aquela máquina/sessão;
+     * - sem turno cadastrado e sem turno informado (sessões antigas,
+     *   anteriores a este recurso) → janela de fallback fixa 06:00-12:00.
+     *
+     * @return array<int, array{inicio: Carbon, fim: Carbon}>
+     */
+    private function janelasParaSessao(?Turno $turnoDoDia, SessaoTrabalho $sessao, Carbon $data): array
+    {
+        if ($turnoDoDia) {
+            return $this->calculo->janelasUteis($turnoDoDia, $data);
+        }
+
+        if ($sessao->turno_informado_inicio && $sessao->turno_informado_fim) {
+            return $this->calculo->janelasInformadas($sessao->turno_informado_inicio, $sessao->turno_informado_fim, $data);
+        }
+
+        return $this->calculo->janelasUteis($this->calculo->turnoFallback(), $data);
+    }
+
+    /**
+     * Acumula, em $acumulado[$maquinaId], o tempo de setup/produção (dentro
+     * da janela e da janela de hora extra) e a quantidade de peças de uma
+     * sessão específica — usado tanto no caminho de turno compartilhado
+     * quanto no de janela por sessão em relatorioMaquinasPorPeriodo().
+     *
+     * @param  array<int, array<string, mixed>>  $acumulado
+     * @param  array<int, array{inicio: Carbon, fim: Carbon}>  $janelas
+     * @param  array{inicio: Carbon, fim: Carbon}|null  $janelaExtra
+     * @return int Segundos trabalhados dentro da janela de hora extra.
+     */
+    private function acumularSessaoNoDia(array &$acumulado, int $maquinaId, SessaoTrabalho $sessao, array $janelas, ?array $janelaExtra, Carbon $agora): int
+    {
+        $diaInicio       = $janelas[0]['inicio'];
+        $diaFim          = $janelas[array_key_last($janelas)]['fim'];
+        $trabalhadoExtra = 0;
+
+        foreach ($sessao->apontamentos as $apontamento) {
+            foreach (['setup', 'producao'] as $fase) {
+                [$trabalhado] = $this->calculo->calcularFaseNoDia($apontamento, $fase, $janelas, $agora);
+
+                $chave = $fase === 'setup' ? 'tempo_setup_segundos' : 'tempo_producao_segundos';
+                $acumulado[$maquinaId][$chave] += $trabalhado;
+
+                if ($janelaExtra) {
+                    [$extra] = $this->calculo->calcularFaseNoDia($apontamento, $fase, [$janelaExtra], $agora);
+                    $acumulado[$maquinaId][$chave] += $extra;
+                    $trabalhadoExtra                += $extra;
+                }
+            }
+
+            foreach ($apontamento->fichas as $ficha) {
+                if (! $ficha->bipada_at) {
+                    continue;
+                }
+
+                $noDiaBase  = $ficha->bipada_at->between($diaInicio, $diaFim);
+                $noDiaExtra = $janelaExtra && $ficha->bipada_at->between($janelaExtra['inicio'], $janelaExtra['fim']);
+
+                if ($noDiaBase || $noDiaExtra) {
+                    $acumulado[$maquinaId]['qtd_pecas'] += $ficha->qtd_peca;
+                }
+            }
+        }
+
+        return $trabalhadoExtra;
     }
 
 }

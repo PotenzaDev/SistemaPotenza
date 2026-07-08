@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { Loader2, MonitorSmartphone, ImageIcon, RotateCcw } from 'lucide-react'
 import { getMaquinasDisponiveis, type Maquina } from '@/api/maquinas'
-import { iniciarSessao, getSessaoAtiva, getSessoesPausadas, type SessaoPausada } from '@/api/sessao'
+import { iniciarSessao, getSessaoAtiva, getSessoesPausadas, getTurnoHoje, type SessaoPausada, type TurnoHoje } from '@/api/sessao'
 import { ConfirmarMaquinaModal } from '@/components/ConfirmarMaquinaModal'
 import { EscolherSessaoModal } from '@/components/EscolherSessaoModal'
+import { InformarTurnoModal } from '@/components/InformarTurnoModal'
 import { useAuth } from '@/hooks/useAuth'
 
 export function MaquinasDisponiveisPage() {
@@ -14,6 +15,7 @@ export function MaquinasDisponiveisPage() {
   const [maquinas, setMaquinas] = useState<Maquina[]>([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState<string | null>(null)
+  const [turnoHoje, setTurnoHoje] = useState<TurnoHoje | null>(null)
 
   const [selecionada, setSelecionada]   = useState<Maquina | null>(null)
   const [confirmando, setConfirmando]   = useState(false)
@@ -23,6 +25,9 @@ export function MaquinasDisponiveisPage() {
   const [carregandoPausadas, setCarregandoPausadas] = useState(false)
   const [retomandoId, setRetomandoId]               = useState<number | null>(null)
   const [iniciandoNova, setIniciandoNova]           = useState(false)
+
+  const [informandoTurno, setInformandoTurno]   = useState<Maquina | null>(null)
+  const [confirmandoTurno, setConfirmandoTurno] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -37,8 +42,13 @@ export function MaquinasDisponiveisPage() {
           navigate('/operario/apontamento', { replace: true })
           return
         }
-        return getMaquinasDisponiveis(controller.signal).then(lista => {
-          if (!controller.signal.aborted) setMaquinas(lista)
+        return Promise.all([
+          getMaquinasDisponiveis(controller.signal),
+          getTurnoHoje(),
+        ]).then(([lista, turno]) => {
+          if (controller.signal.aborted) return
+          setMaquinas(lista)
+          setTurnoHoje(turno)
         })
       })
       .catch((err: unknown) => {
@@ -55,12 +65,30 @@ export function MaquinasDisponiveisPage() {
 
   async function handleConfirmar() {
     if (!selecionada) return
+
+    if (!turnoHoje) {
+      setInformandoTurno(selecionada)
+      setSelecionada(null)
+      return
+    }
+
     setConfirmando(true)
     try {
       await iniciarSessao(selecionada.id)
       navigate('/operario/apontamento')
     } catch {
       setConfirmando(false)
+    }
+  }
+
+  async function handleConfirmarTurnoInformado(inicio: string, fim: string) {
+    if (!informandoTurno) return
+    setConfirmandoTurno(true)
+    try {
+      await iniciarSessao(informandoTurno.id, undefined, inicio, fim)
+      navigate('/operario/apontamento')
+    } catch {
+      setConfirmandoTurno(false)
     }
   }
 
@@ -100,6 +128,14 @@ export function MaquinasDisponiveisPage() {
 
   async function handleIniciarNovaNaEscolha() {
     if (!escolhendo) return
+
+    if (!turnoHoje) {
+      setInformandoTurno(escolhendo)
+      setEscolhendo(null)
+      setSessoesPausadas([])
+      return
+    }
+
     setIniciandoNova(true)
     try {
       await iniciarSessao(escolhendo.id)
@@ -172,6 +208,13 @@ export function MaquinasDisponiveisPage() {
         onClose={handleFecharEscolha}
         onRetomar={handleRetomar}
         onIniciarNova={handleIniciarNovaNaEscolha}
+      />
+
+      <InformarTurnoModal
+        maquina={informandoTurno}
+        loading={confirmandoTurno}
+        onClose={() => { if (!confirmandoTurno) setInformandoTurno(null) }}
+        onConfirm={handleConfirmarTurnoInformado}
       />
     </div>
   )

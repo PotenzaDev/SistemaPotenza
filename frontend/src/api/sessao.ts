@@ -22,10 +22,17 @@ export interface Sessao {
   pausa_ociosa: PausaOciosa | null
 }
 
-export async function iniciarSessao(maquinaId: number, sessaoPausadaId?: number): Promise<Sessao> {
+export async function iniciarSessao(
+  maquinaId: number,
+  sessaoPausadaId?: number,
+  turnoInformadoInicio?: string,
+  turnoInformadoFim?: string,
+): Promise<Sessao> {
   const res = await apiClient.post<ApiEnvelope<Sessao>>('/sessao/iniciar', {
     maquina_id: maquinaId,
     sessao_pausada_id: sessaoPausadaId,
+    turno_informado_inicio: turnoInformadoInicio,
+    turno_informado_fim: turnoInformadoFim,
   })
   return res.data.data
 }

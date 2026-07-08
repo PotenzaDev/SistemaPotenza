@@ -96,7 +96,7 @@ class RelatorioTurnoTest extends TestCase
             'setup_duracao_segundos' => 7200,
         ]);
 
-        $fimTurno = MotivoPausa::where('is_sistema', true)->firstOrFail();
+        $fimTurno = MotivoPausa::where('nome', 'Fim de Turno')->where('is_sistema', true)->firstOrFail();
 
         Pausa::create([
             'apontamento_id'   => $apontamento->id,
@@ -294,6 +294,101 @@ class RelatorioTurnoTest extends TestCase
         // Janela de fallback 06:00-12:00 (6h) — sem turno cadastrado para sábado.
         $this->assertSame(21600, $relatorio[0]['tempo_turno_segundos']);
         $this->assertSame(9000, $relatorio[0]['tempo_trabalhado_segundos']); // 1800 + 7200
+    }
+
+    public function test_apontamento_apos_hora_fim_conta_como_hora_extra_ate_19h(): void
+    {
+        $segunda = Carbon::parse('2026-06-08 00:00:00'); // segunda-feira, turno 08:00-17:00
+
+        [$operario, , $sessao] = $this->criarSessao($segunda->copy()->setTime(7, 30));
+
+        Apontamento::create([
+            'sessao_trabalho_id'        => $sessao->id,
+            'etapa_fluxo_id'            => $sessao->maquina->etapa_fluxo_id,
+            'cod_peca'                  => '9990001',
+            'ordem_lote'                => '00009',
+            'desc_peca'                 => 'Peça Hora Extra',
+            'cod_produto'               => 'PROD-0009',
+            'qtde_total'                => 10,
+            'status'                    => Apontamento::STATUS_FINALIZADO,
+            'producao_inicio'           => $segunda->copy()->setTime(16, 0),
+            'producao_fim'              => $segunda->copy()->setTime(18, 0),
+            'producao_duracao_segundos' => 7200,
+        ]);
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioPorDia($segunda, $operario->id);
+
+        $this->assertCount(1, $relatorio);
+        $linha = $relatorio[0];
+
+        // 1h dentro do turno normal (16h-17h) + 1h de hora extra (17h-18h).
+        $this->assertSame(3600, $linha['tempo_extra_segundos']);
+        $this->assertSame(7200, $linha['tempo_trabalhado_segundos']);
+        // tempo_turno_segundos cresce exatamente pela hora extra trabalhada (32400 + 3600).
+        $this->assertSame(36000, $linha['tempo_turno_segundos']);
+        // Ocioso seria 28800 sem hora extra (32400 - 3600) — permanece igual, pois o
+        // acréscimo de hora extra cancela entre turno e trabalhado.
+        $this->assertSame(28800, $linha['tempo_ocioso_segundos']);
+    }
+
+    public function test_ocioso_apos_hora_fim_sem_apontamento_nao_e_contabilizado(): void
+    {
+        $segunda = Carbon::parse('2026-06-08 00:00:00'); // segunda-feira, turno 08:00-17:00
+
+        [$operario] = $this->criarSessao($segunda->copy()->setTime(8, 0));
+
+        Carbon::setTestNow($segunda->copy()->setTime(19, 30));
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioPorDia($segunda, $operario->id);
+
+        $this->assertCount(1, $relatorio);
+        $linha = $relatorio[0];
+
+        // Sem nenhum apontamento após o hora_fim, a janela 17h-19h não é
+        // contabilizada — turno e ocioso ficam idênticos ao caso sem hora extra.
+        $this->assertSame(0, $linha['tempo_extra_segundos']);
+        $this->assertSame(32400, $linha['tempo_turno_segundos']);
+        $this->assertSame(32400, $linha['tempo_ocioso_segundos']);
+    }
+
+    public function test_sabado_com_turno_informado_pelo_operario_usa_essa_janela_no_relatorio(): void
+    {
+        $sabado = Carbon::parse('2026-06-13 00:00:00'); // seeder não cadastra sábado
+
+        $etapa    = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+        $user     = User::factory()->operario()->create();
+        $operario = Operario::factory()->create(['user_id' => $user->id]);
+        $sessao   = SessaoTrabalho::factory()->create([
+            'operario_id'            => $operario->id,
+            'maquina_id'             => $maquina->id,
+            'inicio'                 => $sabado->copy()->setTime(14, 0),
+            'fim'                    => null,
+            'turno_informado_inicio' => '14:00:00',
+            'turno_informado_fim'    => '18:00:00',
+        ]);
+
+        Apontamento::create([
+            'sessao_trabalho_id'        => $sessao->id,
+            'etapa_fluxo_id'            => $etapa->id,
+            'cod_peca'                  => '5556667',
+            'ordem_lote'                => '00005',
+            'desc_peca'                 => 'Peça Turno Informado',
+            'cod_produto'               => 'PROD-0005',
+            'qtde_total'                => 10,
+            'status'                    => Apontamento::STATUS_FINALIZADO,
+            'producao_inicio'           => $sabado->copy()->setTime(14, 0),
+            'producao_fim'              => $sabado->copy()->setTime(17, 0),
+            'producao_duracao_segundos' => 10800,
+        ]);
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioPorDia($sabado, $operario->id);
+
+        $this->assertCount(1, $relatorio);
+        // Janela informada 14:00-18:00 (4h) — não a de fallback 06:00-12:00.
+        $this->assertSame(14400, $relatorio[0]['tempo_turno_segundos']);
+        $this->assertSame(10800, $relatorio[0]['tempo_trabalhado_segundos']);
+        $this->assertSame(3600, $relatorio[0]['tempo_ocioso_segundos']);
     }
 
     public function test_sabado_sem_turno_configurado_e_sem_movimentacao_retorna_vazio(): void

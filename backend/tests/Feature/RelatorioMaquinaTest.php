@@ -184,6 +184,46 @@ class RelatorioMaquinaTest extends TestCase
         $this->assertSame(7200, $linha['tempo_producao_segundos']);
     }
 
+    public function test_relatorio_usa_turno_informado_pelo_operario_em_vez_do_fallback(): void
+    {
+        $sabado = Carbon::parse('2026-06-13 00:00:00'); // seeder não cadastra sábado
+
+        $etapa    = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+        $user     = User::factory()->operario()->create();
+        $operario = Operario::factory()->create(['user_id' => $user->id]);
+        $sessao   = SessaoTrabalho::factory()->create([
+            'operario_id'            => $operario->id,
+            'maquina_id'             => $maquina->id,
+            'inicio'                 => $sabado->copy()->setTime(14, 0),
+            'fim'                    => null,
+            'turno_informado_inicio' => '14:00:00',
+            'turno_informado_fim'    => '18:00:00',
+        ]);
+
+        Apontamento::create([
+            'sessao_trabalho_id'        => $sessao->id,
+            'etapa_fluxo_id'            => $etapa->id,
+            'cod_peca'                  => '7778889',
+            'ordem_lote'                => '00006',
+            'desc_peca'                 => 'Peça Turno Informado',
+            'cod_produto'               => 'PROD-0006',
+            'qtde_total'                => 10,
+            'status'                    => Apontamento::STATUS_FINALIZADO,
+            'producao_inicio'           => $sabado->copy()->setTime(14, 0),
+            'producao_fim'              => $sabado->copy()->setTime(17, 0),
+            'producao_duracao_segundos' => 10800,
+        ]);
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioMaquinasPorPeriodo($sabado, $sabado);
+
+        $this->assertSame(1, $relatorio['dias_considerados']);
+        $linha = $relatorio['maquinas'][0];
+        // Janela informada 14:00-18:00 (4h) — não a de fallback 06:00-12:00.
+        $this->assertSame(14400, $linha['tempo_turno_segundos']);
+        $this->assertSame(10800, $linha['tempo_producao_segundos']);
+    }
+
     public function test_relatorio_exclui_dia_de_semana_com_turno_ativo_mas_sem_movimentacao(): void
     {
         $segunda = Carbon::parse('2026-06-08 00:00:00'); // turno ativo 08:00-17:00, feriado sem apontamentos

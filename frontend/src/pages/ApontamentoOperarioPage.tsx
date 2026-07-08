@@ -4,6 +4,7 @@ import {
   Loader2, LogOut, CheckCircle2, RotateCcw,
   AlertCircle, Cpu, ScanLine, Settings, Play,
   Timer, PackageCheck, QrCode, Flag, Pause, Bell, Ban,
+  ClipboardList,
 } from 'lucide-react'
 import { getSessaoAtiva, getTurnoHoje, encerrarSessao, encerrarTurno, pausarSessao, pausarSessaoOciosa, retomarSessaoOciosa, cancelarSessao, type Sessao, type TurnoHoje } from '@/api/sessao'
 import {
@@ -15,6 +16,7 @@ import {
   finalizarApontamento,
   getFichasRecentes,
   getFichasPorCor,
+  getFichaSetup,
   pausarApontamento,
   retomarApontamento,
   pausarSistemaBeacon,
@@ -22,6 +24,7 @@ import {
   type FichaApontamento,
   type ResumoFichasPorCor,
 } from '@/api/apontamento'
+import type { FichaCabecote } from '@/api/fichasCabecote'
 import { getMotivosAtivos, type MotivoPausa } from '@/api/motivosPausa'
 import { chamarSuporte } from '@/api/suporte'
 import { FichasRecentes } from '@/components/FichasRecentes'
@@ -30,6 +33,7 @@ import { BarcodeInline } from '@/components/apontamento/BarcodeInline'
 import { BotaoPausar } from '@/components/apontamento/BotaoPausar'
 import { FaseTimer } from '@/components/apontamento/FaseTimer'
 import { FichasDoLote } from '@/components/apontamento/FichasDoLote'
+import { FichaSetupPanel } from '@/components/apontamento/FichaSetupPanel'
 import { InfoCard } from '@/components/apontamento/InfoCard'
 import { MotivoPausaModal } from '@/components/apontamento/MotivoPausaModal'
 import { PausadoPanel } from '@/components/apontamento/PausadoPanel'
@@ -47,6 +51,8 @@ export function ApontamentoOperarioPage() {
   const [fase, setFase]                     = useState<Fase>('aguardando')
   const [fichasRecentes, setFichasRecentes] = useState<FichaApontamento[]>([])
   const [resumoPorCor, setResumoPorCor]     = useState<ResumoFichasPorCor[]>([])
+  const [fichaSetup, setFichaSetup]         = useState<FichaCabecote | null>(null)
+  const [abaSetup, setAbaSetup]             = useState<'setup' | 'ficha_setup'>('setup')
   const [motivosPausa, setMotivosPausa]     = useState<MotivoPausa[]>([])
   const [loadingInicial, setLoadingInicial] = useState(true)
   const [encerrando, setEncerrando]               = useState(false)
@@ -156,6 +162,22 @@ export function ApontamentoOperarioPage() {
 
     return () => { ativo = false }
   }, [apontamento?.id, apontamento?.fichas.length, fase])
+
+  useEffect(() => {
+    if (!apontamento || fase !== 'em_setup') {
+      setFichaSetup(null)
+      setAbaSetup('setup')
+      return
+    }
+
+    let ativo = true
+
+    getFichaSetup(apontamento.id).then(ficha => {
+      if (ativo) setFichaSetup(ficha)
+    })
+
+    return () => { ativo = false }
+  }, [apontamento?.id, fase])
 
   useEffect(() => {
     if (!apontamento || (fase !== 'em_setup' && fase !== 'em_producao')) return
@@ -592,22 +614,54 @@ export function ApontamentoOperarioPage() {
               </p>
             </div>
           )}
-          <FaseTimer
-            titulo="Setup em andamento"
-            subtitulo="Configure a máquina para iniciar a produção"
-            icone={<Settings className="w-5 h-5 text-amber-400" />}
-            corIcone="bg-amber-500/10"
-            timer={timerSetup}
-            corTimer="text-amber-400"
-            produto={apontamento.desc_peca}
-            codPeca={apontamento.cod_peca}
-            ordemLote={apontamento.ordem_lote}
-            qtdeTotal={apontamento.qtde_total}
-            botaoLabel="Finalizar Setup"
-            botaoIcone={<Play className="w-4 h-4" />}
-            loading={atualizando}
-            onAcao={handleFinalizarSetup}
-          />
+          {fichaSetup && (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAbaSetup('setup')}
+                className={`flex items-center justify-center gap-2 h-16 rounded-xl text-sm font-semibold transition-colors ${
+                  abaSetup === 'setup'
+                    ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+                    : 'bg-white/5 border border-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                <Settings className="w-4 h-4" />
+                Setup
+              </button>
+              <button
+                type="button"
+                onClick={() => setAbaSetup('ficha_setup')}
+                className={`flex items-center justify-center gap-2 h-16 rounded-xl text-sm font-semibold transition-colors ${
+                  abaSetup === 'ficha_setup'
+                    ? 'bg-[#00aa84]/10 border border-[#00aa84]/30 text-[#00aa84]'
+                    : 'bg-white/5 border border-white/5 text-slate-400 hover:bg-white/10'
+                }`}
+              >
+                <ClipboardList className="w-4 h-4" />
+                Ficha de Setup
+              </button>
+            </div>
+          )}
+          {abaSetup === 'ficha_setup' && fichaSetup ? (
+            <FichaSetupPanel ficha={fichaSetup} />
+          ) : (
+            <FaseTimer
+              titulo="Setup em andamento"
+              subtitulo="Configure a máquina para iniciar a produção"
+              icone={<Settings className="w-5 h-5 text-amber-400" />}
+              corIcone="bg-amber-500/10"
+              timer={timerSetup}
+              corTimer="text-amber-400"
+              produto={apontamento.desc_peca}
+              codPeca={apontamento.cod_peca}
+              ordemLote={apontamento.ordem_lote}
+              qtdeTotal={apontamento.qtde_total}
+              botaoLabel="Finalizar Setup"
+              botaoIcone={<Play className="w-4 h-4" />}
+              loading={atualizando}
+              onAcao={handleFinalizarSetup}
+            />
+          )}
           <BotaoPausar
             label="Pausar Setup"
             disabled={atualizando}

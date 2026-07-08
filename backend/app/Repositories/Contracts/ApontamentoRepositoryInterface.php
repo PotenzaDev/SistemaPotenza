@@ -6,6 +6,7 @@ namespace App\Repositories\Contracts;
 
 use App\Models\Apontamento;
 use App\Models\SessaoTrabalho;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 
 interface ApontamentoRepositoryInterface
@@ -26,6 +27,17 @@ interface ApontamentoRepositoryInterface
      * operario_id, maquina_id, ordem_lote.
      */
     public function apontamentosDoDia(array $filtros = []): Collection;
+
+    /**
+     * Resolve o período (início/fim do dia calendário) a partir dos filtros
+     * data_inicio/data_fim (Y-m-d), ou de hoje quando nenhum for informado.
+     * Mesma normalização usada internamente por apontamentosDoDia() — exposta
+     * para que os chamadores filtrem dados relacionados (ex.: fichas) pela
+     * mesma janela usada para selecionar os apontamentos.
+     *
+     * @return array{inicio: Carbon, fim: Carbon}
+     */
+    public function resolverPeriodo(array $filtros = []): array;
 
     public function historicoPorOperario(int $operarioId): Collection;
 

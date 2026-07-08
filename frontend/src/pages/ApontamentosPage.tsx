@@ -4,7 +4,7 @@ import { ClipboardList, Loader2 } from 'lucide-react'
 import { getApontamentosDoDia, type ApontamentoDoDia, type ApontamentosDoDia, type ApontamentoFiltros } from '@/api/apontamentos'
 import { ApontamentosFiltro } from '@/components/ApontamentosFiltro'
 import { ApontamentoDetalheModal } from '@/components/ApontamentoDetalheModal'
-import { STATUS_LABEL, fmtDuracao, fmtHora } from '@/lib/apontamentoFormat'
+import { STATUS_LABEL, fmtDuracao, fmtHora, fmtData } from '@/lib/apontamentoFormat'
 import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
 
 function hoje(): string {
@@ -80,10 +80,28 @@ export function ApontamentosPage() {
       cellClassName: 'px-6 py-3',
     },
     {
+      key: 'dia_inicio',
+      header: 'Dia Início',
+      render: (a) => (
+        <div onClick={() => setSelecionado(a)} className="cursor-pointer">{fmtData(a.setup_inicio)}</div>
+      ),
+      headerClassName: APONTAMENTO_HEADER_CLASS,
+      cellClassName: 'px-6 py-3 text-slate-300',
+    },
+    {
       key: 'setup_inicio',
       header: 'Início',
       render: (a) => (
         <div onClick={() => setSelecionado(a)} className="cursor-pointer">{fmtHora(a.setup_inicio)}</div>
+      ),
+      headerClassName: APONTAMENTO_HEADER_CLASS,
+      cellClassName: 'px-6 py-3 text-slate-300',
+    },
+    {
+      key: 'dia_fim',
+      header: 'Dia Fim',
+      render: (a) => (
+        <div onClick={() => setSelecionado(a)} className="cursor-pointer">{fmtData(a.producao_fim ?? a.setup_fim)}</div>
       ),
       headerClassName: APONTAMENTO_HEADER_CLASS,
       cellClassName: 'px-6 py-3 text-slate-300',
@@ -207,7 +225,7 @@ export function ApontamentosPage() {
             <table className="w-full text-sm">
               <tfoot>
                 <tr className="border-t border-white/10 bg-white/[0.02]">
-                  <td colSpan={5} className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Total do período</td>
+                  <td colSpan={7} className="px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Total do período</td>
                   <td className="px-6 py-3 text-right font-semibold text-white">{dados.totais.qtd_pecas}</td>
                   <td className="px-6 py-3 text-right font-semibold text-white">{dados.totais.qtd_pilhas}</td>
                   <td colSpan={4}></td>

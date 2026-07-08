@@ -15,6 +15,11 @@ export interface ProdutoPeca {
   ultima_ficha_cabecote?: { id: number; completa: boolean } | null
 }
 
+export interface ProdutoPecaComProduto extends ProdutoPeca {
+  produto_id: number
+  produto: { id: number; nome: string; cod_produto: string }
+}
+
 export interface Produto {
   id: number
   cod_produto: string
@@ -92,5 +97,16 @@ export async function buscarSubGruposErp(
 
 export async function importarProduto(payload: ImportarProdutoPayload): Promise<Produto> {
   const res = await apiClient.post<ApiEnvelope<Produto>>('/produtos/importar', payload)
+  return res.data.data
+}
+
+export async function buscarPecaPorCodigo(
+  codigo: string,
+  signal?: AbortSignal,
+): Promise<ProdutoPecaComProduto[]> {
+  const res = await apiClient.get<ApiEnvelope<ProdutoPecaComProduto[]>>('/produto-pecas/buscar-por-codigo', {
+    params: { codigo },
+    signal,
+  })
   return res.data.data
 }

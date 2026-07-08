@@ -44,7 +44,7 @@ export function ProdutoSemiAcabadosPage() {
     return () => controller.abort()
   }, [load])
 
-  const pecas = produto?.pecas ?? []
+  const pecas = useMemo(() => produto?.pecas ?? [], [produto])
 
   const executarImpressao = useCallback(async (chave: string, baixar: () => Promise<Blob>) => {
     setPrintError(null)

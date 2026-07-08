@@ -200,6 +200,27 @@ class ApontamentoController extends Controller
     }
 
     /**
+     * Ficha de setup (FichaCabecote) cadastrada para a peça deste apontamento,
+     * se houver. `data` vem null quando não há peça importada localmente ou
+     * quando não existe ficha cadastrada — não é uma condição de erro.
+     */
+    public function fichaSetup(Request $request, int $id): JsonResponse
+    {
+        $apontamento = $this->apontamentoRepo->buscarPorId($id);
+
+        if (! $apontamento) {
+            return $this->errorResponse('Apontamento não encontrado.', 404);
+        }
+
+        $this->authorize('view', $apontamento);
+
+        return $this->successResponse(
+            $this->apontamentoService->buscarFichaSetup($apontamento),
+            'Ficha de setup.'
+        );
+    }
+
+    /**
      * Apontamentos para visão gerencial — filtráveis por período, operário,
      * máquina e lote/ordem. Sem filtro de data, retorna os de hoje
      * (iniciados hoje ou ainda em aberto).

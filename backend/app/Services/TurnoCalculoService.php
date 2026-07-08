@@ -207,6 +207,51 @@ class TurnoCalculoService
         return $clipes;
     }
 
+    /**
+     * Janela útil "ad hoc" informada pelo próprio operário ao iniciar uma
+     * sessão em dia sem turno cadastrado (fim de semana) — mesmo formato de
+     * janelasUteis(), mas sem intervalo de almoço: só essa fatia [inicio,
+     * fim] conta como tempo de turno/ocioso para a sessão daquela máquina.
+     *
+     * @return array<int, array{inicio: Carbon, fim: Carbon}>
+     */
+    public function janelasInformadas(string $horaInicio, string $horaFim, Carbon $data): array
+    {
+        return [[
+            'inicio' => $data->copy()->setTimeFromTimeString($horaInicio),
+            'fim'    => $data->copy()->setTimeFromTimeString($horaFim),
+        ]];
+    }
+
+    /**
+     * Horário-limite até o qual apontamentos ainda são coletados para captar
+     * horas extras (fixo às 19h, independente do hora_fim do turno do dia).
+     */
+    public function limiteHoraExtra(Carbon $data): Carbon
+    {
+        return $data->copy()->setTime(19, 0, 0);
+    }
+
+    /**
+     * Janela de hora extra: do fim da janela normal do turno até o limite de
+     * 19h. Retorna null se o turno já termina às 19h ou depois (nada a
+     * estender). Não é somada a janelasUteis() — é calculada e aplicada à
+     * parte para nunca inflar tempo_turno_segundos/ocioso quando não houver
+     * atividade real nela (ver RelatorioProducaoService::relatorioPorDia).
+     *
+     * @return array{inicio: Carbon, fim: Carbon}|null
+     */
+    public function janelaHoraExtra(Carbon $fimJanelaNormal, Carbon $data): ?array
+    {
+        $limite = $this->limiteHoraExtra($data);
+
+        if ($fimJanelaNormal->greaterThanOrEqualTo($limite)) {
+            return null;
+        }
+
+        return ['inicio' => $fimJanelaNormal, 'fim' => $limite];
+    }
+
     /** @param array<int, array{inicio: Carbon, fim: Carbon}> $janelas */
     public function somaDuracaoJanelas(array $janelas): int
     {

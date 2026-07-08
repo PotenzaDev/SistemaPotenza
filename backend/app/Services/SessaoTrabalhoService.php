@@ -24,9 +24,13 @@ class SessaoTrabalhoService
         private readonly ApontamentoService                $apontamentoService,
     ) {}
 
-    public function iniciar(Operario $operario, int $maquinaId, ?int $sessaoPausadaId = null): SessaoTrabalho
+    public function iniciar(Operario $operario, int $maquinaId, ?int $sessaoPausadaId = null, ?string $horaInicioInformada = null, ?string $horaFimInformada = null): SessaoTrabalho
     {
-        if (! Turno::doDia(Carbon::now()->dayOfWeekIso)) {
+        $diaSemana   = Carbon::now()->dayOfWeekIso;
+        $turno       = Turno::doDia($diaSemana);
+        $fimDeSemana = in_array($diaSemana, [6, 7], true);
+
+        if (! $turno && ! $fimDeSemana) {
             throw new BusinessException('Nenhum turno configurado para hoje. Não é possível iniciar.', 422);
         }
 
@@ -48,9 +52,31 @@ class SessaoTrabalhoService
             return $this->sessaoRepo->reabrirSessao($sessaoInterrompida)->load(['maquina.etapaFluxo']);
         }
 
+        // Fim de semana sem turno cadastrado: o próprio operário informa o
+        // início e o fim do turno naquela máquina, usados pelos relatórios
+        // como janela útil do dia/sessão (ver TurnoCalculoService::janelasInformadas()).
+        if (! $turno) {
+            if (! $horaInicioInformada || ! $horaFimInformada) {
+                throw new BusinessException('Informe o horário de início e fim para trabalhar no fim de semana.', 422);
+            }
+
+            if ($horaInicioInformada >= '19:00') {
+                throw new BusinessException('Horário de início deve ser antes das 19:00.', 422);
+            }
+
+            if ($horaFimInformada <= $horaInicioInformada) {
+                throw new BusinessException('Horário de fim deve ser depois do início.', 422);
+            }
+        }
+
         $this->sessaoRepo->encerrarSessoesAtivas($operario);
 
-        $sessao = $this->sessaoRepo->criarSessao($operario->id, $maquinaId);
+        $sessao = $this->sessaoRepo->criarSessao(
+            $operario->id,
+            $maquinaId,
+            $turno ? null : $horaInicioInformada,
+            $turno ? null : $horaFimInformada,
+        );
 
         // Se há apontamento pausado na mesma máquina (de turno anterior), reatribui à nova sessão.
         $pendente = $this->apontamentoRepo->buscarApontamentoPendentePorMaquina($maquinaId, $operario->id);

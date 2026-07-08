@@ -1,10 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { Package, CheckCircle2, XCircle, Loader2, Plus, Trash2, Layers } from 'lucide-react'
-import { getProdutos, deleteProduto, type Produto } from '@/api/produtos'
+import { Package, CheckCircle2, XCircle, Loader2, Plus, Trash2, Layers, Search } from 'lucide-react'
+import {
+  getProdutos,
+  deleteProduto,
+  buscarPecaPorCodigo,
+  type Produto,
+  type ProdutoPecaComProduto,
+} from '@/api/produtos'
+import { baixarFichaCabecotePdf } from '@/api/fichasCabecote'
+import { abrirPdfEmNovaAba } from '@/lib/pdf'
 import { useAuth } from '@/hooks/useAuth'
 import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/ui/ResponsiveTable'
+import { ClearableInput } from '@/components/ui/ClearableInput'
+import { FichaEncontradaModal } from '@/components/FichaEncontradaModal'
+
+const MIN_DIGITOS_BUSCA = 5
+
+function apenasDigitos(valor: string): string {
+  return valor.replace(/\D/g, '').slice(0, 7)
+}
 
 type Filtro = 'todos' | 'ativos' | 'inativos'
 
@@ -51,6 +67,12 @@ export function ProdutosPage() {
   const [filtro, setFiltro]         = useState<Filtro>('ativos')
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
+  const [codigoBusca, setCodigoBusca] = useState('')
+  const [buscandoCodigo, setBuscandoCodigo] = useState(false)
+  const [erroBusca, setErroBusca] = useState<string | null>(null)
+  const [pecaComFichaEncontrada, setPecaComFichaEncontrada] = useState<ProdutoPecaComProduto | null>(null)
+  const [baixandoPdfBusca, setBaixandoPdfBusca] = useState(false)
+
   const canCreate = user?.role === 'admin' || user?.role === 'funcionario'
 
   const load = useCallback((signal?: AbortSignal) => {
@@ -91,6 +113,65 @@ export function ProdutosPage() {
     }
   }
 
+  const codigoDigitos = apenasDigitos(codigoBusca)
+  const codigoBuscaValido = codigoDigitos.length >= MIN_DIGITOS_BUSCA
+
+  async function handleBuscarCodigo() {
+    setErroBusca(null)
+    if (codigoDigitos.length < MIN_DIGITOS_BUSCA) {
+      setErroBusca(`Digite ao menos ${MIN_DIGITOS_BUSCA} dígitos do código.`)
+      return
+    }
+
+    setBuscandoCodigo(true)
+    try {
+      const candidatas = await buscarPecaPorCodigo(codigoDigitos)
+
+      if (candidatas.length === 0) {
+        setErroBusca('Nenhum semiacabado com esse código encontrado.')
+        return
+      }
+
+      const comFicha = candidatas.find(p => p.ultima_ficha_cabecote)
+      if (comFicha) {
+        setPecaComFichaEncontrada(comFicha)
+        return
+      }
+
+      const exata = candidatas.find(p => p.numero === Number(codigoDigitos))
+      const alvo = exata ?? candidatas[0]
+      setCodigoBusca('')
+      navigate(`/admin/produtos/${alvo.produto_id}/semi-acabados/${alvo.id}/fichas/nova`)
+    } catch {
+      setErroBusca('Não foi possível buscar o código.')
+    } finally {
+      setBuscandoCodigo(false)
+    }
+  }
+
+  async function handleVerPdfBusca() {
+    if (!pecaComFichaEncontrada?.ultima_ficha_cabecote) return
+    setBaixandoPdfBusca(true)
+    try {
+      const blob = await baixarFichaCabecotePdf(pecaComFichaEncontrada.ultima_ficha_cabecote.id)
+      abrirPdfEmNovaAba(blob)
+      setPecaComFichaEncontrada(null)
+      setCodigoBusca('')
+    } catch {
+      setErroBusca('Não foi possível gerar o PDF da ficha.')
+    } finally {
+      setBaixandoPdfBusca(false)
+    }
+  }
+
+  function handleModificarBusca() {
+    if (!pecaComFichaEncontrada?.ultima_ficha_cabecote) return
+    const { produto_id, id, ultima_ficha_cabecote } = pecaComFichaEncontrada
+    setPecaComFichaEncontrada(null)
+    setCodigoBusca('')
+    navigate(`/admin/produtos/${produto_id}/semi-acabados/${id}/fichas/${ultima_ficha_cabecote.id}/editar`)
+  }
+
   return (
     <div className="space-y-6">
 
@@ -114,6 +195,38 @@ export function ProdutosPage() {
             <Plus className="w-4 h-4" />
             Importar Produto
           </Link>
+        )}
+      </div>
+
+      {/* busca por código do semiacabado */}
+      <div className="bg-[#0f1923] border border-white/5 rounded-xl px-4 py-3 space-y-2">
+        <label className="block text-xs font-medium text-slate-400">
+          Buscar ficha pelo código do semiacabado
+        </label>
+        <div className="flex gap-2">
+          <ClearableInput
+            type="text"
+            inputMode="numeric"
+            value={codigoBusca}
+            onChange={v => { setCodigoBusca(v); setErroBusca(null) }}
+            onKeyDown={e => e.key === 'Enter' && codigoBuscaValido && !buscandoCodigo && void handleBuscarCodigo()}
+            autoComplete="off"
+            placeholder="Digite ou bipe o código"
+            wrapperClassName="flex-1 max-w-xs"
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/50 focus:ring-1 focus:ring-[#00aa84]/30 transition font-mono"
+          />
+          <button
+            type="button"
+            onClick={() => void handleBuscarCodigo()}
+            disabled={!codigoBuscaValido || buscandoCodigo}
+            className="px-4 py-2 text-sm font-semibold text-white bg-[#00aa84] hover:bg-[#009973] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
+          >
+            {buscandoCodigo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            Buscar
+          </button>
+        </div>
+        {erroBusca && (
+          <p className="text-xs text-red-400">{erroBusca}</p>
         )}
       </div>
 
@@ -189,6 +302,14 @@ export function ProdutosPage() {
           />
         )}
       </div>
+
+      <FichaEncontradaModal
+        peca={pecaComFichaEncontrada}
+        baixandoPdf={baixandoPdfBusca}
+        onClose={() => setPecaComFichaEncontrada(null)}
+        onVerPdf={() => void handleVerPdfBusca()}
+        onModificar={handleModificarBusca}
+      />
     </div>
   )
 }

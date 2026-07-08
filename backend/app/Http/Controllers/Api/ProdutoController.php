@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\Produto;
+use App\Models\ProdutoPeca;
 use App\Services\Produto\ProdutoImportServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -80,6 +81,32 @@ class ProdutoController extends Controller
         $subGrupos = $this->produtoImportService->buscarSubGruposNoErp($data['empresa']);
 
         return $this->successResponse($subGrupos);
+    }
+
+    public function buscarPecaPorCodigo(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'codigo' => ['required', 'string'],
+        ]);
+
+        // Só os 5 primeiros dígitos identificam o formato/peça; os 2
+        // seguintes são a cor (CodiSemiAcabado do ERP, 7 chars: 5+2 — ver
+        // frontend/src/lib/barcode.ts). Ignoramos a cor para achar
+        // qualquer variante do mesmo formato, mesmo em outro produto.
+        $digitos = substr((string) preg_replace('/\D/', '', $data['codigo']), 0, 7);
+
+        if (strlen($digitos) < 5) {
+            return $this->errorResponse('Informe ao menos 5 dígitos do código.', 422);
+        }
+
+        $prefixo = intdiv((int) $digitos, 100);
+
+        $pecas = ProdutoPeca::with(['produto', 'ultimaFichaCabecote'])
+            ->whereBetween('numero', [$prefixo * 100, $prefixo * 100 + 99])
+            ->orderBy('ordem')
+            ->get();
+
+        return $this->successResponse($pecas);
     }
 
     public function importar(Request $request): JsonResponse

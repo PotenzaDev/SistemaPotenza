@@ -70,6 +70,8 @@ class SessaoTrabalhoController extends Controller
             $operario,
             $dados['maquina_id'],
             $dados['sessao_pausada_id'] ?? null,
+            $dados['turno_informado_inicio'] ?? null,
+            $dados['turno_informado_fim'] ?? null,
         );
 
         return $this->successResponse(

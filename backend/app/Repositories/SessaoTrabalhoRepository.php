@@ -13,13 +13,15 @@ use Illuminate\Support\Collection;
 
 class SessaoTrabalhoRepository implements SessaoTrabalhoRepositoryInterface
 {
-    public function criarSessao(int $operarioId, int $maquinaId): SessaoTrabalho
+    public function criarSessao(int $operarioId, int $maquinaId, ?string $horaInicioInformada = null, ?string $horaFimInformada = null): SessaoTrabalho
     {
         $sessao = SessaoTrabalho::create([
-            'operario_id' => $operarioId,
-            'maquina_id'  => $maquinaId,
-            'inicio'      => Carbon::now(),
-            'status'      => SessaoTrabalho::STATUS_ATIVA,
+            'operario_id'            => $operarioId,
+            'maquina_id'             => $maquinaId,
+            'inicio'                 => Carbon::now(),
+            'status'                 => SessaoTrabalho::STATUS_ATIVA,
+            'turno_informado_inicio' => $horaInicioInformada,
+            'turno_informado_fim'    => $horaFimInformada,
         ]);
 
         $this->registrarEvento($sessao->id, EventoSessao::TIPO_INICIO);

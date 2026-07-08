@@ -68,6 +68,7 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->g
         Route::get('/historico', [ApontamentoController::class, 'historico']);
         Route::get('/fichas/recentes', [ApontamentoController::class, 'fichasRecentes']);
         Route::get('/{id}/fichas-por-cor', [ApontamentoController::class, 'fichasPorCor']);
+        Route::get('/{id}/ficha-setup', [ApontamentoController::class, 'fichaSetup']);
         Route::get('/{id}', [ApontamentoController::class, 'show']);
 
         // Fluxo de trabalho
@@ -141,6 +142,7 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:admin,funciona
     Route::get('/produtos/{id}', [ProdutoController::class, 'show'])->middleware('module:produtos');
     Route::delete('/produtos/{id}', [ProdutoController::class, 'destroy'])->middleware('module:produtos');
 
+    Route::get('/produto-pecas/buscar-por-codigo', [ProdutoController::class, 'buscarPecaPorCodigo'])->middleware('module:produtos');
     Route::get('/produto-pecas/{pecaId}/fichas-cabecote', [FichaCabecoteController::class, 'index'])->middleware('module:produtos');
     Route::post('/produto-pecas/{pecaId}/fichas-cabecote', [FichaCabecoteController::class, 'store'])->middleware('module:produtos');
     Route::get('/produto-pecas/{pecaId}/ficha-cabecote-branco/pdf', [FichaCabecoteController::class, 'blankPdf'])->middleware('module:produtos');

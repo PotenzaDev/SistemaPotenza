@@ -1,5 +1,6 @@
 import { apiClient } from './client'
 import type { ApiEnvelope } from './auth'
+import type { FichaCabecote } from './fichasCabecote'
 
 export interface Pausa {
   id: number
@@ -107,6 +108,16 @@ export async function getFichasPorCor(id: number): Promise<ResumoFichasPorCor[]>
     return res.data.data ?? []
   } catch {
     return []
+  }
+}
+
+/** Ficha de setup (FichaCabecote) da peça deste apontamento — null quando não há ficha cadastrada. */
+export async function getFichaSetup(id: number): Promise<FichaCabecote | null> {
+  try {
+    const res = await apiClient.get<ApiEnvelope<FichaCabecote | null>>(`/apontamento/${id}/ficha-setup`)
+    return res.data.data
+  } catch {
+    return null
   }
 }
 

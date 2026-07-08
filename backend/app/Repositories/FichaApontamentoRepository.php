@@ -92,11 +92,18 @@ class FichaApontamentoRepository implements FichaApontamentoRepositoryInterface
         return $ficha->load('apontamento');
     }
 
-    public function fecharFicha(int $fichaId, \Carbon\Carbon $fim): FichaApontamento
+    public function fecharFicha(int $fichaId, \Carbon\Carbon $fim, ?int $qtdProduzida = null): FichaApontamento
     {
         $ficha   = FichaApontamento::findOrFail($fichaId);
         $duracao = (int) $ficha->bipada_at->diffInSeconds($fim);
-        $ficha->update(['fim_producao' => $fim, 'duracao_segundos' => $duracao]);
+
+        $dados = ['fim_producao' => $fim, 'duracao_segundos' => $duracao];
+
+        if ($qtdProduzida !== null) {
+            $dados['qtd_produzida'] = $qtdProduzida;
+        }
+
+        $ficha->update($dados);
 
         return $ficha;
     }

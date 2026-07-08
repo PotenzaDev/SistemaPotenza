@@ -9,8 +9,10 @@ use App\Exceptions\ConfirmacaoNecessariaException;
 use App\Exceptions\LoteCompletoException;
 use App\Models\Apontamento;
 use App\Models\EventoSessao;
+use App\Models\FichaApontamento;
 use App\Models\MotivoPausa;
 use App\Models\Operario;
+use App\Models\FichaCabecote;
 use App\Models\Pausa;
 use App\Repositories\Contracts\ApontamentoRepositoryInterface;
 use App\Repositories\Contracts\FichaApontamentoRepositoryInterface;
@@ -18,6 +20,7 @@ use App\Repositories\Contracts\HistoricoLoteRepositoryInterface;
 use App\Repositories\Contracts\SessaoTrabalhoRepositoryInterface;
 use App\Models\Turno;
 use App\Services\Lote\LoteServiceInterface;
+use App\Services\Produto\ProdutoPecaLookupService;
 use Carbon\Carbon;
 
 class ApontamentoService
@@ -29,6 +32,7 @@ class ApontamentoService
         private readonly HistoricoLoteRepositoryInterface    $historicoRepo,
         private readonly LoteServiceInterface                $loteService,
         private readonly TurnoCalculoService                 $turnoCalculo,
+        private readonly ProdutoPecaLookupService             $produtoPecaLookup,
     ) {}
 
     /**
@@ -266,7 +270,7 @@ class ApontamentoService
             ->first();
 
         if ($fichaAnterior) {
-            $this->fichaRepo->fecharFicha($fichaAnterior->id, $agora);
+            $this->fichaRepo->fecharFicha($fichaAnterior->id, $agora, $fichaAnterior->qtd_peca);
         }
 
         $this->fichaRepo->criar([
@@ -491,10 +495,19 @@ class ApontamentoService
     public function listarApontamentos(array $filtros = []): array
     {
         $apontamentos = $this->apontamentoRepo->apontamentosDoDia($filtros);
+        ['inicio' => $inicio, 'fim' => $fim] = $this->apontamentoRepo->resolverPeriodo($filtros);
 
-        $linhas = $apontamentos->map(function (Apontamento $apontamento) {
-            $qtdPecas  = (int) $apontamento->fichas->sum('qtd_peca');
-            $qtdPilhas = $apontamento->fichas->count();
+        $linhas = $apontamentos->map(function (Apontamento $apontamento) use ($inicio, $fim) {
+            // Só conta pilhas finalizadas dentro do período filtrado — um
+            // apontamento que atravessa a virada do dia só deve contribuir,
+            // para cada dia, com as fichas cujo fim_producao caiu nele.
+            // Fichas ainda sem fim_producao (pilha em produção) nunca contam.
+            $fichasNoPeriodo = $apontamento->fichas->filter(
+                fn (FichaApontamento $ficha) => $ficha->fim_producao?->between($inicio, $fim) ?? false
+            );
+
+            $qtdPecas  = (int) $fichasNoPeriodo->sum('qtd_peca');
+            $qtdPilhas = $fichasNoPeriodo->count();
             $grupo     = $apontamento->sessaoTrabalho?->maquina?->etapaFluxo;
 
             return [
@@ -573,6 +586,24 @@ class ApontamentoService
         $progresso = $this->progressoPorCor($apontamento);
 
         return count($progresso) > 1 ? $progresso : [];
+    }
+
+    /**
+     * Ficha de setup (FichaCabecote) cadastrada para a peça deste apontamento,
+     * se houver. Retorna null quando a peça ainda não foi importada localmente
+     * do ERP ou quando não existe ficha cadastrada para ela.
+     */
+    public function buscarFichaSetup(Apontamento $apontamento): ?FichaCabecote
+    {
+        $peca = $this->produtoPecaLookup->resolver($apontamento->cod_produto, $apontamento->cod_peca);
+
+        if (! $peca) {
+            return null;
+        }
+
+        return FichaCabecote::with(['maquina', 'operario.user', 'posicoesCabecote', 'posicoesBroca.broca'])
+            ->where('produto_peca_id', $peca->id)
+            ->first();
     }
 
     /**

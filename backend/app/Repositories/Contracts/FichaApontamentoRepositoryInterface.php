@@ -46,6 +46,11 @@ interface FichaApontamentoRepositoryInterface
 
     public function atualizarQtdProduzida(int $fichaId, int $qtdProduzida): FichaApontamento;
 
-    /** Fecha o tempo de produção da ficha: grava fim_producao e duracao_segundos. */
-    public function fecharFicha(int $fichaId, \Carbon\Carbon $fim): FichaApontamento;
+    /**
+     * Fecha o tempo de produção da ficha: grava fim_producao e duracao_segundos.
+     * Quando $qtdProduzida é informado, grava também a quantidade produzida —
+     * usado ao bipar a próxima ficha, para não deixar a ficha anterior sem
+     * qtd_produzida registrada caso o apontamento nunca chegue a finalizar().
+     */
+    public function fecharFicha(int $fichaId, \Carbon\Carbon $fim, ?int $qtdProduzida = null): FichaApontamento;
 }

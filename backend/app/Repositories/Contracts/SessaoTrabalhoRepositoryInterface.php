@@ -10,7 +10,7 @@ use Illuminate\Support\Collection;
 
 interface SessaoTrabalhoRepositoryInterface
 {
-    public function criarSessao(int $operarioId, int $maquinaId): SessaoTrabalho;
+    public function criarSessao(int $operarioId, int $maquinaId, ?string $horaInicioInformada = null, ?string $horaFimInformada = null): SessaoTrabalho;
 
     public function encerrarSessao(SessaoTrabalho $sessao, bool $fimTurno = false): SessaoTrabalho;
 

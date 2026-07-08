@@ -25,6 +25,8 @@ class SessaoTrabalho extends Model
         'fim',
         'fim_turno',
         'status',
+        'turno_informado_inicio',
+        'turno_informado_fim',
     ];
 
     protected $casts = [

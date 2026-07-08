@@ -55,33 +55,35 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
      * Filtros aceitos (todos opcionais): data_inicio, data_fim (Y-m-d),
      * operario_id, maquina_id, grupo_id, ordem_lote.
      */
-    public function apontamentosDoDia(array $filtros = []): Collection
+    public function resolverPeriodo(array $filtros = []): array
     {
         $dataInicio = $filtros['data_inicio'] ?? null;
         $dataFim    = $filtros['data_fim'] ?? null;
 
-        $query = Apontamento::query();
-
         if ($dataInicio || $dataFim) {
-            $inicio = Carbon::parse($dataInicio ?? $dataFim)->startOfDay();
-            $fim    = Carbon::parse($dataFim ?? $dataInicio)->endOfDay();
-
-            // Interseção de intervalos: aparece no dia se estava ativo em qualquer momento dele.
-            $query->where('setup_inicio', '<=', $fim)
-                ->where(function ($q) use ($inicio) {
-                    $q->whereNull('producao_fim')
-                      ->orWhere('producao_fim', '>=', $inicio);
-                });
-        } else {
-            $inicioHoje = Carbon::today()->startOfDay();
-            $fimHoje    = Carbon::today()->endOfDay();
-
-            $query->where('setup_inicio', '<=', $fimHoje)
-                ->where(function ($q) use ($inicioHoje) {
-                    $q->whereNull('producao_fim')
-                      ->orWhere('producao_fim', '>=', $inicioHoje);
-                });
+            return [
+                'inicio' => Carbon::parse($dataInicio ?? $dataFim)->startOfDay(),
+                'fim'    => Carbon::parse($dataFim ?? $dataInicio)->endOfDay(),
+            ];
         }
+
+        return [
+            'inicio' => Carbon::today()->startOfDay(),
+            'fim'    => Carbon::today()->endOfDay(),
+        ];
+    }
+
+    public function apontamentosDoDia(array $filtros = []): Collection
+    {
+        ['inicio' => $inicio, 'fim' => $fim] = $this->resolverPeriodo($filtros);
+
+        $query = Apontamento::query()
+            // Interseção de intervalos: aparece no dia se estava ativo em qualquer momento dele.
+            ->where('setup_inicio', '<=', $fim)
+            ->where(function ($q) use ($inicio) {
+                $q->whereNull('producao_fim')
+                  ->orWhere('producao_fim', '>=', $inicio);
+            });
 
         if (! empty($filtros['operario_id']) || ! empty($filtros['maquina_id']) || ! empty($filtros['grupo_id'])) {
             // withTrashed(): apontamentos finalizados de uma sessão cancelada
