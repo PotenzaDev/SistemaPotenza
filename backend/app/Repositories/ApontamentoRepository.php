@@ -74,7 +74,9 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
 
         $query = Apontamento::query()
             // Interseção de intervalos: aparece no dia se estava ativo em qualquer momento dele.
-            ->where('setup_inicio', '<=', $fim)
+            // COALESCE: máquinas com possui_setup=false não têm setup_inicio, então usa-se
+            // producao_inicio (ou, no limite, created_at) como âncora de início.
+            ->whereRaw('COALESCE(setup_inicio, producao_inicio, created_at) <= ?', [$fim])
             ->where(function ($q) use ($inicio) {
                 $q->whereNull('producao_fim')
                   ->orWhere('producao_fim', '>=', $inicio);
@@ -111,7 +113,7 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
                 'fichas',
                 'pausas.motivoPausa',
             ])
-            ->orderBy('setup_inicio', 'desc')
+            ->orderByRaw('COALESCE(setup_inicio, producao_inicio, created_at) DESC')
             ->get();
     }
 

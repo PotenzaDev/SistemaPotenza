@@ -39,6 +39,17 @@ function fmtDuracaoCurta(segundos: number): string {
   return resto > 0 ? `${h}h ${resto}min` : `${h}h`
 }
 
+export function somarDuracaoPorTipo(segmentos: TimelineSegmento[]): Record<TimelineTipoSegmento, number> {
+  const totais: Record<TimelineTipoSegmento, number> = { setup: 0, producao: 0, pausa: 0, parado: 0 }
+
+  for (const segmento of segmentos) {
+    const duracaoSegundos = (new Date(segmento.fim).getTime() - new Date(segmento.inicio).getTime()) / 1000
+    totais[segmento.tipo] += Math.max(0, duracaoSegundos)
+  }
+
+  return totais
+}
+
 export function MaquinaTimelineBar({ turno, segmentos, isHoje }: Props) {
   const inicioMin  = horaParaMinutos(turno.hora_inicio)
   const fimMin     = horaParaMinutos(turno.hora_fim)

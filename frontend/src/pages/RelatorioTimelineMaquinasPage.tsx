@@ -11,7 +11,8 @@ import {
   type TimelineTipoSegmento,
 } from '@/api/relatorios'
 import { ApontamentosMaquinaModal } from '@/components/ApontamentosMaquinaModal'
-import { MaquinaTimelineBar } from '@/components/MaquinaTimelineBar'
+import { MaquinaTimelineBar, somarDuracaoPorTipo } from '@/components/MaquinaTimelineBar'
+import { fmtDuracao } from '@/lib/apontamentoFormat'
 
 const INPUT_CLASS =
   'w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white ' +
@@ -225,19 +226,31 @@ export function RelatorioTimelineMaquinasPage() {
 
       {!loading && !error && turno && maquinas.length > 0 && (
         <div className="bg-[#0f1923] border border-white/5 rounded-xl p-4 space-y-4">
-          {maquinas.map(maquina => (
-            <div
-              key={maquina.maquina_id}
-              onClick={() => setMaquinaSelecionada(maquina)}
-              className="cursor-pointer hover:bg-white/[0.02] rounded-lg p-2 -m-2 transition-colors"
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-sm font-medium text-white">{maquina.maquina}</p>
-                <p className="text-xs text-slate-500">{maquina.grupo?.nome ?? '—'}</p>
+          {maquinas.map(maquina => {
+            const totais = somarDuracaoPorTipo(maquina.segmentos)
+
+            return (
+              <div
+                key={maquina.maquina_id}
+                onClick={() => setMaquinaSelecionada(maquina)}
+                className="cursor-pointer hover:bg-white/[0.02] rounded-lg p-2 -m-2 transition-colors"
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-sm font-medium text-white">{maquina.maquina}</p>
+                  <p className="text-xs text-slate-500">{maquina.grupo?.nome ?? '—'}</p>
+                </div>
+                <MaquinaTimelineBar turno={turno} segmentos={maquina.segmentos} isHoje={isHoje} />
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5">
+                  {LEGENDA.map(item => (
+                    <div key={item.tipo} className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: item.cor }} />
+                      {item.label}: <span className="text-slate-300 font-medium">{fmtDuracao(totais[item.tipo])}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <MaquinaTimelineBar turno={turno} segmentos={maquina.segmentos} isHoje={isHoje} />
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

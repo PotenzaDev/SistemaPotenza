@@ -95,7 +95,7 @@ export function ApontamentosMaquinaModal({ maquina, filtros, onClose }: Props) {
       header: 'Início',
       headerClassName: TH,
       cellClassName: TD,
-      render: (a) => wrapClickable(fmtDataHora(a.setup_inicio), a),
+      render: (a) => wrapClickable(fmtDataHora(a.setup_inicio ?? a.producao_inicio ?? a.created_at), a),
     },
     {
       key: 'termino',

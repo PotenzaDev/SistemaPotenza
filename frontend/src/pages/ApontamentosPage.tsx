@@ -83,7 +83,7 @@ export function ApontamentosPage() {
       key: 'dia_inicio',
       header: 'Dia Início',
       render: (a) => (
-        <div onClick={() => setSelecionado(a)} className="cursor-pointer">{fmtData(a.setup_inicio)}</div>
+        <div onClick={() => setSelecionado(a)} className="cursor-pointer">{fmtData(a.setup_inicio ?? a.producao_inicio ?? a.created_at)}</div>
       ),
       headerClassName: APONTAMENTO_HEADER_CLASS,
       cellClassName: 'px-6 py-3 text-slate-300',
@@ -92,7 +92,7 @@ export function ApontamentosPage() {
       key: 'setup_inicio',
       header: 'Início',
       render: (a) => (
-        <div onClick={() => setSelecionado(a)} className="cursor-pointer">{fmtHora(a.setup_inicio)}</div>
+        <div onClick={() => setSelecionado(a)} className="cursor-pointer">{fmtHora(a.setup_inicio ?? a.producao_inicio ?? a.created_at)}</div>
       ),
       headerClassName: APONTAMENTO_HEADER_CLASS,
       cellClassName: 'px-6 py-3 text-slate-300',
