@@ -19,11 +19,6 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
         return Apontamento::create($dados)->load(self::EAGER);
     }
 
-    public function buscarPorId(int $id): ?Apontamento
-    {
-        return Apontamento::with(self::EAGER)->find($id);
-    }
-
     public function buscarApontamentoAtivo(SessaoTrabalho $sessao): ?Apontamento
     {
         return Apontamento::where('sessao_trabalho_id', $sessao->id)

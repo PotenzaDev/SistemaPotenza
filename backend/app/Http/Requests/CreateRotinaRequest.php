@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Requests\Admin;
+namespace App\Http\Requests;
 
 use App\Models\Rotina;
 use Illuminate\Foundation\Http\FormRequest;

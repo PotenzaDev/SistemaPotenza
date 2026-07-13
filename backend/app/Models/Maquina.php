@@ -62,4 +62,9 @@ class Maquina extends Model
     {
         return $this->hasOne(ConfiguracaoCabecoteMaquina::class);
     }
+
+    public function desativar(): void
+    {
+        $this->update(['ativa' => false]);
+    }
 }

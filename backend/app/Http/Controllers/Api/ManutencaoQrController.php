@@ -5,43 +5,38 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SolicitarManutencaoQrRequest;
+use App\Http\Resources\MaquinaPublicaResource;
+use App\Http\Resources\OrdemManutencaoResource;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\Maquina;
-use App\Models\OrdemManutencao;
+use App\Services\ManutencaoService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class ManutencaoQrController extends Controller
 {
     use ApiResponseTrait;
 
-    public function maquina(int $id): JsonResponse
+    public function __construct(private readonly ManutencaoService $manutencaoService)
     {
-        $maquina = Maquina::select('id', 'nome', 'codigo')
-            ->findOrFail($id);
-
-        return $this->successResponse($maquina);
     }
 
-    public function solicitar(Request $request, int $maquinaId): JsonResponse
+    public function maquina(Maquina $id): JsonResponse
     {
-        $maquina = Maquina::findOrFail($maquinaId);
+        return $this->successResponse(new MaquinaPublicaResource($id));
+    }
 
-        $data = $request->validate([
-            'solicitante' => ['required', 'string', 'max:150'],
-            'motivo'      => ['required', 'string'],
-            'prioridade'  => ['required', 'in:baixa,normal,alta,critica'],
+    public function solicitar(SolicitarManutencaoQrRequest $request, Maquina $maquinaId): JsonResponse
+    {
+        $ordem = $this->manutencaoService->criarSolicitacao([
+            ...$request->validated(),
+            'maquina_id' => $maquinaId->id,
         ]);
 
-        $ordem = OrdemManutencao::create([
-            'maquina_id'   => $maquina->id,
-            'solicitante'  => $data['solicitante'],
-            'motivo'       => $data['motivo'],
-            'prioridade'   => $data['prioridade'],
-            'status'       => 'aberta',
-            'solicitado_em' => now(),
-        ])->load('maquina');
-
-        return $this->successResponse($ordem, 'Solicitação registrada com sucesso.', 201);
+        return $this->successResponse(
+            new OrdemManutencaoResource($ordem->load(['maquina.etapaFluxo', 'pecas', 'servicos'])),
+            'Solicitação registrada com sucesso.',
+            201
+        );
     }
 }

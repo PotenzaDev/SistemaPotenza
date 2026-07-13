@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Sessao\IniciarSessaoRequest;
+use App\Http\Requests\IniciarSessaoRequest;
+use App\Http\Requests\ListSessoesPausadasRequest;
+use App\Http\Requests\PausarSessaoOciosaRequest;
 use App\Http\Resources\SessaoTrabalhoResource;
 use App\Http\Traits\ApiResponseTrait;
-use App\Models\Maquina;
-use App\Models\SessaoTrabalho;
 use App\Models\Turno;
 use App\Services\SessaoTrabalhoService;
 use Carbon\Carbon;
@@ -26,37 +26,7 @@ class SessaoTrabalhoController extends Controller
 
     public function disponiveis(Request $request): JsonResponse
     {
-        $operario = $request->user()->operario;
-        $desde    = Carbon::now()->subDays(3);
-
-        $maquinasPorStatus = function (string $status) use ($operario, $desde) {
-            return SessaoTrabalho::where('operario_id', $operario->id)
-                ->where('status', $status)
-                ->where('fim', '>=', $desde)
-                ->pluck('maquina_id')
-                ->unique()
-                ->flip()
-                ->toArray();
-        };
-
-        // Fim de turno: continua sendo retomada automaticamente ao iniciar.
-        $maquinasComInterrompida = $maquinasPorStatus(SessaoTrabalho::STATUS_INTERROMPIDA_TURNO);
-
-        // Pausa manual: ao iniciar, o operário escolhe entre retomar ou começar uma sessão nova.
-        $maquinasComPausada = $maquinasPorStatus(SessaoTrabalho::STATUS_PAUSADA);
-
-        $maquinas = Maquina::where('ativa', true)
-            ->when(
-                $operario && $operario->etapa_fluxo_id,
-                fn ($q) => $q->where('etapa_fluxo_id', $operario->etapa_fluxo_id)
-            )
-            ->with('etapaFluxo')
-            ->orderBy('nome')
-            ->get()
-            ->map(fn ($maquina) => array_merge($maquina->toArray(), [
-                'tem_sessao_interrompida' => array_key_exists($maquina->id, $maquinasComInterrompida),
-                'tem_sessoes_pausadas'    => array_key_exists($maquina->id, $maquinasComPausada),
-            ]));
+        $maquinas = $this->sessaoService->maquinasDisponiveis($request->user()->operario);
 
         return $this->successResponse($maquinas, 'Máquinas disponíveis.');
     }
@@ -81,15 +51,11 @@ class SessaoTrabalhoController extends Controller
         );
     }
 
-    public function pausadas(Request $request): JsonResponse
+    public function pausadas(ListSessoesPausadasRequest $request): JsonResponse
     {
         $operario = $request->user()->operario;
 
-        $maquinaId = (int) $request->validate([
-            'maquina_id' => ['required', 'integer', 'exists:maquinas,id'],
-        ])['maquina_id'];
-
-        $sessoes = $this->sessaoService->listarSessoesPausadas($operario, $maquinaId);
+        $sessoes = $this->sessaoService->listarSessoesPausadas($operario, (int) $request->validated('maquina_id'));
 
         return $this->successResponse($sessoes, 'Sessões pausadas.');
     }
@@ -116,13 +82,9 @@ class SessaoTrabalhoController extends Controller
     }
 
     /** Pausa manual da sessão ociosa (sem apontamento em andamento), com motivo. */
-    public function pausarOciosa(Request $request): JsonResponse
+    public function pausarOciosa(PausarSessaoOciosaRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'motivo_pausa_id' => ['required', 'integer', 'exists:motivos_pausa,id'],
-        ]);
-
-        $sessao = $this->sessaoService->pausarOciosa($request->user()->operario, $data['motivo_pausa_id']);
+        $sessao = $this->sessaoService->pausarOciosa($request->user()->operario, $request->validated('motivo_pausa_id'));
 
         return $this->successResponse(new SessaoTrabalhoResource($sessao), 'Sessão pausada com sucesso.');
     }

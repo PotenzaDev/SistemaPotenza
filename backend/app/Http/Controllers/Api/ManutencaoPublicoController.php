@@ -5,39 +5,39 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SolicitarManutencaoRequest;
+use App\Http\Resources\OrdemManutencaoResource;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\OrdemManutencao;
+use App\Services\ManutencaoService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class ManutencaoPublicoController extends Controller
 {
     use ApiResponseTrait;
 
+    private const RELACOES = ['maquina.etapaFluxo', 'pecas', 'servicos'];
+
+    public function __construct(private readonly ManutencaoService $manutencaoService)
+    {
+    }
+
     public function index(): JsonResponse
     {
-        $ordens = OrdemManutencao::with('maquina.etapaFluxo')
+        $ordens = OrdemManutencao::with(self::RELACOES)
             ->where('status', 'aberta')
             ->orderByDesc('id')
             ->get();
 
-        return $this->successResponse($ordens);
+        return $this->successResponse(OrdemManutencaoResource::collection($ordens));
     }
 
-    public function solicitar(Request $request): JsonResponse
+    public function solicitar(SolicitarManutencaoRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'maquina_id'  => ['required', 'integer', 'exists:maquinas,id'],
-            'solicitante' => ['required', 'string', 'max:150'],
-            'motivo'      => ['required', 'string'],
-            'prioridade'  => ['required', 'in:baixa,normal,alta,critica'],
-        ]);
-
-        $data['status']        = 'aberta';
-        $data['solicitado_em'] = now();
+        $ordem = $this->manutencaoService->criarSolicitacao($request->validated());
 
         return $this->successResponse(
-            OrdemManutencao::create($data)->load('maquina.etapaFluxo'),
+            new OrdemManutencaoResource($ordem->load(self::RELACOES)),
             'Solicitação de manutenção registrada.',
             201
         );

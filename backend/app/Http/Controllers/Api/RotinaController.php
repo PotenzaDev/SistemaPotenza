@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\CreateRotinaRequest;
-use App\Http\Requests\Admin\UpdateRotinaRequest;
+use App\Http\Requests\CreateRotinaRequest;
+use App\Http\Requests\UpdateRotinaRequest;
 use App\Http\Resources\RotinaResource;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\Rotina;

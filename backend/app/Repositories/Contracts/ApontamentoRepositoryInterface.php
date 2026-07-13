@@ -13,8 +13,6 @@ interface ApontamentoRepositoryInterface
 {
     public function criar(array $dados): Apontamento;
 
-    public function buscarPorId(int $id): ?Apontamento;
-
     public function buscarApontamentoAtivo(SessaoTrabalho $sessao): ?Apontamento;
 
     public function somarQtdProduzida(int $etapaFluxoId, string $ordemLote): int;

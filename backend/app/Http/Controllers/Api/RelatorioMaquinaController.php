@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ListRelatorioMaquinaRequest;
+use App\Http\Requests\ListTimelineMaquinaRequest;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\EtapaFluxo;
 use App\Models\Maquina;
@@ -12,8 +14,6 @@ use App\Services\RelatorioProducaoService;
 use App\Services\TimelineMaquinaService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 
 class RelatorioMaquinaController extends Controller
 {
@@ -29,23 +29,12 @@ class RelatorioMaquinaController extends Controller
      * peças produzidas) para o período informado. Sem filtros de data,
      * retorna o relatório de hoje. Sem limite de período.
      */
-    public function index(Request $request): JsonResponse
+    public function index(ListRelatorioMaquinaRequest $request): JsonResponse
     {
-        $filtros = $request->validate([
-            'data_inicio' => ['nullable', 'date_format:Y-m-d'],
-            'data_fim' => ['nullable', 'date_format:Y-m-d'],
-            'maquina_id' => ['nullable', 'integer', 'exists:maquinas,id'],
-            'grupo_id' => ['nullable', 'integer', 'exists:etapas_fluxo,id'],
-        ]);
+        $filtros = $request->validated();
 
         $dataInicio = isset($filtros['data_inicio']) ? Carbon::parse($filtros['data_inicio']) : Carbon::today();
         $dataFim = isset($filtros['data_fim']) ? Carbon::parse($filtros['data_fim']) : $dataInicio->copy();
-
-        if ($dataFim->lessThan($dataInicio)) {
-            throw ValidationException::withMessages([
-                'data_fim' => 'A data final deve ser maior ou igual à data inicial.',
-            ]);
-        }
 
         return $this->successResponse(
             $this->relatorioService->relatorioMaquinasPorPeriodo(
@@ -63,13 +52,9 @@ class RelatorioMaquinaController extends Controller
      * parado, dentro da janela do turno). Sem filtro de data, retorna a
      * timeline de hoje.
      */
-    public function timeline(Request $request): JsonResponse
+    public function timeline(ListTimelineMaquinaRequest $request): JsonResponse
     {
-        $filtros = $request->validate([
-            'data' => ['nullable', 'date_format:Y-m-d'],
-            'maquina_id' => ['nullable', 'integer', 'exists:maquinas,id'],
-            'grupo_id' => ['nullable', 'integer', 'exists:etapas_fluxo,id'],
-        ]);
+        $filtros = $request->validated();
 
         $data = isset($filtros['data']) ? Carbon::parse($filtros['data']) : Carbon::today();
 

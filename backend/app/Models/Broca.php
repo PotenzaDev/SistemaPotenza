@@ -26,4 +26,9 @@ class Broca extends Model
         'furo_passante' => 'boolean',
         'ativo' => 'boolean',
     ];
+
+    public function desativar(): void
+    {
+        $this->update(['ativo' => false]);
+    }
 }

@@ -6,10 +6,32 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 
 class ActivityLogService
 {
+    /** Lista logs de atividade paginados, com filtros opcionais de período, usuário e ação. */
+    public function listar(array $filtros): LengthAwarePaginator
+    {
+        $query = ActivityLog::orderByDesc('created_at');
+
+        if (! empty($filtros['from'])) {
+            $query->whereDate('created_at', '>=', $filtros['from']);
+        }
+        if (! empty($filtros['to'])) {
+            $query->whereDate('created_at', '<=', $filtros['to']);
+        }
+        if (! empty($filtros['user_id'])) {
+            $query->where('user_id', $filtros['user_id']);
+        }
+        if (! empty($filtros['action'])) {
+            $query->where('action', $filtros['action']);
+        }
+
+        return $query->paginate($filtros['per_page'] ?? 50);
+    }
+
     public function record(
         ?User $user,
         string $action,

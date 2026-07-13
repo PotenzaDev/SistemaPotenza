@@ -5,17 +5,21 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\CreateUsuarioSistemaRequest;
-use App\Http\Requests\Admin\UpdateUsuarioSistemaRequest;
+use App\Http\Requests\StoreUsuarioSistemaRequest;
+use App\Http\Requests\UpdateUsuarioSistemaRequest;
 use App\Http\Resources\UserResource;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\User;
+use App\Services\UsuarioSistemaService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Hash;
 
 class UsuarioSistemaController extends Controller
 {
     use ApiResponseTrait;
+
+    public function __construct(
+        private readonly UsuarioSistemaService $usuarioSistemaService,
+    ) {}
 
     public function index(): JsonResponse
     {
@@ -26,77 +30,28 @@ class UsuarioSistemaController extends Controller
         );
     }
 
-    public function store(CreateUsuarioSistemaRequest $request): JsonResponse
+    public function store(StoreUsuarioSistemaRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $user = $this->usuarioSistemaService->criar($request->validated());
 
-        $user = User::create([
-            'name'                 => $data['name'],
-            'email'                => $data['email'],
-            'password'             => Hash::make($data['password']),
-            'role'                 => $data['role'],
-            'must_change_password' => true,
-        ]);
-
-        if ($data['role'] === 'funcionario') {
-            $user->rotinas()->sync($data['rotina_ids'] ?? []);
-        }
-
-        return $this->successResponse(new UserResource($user->load('rotinas')), 'Usuário cadastrado.', 201);
+        return $this->successResponse(new UserResource($user), 'Usuário cadastrado.', 201);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(User $usuario): JsonResponse
     {
-        $user = User::whereIn('role', ['admin', 'funcionario'])->with('rotinas')->find($id);
-
-        return $user
-            ? $this->successResponse(new UserResource($user))
-            : $this->errorResponse('Usuário não encontrado.', 404);
+        return $this->successResponse(new UserResource($usuario->load('rotinas')));
     }
 
-    public function update(UpdateUsuarioSistemaRequest $request, int $id): JsonResponse
+    public function update(UpdateUsuarioSistemaRequest $request, User $usuario): JsonResponse
     {
-        $user = User::whereIn('role', ['admin', 'funcionario'])->find($id);
+        $user = $this->usuarioSistemaService->atualizar($usuario, $request->validated());
 
-        if (! $user) {
-            return $this->errorResponse('Usuário não encontrado.', 404);
-        }
-
-        $data = $request->validated();
-        $role = $data['role'] ?? $user->role;
-
-        $fields = array_filter([
-            'name'     => $data['name'] ?? null,
-            'email'    => $data['email'] ?? null,
-            'password' => isset($data['password']) && $data['password']
-                            ? Hash::make($data['password'])
-                            : null,
-            'role'     => $data['role'] ?? null,
-            'ativo'    => $data['ativo'] ?? null,
-        ], fn ($v) => $v !== null);
-
-        $user->update($fields);
-
-        if ($role === 'funcionario') {
-            if (array_key_exists('rotina_ids', $data)) {
-                $user->rotinas()->sync($data['rotina_ids'] ?? []);
-            }
-        } else {
-            $user->rotinas()->sync([]);
-        }
-
-        return $this->successResponse(new UserResource($user->fresh('rotinas')), 'Usuário atualizado.');
+        return $this->successResponse(new UserResource($user), 'Usuário atualizado.');
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(User $usuario): JsonResponse
     {
-        $user = User::whereIn('role', ['admin', 'funcionario'])->find($id);
-
-        if (! $user) {
-            return $this->errorResponse('Usuário não encontrado.', 404);
-        }
-
-        $user->delete();
+        $usuario->delete();
 
         return $this->successResponse(null, 'Usuário removido.');
     }

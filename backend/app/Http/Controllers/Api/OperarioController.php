@@ -5,108 +5,59 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\CreateOperarioRequest;
+use App\Http\Requests\StoreOperarioRequest;
+use App\Http\Requests\UpdateOperarioRequest;
+use App\Http\Resources\OperarioResource;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\Operario;
-use App\Models\User;
+use App\Services\OperarioService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 class OperarioController extends Controller
 {
     use ApiResponseTrait;
 
-    public function index(): JsonResponse
+    private const RELACOES = ['user', 'etapaFluxo'];
+
+    public function __construct(private readonly OperarioService $operarioService)
     {
-        return $this->successResponse(
-            Operario::with(['user', 'etapaFluxo'])->orderBy('matricula')->get()
-        );
     }
 
-    public function store(CreateOperarioRequest $request): JsonResponse
+    public function index(): JsonResponse
     {
-        $data = $request->validated();
+        $operarios = Operario::with(self::RELACOES)->orderBy('matricula')->get();
 
-        $user = User::create([
-            'name'                 => $data['name'],
-            'email'                => $data['email'],
-            'password'             => Hash::make($data['password']),
-            'role'                 => 'operario',
-            'must_change_password' => true,
-        ]);
+        return $this->successResponse(OperarioResource::collection($operarios));
+    }
 
-        $matricula = 'OP-' . str_pad((string) $user->id, 4, '0', STR_PAD_LEFT);
-
-        $operario = Operario::create([
-            'user_id'        => $user->id,
-            'matricula'      => $matricula,
-            'etapa_fluxo_id' => $data['etapa_fluxo_id'],
-        ]);
+    public function store(StoreOperarioRequest $request): JsonResponse
+    {
+        $operario = $this->operarioService->criar($request->validated());
 
         return $this->successResponse(
-            $operario->load(['user', 'etapaFluxo']),
+            new OperarioResource($operario->load(self::RELACOES)),
             'Operário cadastrado.',
             201
         );
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Operario $operario): JsonResponse
     {
-        $operario = Operario::with(['user', 'etapaFluxo'])->find($id);
-
-        return $operario
-            ? $this->successResponse($operario)
-            : $this->errorResponse('Operário não encontrado.', 404);
+        return $this->successResponse(new OperarioResource($operario->load(self::RELACOES)));
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(UpdateOperarioRequest $request, Operario $operario): JsonResponse
     {
-        $operario = Operario::with(['user', 'etapaFluxo'])->find($id);
-
-        if (! $operario) {
-            return $this->errorResponse('Operário não encontrado.', 404);
-        }
-
-        $data = $request->validate([
-            'name'           => ['sometimes', 'string', 'max:255'],
-            'email'          => ['sometimes', 'email', 'unique:users,email,' . $operario->user_id],
-            'password'       => ['sometimes', 'nullable', 'string', 'min:6'],
-            'etapa_fluxo_id' => ['sometimes', 'integer', 'exists:etapas_fluxo,id'],
-            'ativo'          => ['sometimes', 'boolean'],
-        ]);
-
-        $userFields = array_filter([
-            'name'     => $data['name'] ?? null,
-            'email'    => $data['email'] ?? null,
-            'password' => isset($data['password']) && $data['password']
-                            ? Hash::make($data['password'])
-                            : null,
-            'ativo'    => $data['ativo'] ?? null,
-        ], fn ($v) => $v !== null);
-
-        if (! empty($userFields)) {
-            $operario->user->update($userFields);
-        }
-
-        if (isset($data['etapa_fluxo_id'])) {
-            $operario->update(['etapa_fluxo_id' => $data['etapa_fluxo_id']]);
-        }
+        $operario = $this->operarioService->atualizar($operario, $request->validated());
 
         return $this->successResponse(
-            $operario->fresh()->load(['user', 'etapaFluxo']),
+            new OperarioResource($operario->load(self::RELACOES)),
             'Operário atualizado.'
         );
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(Operario $operario): JsonResponse
     {
-        $operario = Operario::find($id);
-
-        if (! $operario) {
-            return $this->errorResponse('Operário não encontrado.', 404);
-        }
-
         $operario->user->delete();
 
         return $this->successResponse(null, 'Operário removido.');

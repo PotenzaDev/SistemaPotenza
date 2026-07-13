@@ -184,6 +184,49 @@ class SessaoTrabalhoService
         $this->encerrar($operario, true);
     }
 
+    /**
+     * Máquinas disponíveis para o operário iniciar sessão, com flags indicando
+     * se há sessões interrompidas (fim de turno) ou pausadas (manual) nos
+     * últimos 3 dias — usadas pela tela de seleção de máquina para oferecer
+     * retomar em vez de sempre iniciar do zero.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function maquinasDisponiveis(Operario $operario): array
+    {
+        $desde = Carbon::now()->subDays(3);
+
+        $maquinasPorStatus = function (string $status) use ($operario, $desde) {
+            return SessaoTrabalho::where('operario_id', $operario->id)
+                ->where('status', $status)
+                ->where('fim', '>=', $desde)
+                ->pluck('maquina_id')
+                ->unique()
+                ->flip()
+                ->toArray();
+        };
+
+        // Fim de turno: continua sendo retomada automaticamente ao iniciar.
+        $maquinasComInterrompida = $maquinasPorStatus(SessaoTrabalho::STATUS_INTERROMPIDA_TURNO);
+
+        // Pausa manual: ao iniciar, o operário escolhe entre retomar ou começar uma sessão nova.
+        $maquinasComPausada = $maquinasPorStatus(SessaoTrabalho::STATUS_PAUSADA);
+
+        return \App\Models\Maquina::where('ativa', true)
+            ->when(
+                $operario->etapa_fluxo_id,
+                fn ($q) => $q->where('etapa_fluxo_id', $operario->etapa_fluxo_id)
+            )
+            ->with('etapaFluxo')
+            ->orderBy('nome')
+            ->get()
+            ->map(fn ($maquina) => array_merge($maquina->toArray(), [
+                'tem_sessao_interrompida' => array_key_exists($maquina->id, $maquinasComInterrompida),
+                'tem_sessoes_pausadas'    => array_key_exists($maquina->id, $maquinasComPausada),
+            ]))
+            ->all();
+    }
+
     public function ativa(Operario $operario): ?SessaoTrabalho
     {
         return $this->sessaoRepo->buscarSessaoAtiva($operario)?->load('pausaOciosaAberta.motivoPausa');

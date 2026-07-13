@@ -62,14 +62,14 @@ class ListarApontamentosPorDiaTest extends TestCase
 
         $service = app(ApontamentoService::class);
 
-        $ambosOsDias = $service->buscarDetalhe($apontamento->id, [
+        $ambosOsDias = $service->buscarDetalhe($apontamento, [
             'data_inicio' => $segunda->toDateString(),
             'data_fim'    => $terca->toDateString(),
         ]);
 
         $this->assertCount(2, $ambosOsDias->fichas, 'selecionando os 2 dias, as 2 pilhas devem aparecer');
 
-        $somenteSegunda = $service->buscarDetalhe($apontamento->id, [
+        $somenteSegunda = $service->buscarDetalhe($apontamento, [
             'data_inicio' => $segunda->toDateString(),
             'data_fim'    => $segunda->toDateString(),
         ]);
@@ -77,7 +77,7 @@ class ListarApontamentosPorDiaTest extends TestCase
         $this->assertCount(1, $somenteSegunda->fichas, 'selecionando só segunda, a pilha de terça não deve aparecer');
         $this->assertSame(1, $somenteSegunda->fichas->first()->pilha);
 
-        $somenteTerca = $service->buscarDetalhe($apontamento->id, [
+        $somenteTerca = $service->buscarDetalhe($apontamento, [
             'data_inicio' => $terca->toDateString(),
             'data_fim'    => $terca->toDateString(),
         ]);

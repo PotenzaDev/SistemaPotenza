@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ListRelatorioTurnoRequest;
 use App\Http\Traits\ApiResponseTrait;
 use App\Services\RelatorioProducaoService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class RelatorioTurnoController extends Controller
 {
@@ -23,13 +23,9 @@ class RelatorioTurnoController extends Controller
      * Relatório de tempo de turno (trabalhado, pausas e ocioso) por sessão,
      * para o dia informado. Sem filtro de data, retorna o relatório de hoje.
      */
-    public function index(Request $request): JsonResponse
+    public function index(ListRelatorioTurnoRequest $request): JsonResponse
     {
-        $filtros = $request->validate([
-            'data'        => ['nullable', 'date_format:Y-m-d'],
-            'operario_id' => ['nullable', 'integer', 'exists:operarios,id'],
-            'maquina_id'  => ['nullable', 'integer', 'exists:maquinas,id'],
-        ]);
+        $filtros = $request->validated();
 
         $data = isset($filtros['data']) ? Carbon::parse($filtros['data']) : Carbon::today();
 

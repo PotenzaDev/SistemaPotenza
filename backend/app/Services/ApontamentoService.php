@@ -414,6 +414,30 @@ class ApontamentoService
     }
 
     /**
+     * Auto-pausa de sistema: chamada via sendBeacon ao fechar o navegador.
+     * Usa o motivo is_sistema=true; não requer escolha do operário. Se já
+     * pausado, ignora silenciosamente (idempotente — o beacon pode disparar
+     * mais de uma vez para o mesmo fechamento de aba).
+     */
+    public function pausarSistema(Apontamento $apontamento): Apontamento
+    {
+        if (in_array($apontamento->status, [
+            Apontamento::STATUS_EM_PAUSA_SETUP,
+            Apontamento::STATUS_EM_PAUSA_PRODUCAO,
+        ], true)) {
+            return $apontamento;
+        }
+
+        $motivoSistema = MotivoPausa::where('is_sistema', true)->first();
+
+        if (! $motivoSistema) {
+            throw new BusinessException('Motivo de sistema não configurado.', 500);
+        }
+
+        return $this->pausar($apontamento, $motivoSistema->id, true);
+    }
+
+    /**
      * Retoma um apontamento pausado, fechando a pausa em aberto.
      */
     public function retomar(Apontamento $apontamento): Apontamento
@@ -545,16 +569,16 @@ class ApontamentoService
      *
      * Filtros aceitos (todos opcionais): data_inicio, data_fim (Y-m-d).
      */
-    public function buscarDetalhe(int $id, array $filtros = []): ?Apontamento
+    public function buscarDetalhe(Apontamento $apontamento, array $filtros = []): Apontamento
     {
-        $apontamento = $this->apontamentoRepo->buscarPorId($id);
-
-        if (! $apontamento) {
-            return null;
-        }
-
         ['inicio' => $inicio, 'fim' => $fim] = $this->apontamentoRepo->resolverPeriodo($filtros);
 
+        // Recarrega a relação a partir do banco antes de filtrar: o mesmo
+        // $apontamento pode ser reutilizado em chamadas sucessivas com
+        // filtros diferentes, e setRelation() abaixo sobrescreve 'fichas' em
+        // definitivo — sem o reload, a segunda chamada filtraria em cima do
+        // subconjunto já filtrado pela primeira.
+        $apontamento->load('fichas');
         $apontamento->setRelation('fichas', $this->fichasNoPeriodo($apontamento, $inicio, $fim)->values());
 
         return $apontamento;

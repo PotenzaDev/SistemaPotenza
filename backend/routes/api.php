@@ -28,11 +28,17 @@ use App\Http\Controllers\Api\TurnoController;
 use App\Http\Controllers\Api\UsuarioSistemaController;
 use Illuminate\Support\Facades\Route;
 
+/*
+ROTAS PUBLICAS (SEM AUTENTICACAO) PARA CADASTRAR MANUTENÇÃO DE MAQUINAS
+*/
 Route::middleware('throttle:10,1')->prefix('publica')->group(function () {
     Route::get('/maquina/{id}', [ManutencaoQrController::class, 'maquina']);
     Route::post('/manutencao/{maquinaId}/solicitar', [ManutencaoQrController::class, 'solicitar']);
 });
 
+/*
+ROTAS PRIVADAS (COM AUTENTICACAO) PARA LOGIN
+*/
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::post('/login-cracha', [AuthController::class, 'loginCracha']);
@@ -45,6 +51,9 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+/*
+ROTAS DOS OPERARIOS (COM AUTENTICACAO E ROLE OPERARIO) PARA APONTAMENTOS, SESSAO DE TRABALHO
+*/
 Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->group(function () {
     Route::get('/maquinas/disponiveis', [SessaoTrabalhoController::class, 'disponiveis']);
     Route::get('/motivos-pausa/disponiveis', [MotivoPausaController::class, 'indexOperario']);
@@ -67,20 +76,20 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->g
         Route::get('/ativo', [ApontamentoController::class, 'ativo']);
         Route::get('/historico', [ApontamentoController::class, 'historico']);
         Route::get('/fichas/recentes', [ApontamentoController::class, 'fichasRecentes']);
-        Route::get('/{id}/fichas-por-cor', [ApontamentoController::class, 'fichasPorCor']);
-        Route::get('/{id}/ficha-setup', [ApontamentoController::class, 'fichaSetup']);
-        Route::get('/{id}', [ApontamentoController::class, 'show']);
+        Route::get('/{apontamento}/fichas-por-cor', [ApontamentoController::class, 'fichasPorCor']);
+        Route::get('/{apontamento}/ficha-setup', [ApontamentoController::class, 'fichaSetup']);
+        Route::get('/{apontamento}', [ApontamentoController::class, 'show']);
 
         // Fluxo de trabalho
         Route::post('/bipar', [ApontamentoController::class, 'bipar']);                  // 1. bipar lote → cria apontamento + inicia setup
         Route::post('/segunda-passagem', [ApontamentoController::class, 'iniciarSegundaPassagem']); // 1b. nova passagem do mesmo lote
-        Route::post('/{id}/finalizar-setup', [ApontamentoController::class, 'finalizarSetup']);        // 2. encerra setup → aguardando_producao
-        Route::post('/{id}/bipar-ficha', [ApontamentoController::class, 'biparFicha']);            // 3. bipar ficha → em_producao (repete N vezes)
-        Route::post('/{id}/finalizar', [ApontamentoController::class, 'finalizar']);             // 4. encerra produção + registra qtd por ficha
+        Route::post('/{apontamento}/finalizar-setup', [ApontamentoController::class, 'finalizarSetup']);        // 2. encerra setup → aguardando_producao
+        Route::post('/{apontamento}/bipar-ficha', [ApontamentoController::class, 'biparFicha']);            // 3. bipar ficha → em_producao (repete N vezes)
+        Route::post('/{apontamento}/finalizar', [ApontamentoController::class, 'finalizar']);             // 4. encerra produção + registra qtd por ficha
         // Pausa / retomada
-        Route::post('/{id}/pausar', [ApontamentoController::class, 'pausar']);         // pausa manual com motivo
-        Route::post('/{id}/pausar-sistema', [ApontamentoController::class, 'pausarSistema']); // auto-pausa (beacon)
-        Route::post('/{id}/retomar', [ApontamentoController::class, 'retomar']);        // retoma pausa
+        Route::post('/{apontamento}/pausar', [ApontamentoController::class, 'pausar']);         // pausa manual com motivo
+        Route::post('/{apontamento}/pausar-sistema', [ApontamentoController::class, 'pausarSistema']); // auto-pausa (beacon)
+        Route::post('/{apontamento}/retomar', [ApontamentoController::class, 'retomar']);        // retoma pausa
     });
 
     Route::get('/manutencao', [ManutencaoPublicoController::class, 'index']);
@@ -94,13 +103,13 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:gestor,admin,f
 
     Route::get('/admin/dashboard', [DashboardController::class, 'index'])->middleware('module:dashboard');
     Route::get('/admin/chamadas-suporte', [ChamadaSuporteController::class, 'index'])->middleware('module:chamadas_suporte');
-    Route::put('/admin/chamadas-suporte/{id}/visualizar', [ChamadaSuporteController::class, 'visualizar'])->middleware('module:chamadas_suporte');
+    Route::put('/admin/chamadas-suporte/{chamada_suporte}/visualizar', [ChamadaSuporteController::class, 'visualizar'])->middleware('module:chamadas_suporte');
     Route::get('/admin/relatorio-turno', [RelatorioTurnoController::class, 'index'])->middleware('module:relatorios');
     Route::get('/admin/relatorio-maquinas', [RelatorioMaquinaController::class, 'index'])->middleware('module:relatorios');
     Route::get('/admin/relatorio-maquinas/filtros', [RelatorioMaquinaController::class, 'filtros'])->middleware('module:relatorios');
     Route::get('/admin/relatorio-timeline-maquinas', [RelatorioMaquinaController::class, 'timeline'])->middleware('module:relatorios');
     Route::get('/apontamentos/hoje', [ApontamentoController::class, 'doDia'])->middleware('module:apontamentos');
-    Route::get('/apontamentos/{id}', [ApontamentoController::class, 'show'])->middleware('module:apontamentos');
+    Route::get('/apontamentos/{apontamento}', [ApontamentoController::class, 'show'])->middleware('module:apontamentos');
 
     Route::prefix('manutencao/admin')->group(function () {
         Route::get('/', [ManutencaoAdminController::class, 'index']);
@@ -143,14 +152,14 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:admin,funciona
     Route::delete('/produtos/{id}', [ProdutoController::class, 'destroy'])->middleware('module:produtos');
 
     Route::get('/produto-pecas/buscar-por-codigo', [ProdutoController::class, 'buscarPecaPorCodigo'])->middleware('module:produtos');
-    Route::get('/produto-pecas/{pecaId}/fichas-cabecote', [FichaCabecoteController::class, 'index'])->middleware('module:produtos');
-    Route::post('/produto-pecas/{pecaId}/fichas-cabecote', [FichaCabecoteController::class, 'store'])->middleware('module:produtos');
-    Route::get('/produto-pecas/{pecaId}/ficha-cabecote-branco/pdf', [FichaCabecoteController::class, 'blankPdf'])->middleware('module:produtos');
+    Route::get('/produto-pecas/{produtoPeca}/fichas-cabecote', [FichaCabecoteController::class, 'index'])->middleware('module:produtos');
+    Route::post('/produto-pecas/{produtoPeca}/fichas-cabecote', [FichaCabecoteController::class, 'store'])->middleware('module:produtos');
+    Route::get('/produto-pecas/{produtoPeca}/ficha-cabecote-branco/pdf', [FichaCabecoteController::class, 'blankPdf'])->middleware('module:produtos');
     Route::get('/produto-pecas/fichas-cabecote-branco/pdf-lote', [FichaCabecoteController::class, 'blankPdfLote'])->middleware('module:produtos');
     Route::get('/fichas-cabecote/pdf-lote', [FichaCabecoteController::class, 'pdfLote'])->middleware('module:produtos');
-    Route::get('/fichas-cabecote/{id}', [FichaCabecoteController::class, 'show'])->middleware('module:produtos');
-    Route::put('/fichas-cabecote/{id}', [FichaCabecoteController::class, 'update'])->middleware('module:produtos');
-    Route::get('/fichas-cabecote/{id}/pdf', [FichaCabecoteController::class, 'pdf'])->middleware('module:produtos');
+    Route::get('/fichas-cabecote/{ficha}', [FichaCabecoteController::class, 'show'])->middleware('module:produtos');
+    Route::put('/fichas-cabecote/{ficha}', [FichaCabecoteController::class, 'update'])->middleware('module:produtos');
+    Route::get('/fichas-cabecote/{ficha}/pdf', [FichaCabecoteController::class, 'pdf'])->middleware('module:produtos');
 
     Route::get('/turnos', [TurnoController::class, 'index'])->middleware('module:turnos');
     Route::put('/turnos/{diaSemana}', [TurnoController::class, 'update'])->middleware('module:turnos');

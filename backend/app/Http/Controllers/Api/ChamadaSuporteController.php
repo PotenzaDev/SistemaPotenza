@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ChamadaSuporteResource;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\ChamadaSuporte;
-use App\Models\SessaoTrabalho;
+use App\Services\ChamadaSuporteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,59 +16,34 @@ class ChamadaSuporteController extends Controller
 {
     use ApiResponseTrait;
 
+    public function __construct(private readonly ChamadaSuporteService $chamadaSuporteService)
+    {
+    }
+
     public function store(Request $request): JsonResponse
     {
-        $operario = $request->user()->operario;
+        $chamada = $this->chamadaSuporteService->solicitar($request->user()->operario);
 
-        $sessao = SessaoTrabalho::where('operario_id', $operario->id)
-            ->where('status', SessaoTrabalho::STATUS_ATIVA)
-            ->whereNull('fim')
-            ->first();
-
-        if (! $sessao) {
-            return $this->errorResponse('Nenhuma sessão ativa encontrada.', 422);
-        }
-
-        $chamada = ChamadaSuporte::create([
-            'sessao_trabalho_id' => $sessao->id,
-            'maquina_id'         => $sessao->maquina_id,
-            'operario_id'        => $operario->id,
-            'origem'             => 'operario',
-        ]);
-
-        return $this->successResponse($chamada, 'Suporte solicitado.', 201);
+        return $this->successResponse(new ChamadaSuporteResource($chamada), 'Suporte solicitado.', 201);
     }
 
     public function storeManutencao(): JsonResponse
     {
-        $chamada = ChamadaSuporte::create([
-            'origem' => 'manutencao',
-        ]);
+        $chamada = $this->chamadaSuporteService->solicitarManutencao();
 
-        return $this->successResponse($chamada, 'Suporte solicitado pela manutenção.', 201);
+        return $this->successResponse(new ChamadaSuporteResource($chamada), 'Suporte solicitado pela manutenção.', 201);
     }
 
     public function index(): JsonResponse
     {
-        $chamadas = ChamadaSuporte::with(['maquina', 'operario'])
-            ->whereNull('visualizado_em')
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(fn ($c) => [
-                'id'        => $c->id,
-                'origem'    => $c->origem ?? 'operario',
-                'criado_em' => $c->created_at->toISOString(),
-                'maquina'   => $c->maquina ? ['id' => $c->maquina->id, 'nome' => $c->maquina->nome] : null,
-                'operario'  => $c->operario ? ['id' => $c->operario->id, 'nome' => $c->operario->nome] : null,
-            ]);
+        $chamadas = $this->chamadaSuporteService->listarPendentes();
 
-        return $this->successResponse($chamadas);
+        return $this->successResponse(ChamadaSuporteResource::collection($chamadas));
     }
 
-    public function visualizar(int $id): JsonResponse
+    public function visualizar(ChamadaSuporte $chamada_suporte): JsonResponse
     {
-        $chamada = ChamadaSuporte::findOrFail($id);
-        $chamada->update(['visualizado_em' => now()]);
+        $this->chamadaSuporteService->marcarVisualizada($chamada_suporte);
 
         return $this->successResponse(null, 'Chamada dispensada.');
     }

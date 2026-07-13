@@ -80,7 +80,14 @@
       "Bash(git -C .. diff --stat -- frontend/src/pages/RelatorioProducaoMaquinasPage.tsx)",
       "Bash(echo \"TSC_EXIT:$?\")",
       "Bash(git *)",
-      "Bash(PGPASSWORD=postdba psql -h 127.0.0.1 -p 5432 -U postgres -d Potenza -c \"SELECT produto_id, numero, nome FROM produto_pecas ORDER BY produto_id, numero LIMIT 40;\")"
+      "Bash(PGPASSWORD=postdba psql -h 127.0.0.1 -p 5432 -U postgres -d Potenza -c \"SELECT produto_id, numero, nome FROM produto_pecas ORDER BY produto_id, numero LIMIT 40;\")",
+      "Bash(cat -n app/Http/Requests/Admin/CreateOperarioRequest.php)",
+      "Bash(find app/Http/Requests app/Http/Resources -iname \"*operario*\")",
+      "Bash(grep -n \"fillable\\\\|hidden\\\\|casts\\\\|protected \\\\$\" app/Models/User.php)",
+      "Bash(grep *)",
+      "Bash(xargs -n1 basename)",
+      "Bash(rm app/Http/Requests/Apontamento/BiparRequest.php app/Http/Requests/Apontamento/FinalizarRequest.php)",
+      "Bash(rmdir app/Http/Requests/Apontamento)"
     ]
   }
 }

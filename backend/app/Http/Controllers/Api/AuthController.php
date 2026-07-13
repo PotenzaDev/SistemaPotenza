@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\LoginCrachaRequest;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
 use App\Http\Traits\ApiResponseTrait;
 use App\Services\AuthService;
@@ -70,13 +71,9 @@ class AuthController extends Controller
         return $this->successResponse(null, 'Senha alterada com sucesso.');
     }
 
-    public function updateProfile(Request $request): JsonResponse
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'name'             => ['required', 'string', 'max:255'],
-            'current_password' => ['nullable', 'string'],
-            'new_password'     => ['nullable', 'string', 'min:6'],
-        ]);
+        $data = $request->validated();
 
         $this->authService->updateProfile(
             $request->user(),

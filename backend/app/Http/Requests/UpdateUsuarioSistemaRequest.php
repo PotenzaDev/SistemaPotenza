@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Requests\Admin;
+namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -16,7 +16,7 @@ class UpdateUsuarioSistemaRequest extends FormRequest
 
     public function rules(): array
     {
-        $id = $this->route('usuario');
+        $id = $this->route('usuario')?->id;
 
         return [
             'name'          => ['sometimes', 'string', 'max:255'],
