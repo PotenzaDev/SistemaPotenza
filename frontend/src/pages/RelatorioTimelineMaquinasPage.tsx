@@ -227,7 +227,7 @@ export function RelatorioTimelineMaquinasPage() {
       {!loading && !error && turno && maquinas.length > 0 && (
         <div className="bg-[#0f1923] border border-white/5 rounded-xl p-4 space-y-4">
           {maquinas.map(maquina => {
-            const totais = somarDuracaoPorTipo(maquina.segmentos)
+            const totais = somarDuracaoPorTipo(maquina.segmentos, turno)
 
             return (
               <div

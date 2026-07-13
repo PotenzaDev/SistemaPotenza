@@ -39,11 +39,32 @@ function fmtDuracaoCurta(segundos: number): string {
   return resto > 0 ? `${h}h ${resto}min` : `${h}h`
 }
 
-export function somarDuracaoPorTipo(segmentos: TimelineSegmento[]): Record<TimelineTipoSegmento, number> {
+function horaComoData(referencia: Date, hora: string): Date {
+  const [h, m, s] = hora.split(':').map(Number)
+  const data = new Date(referencia)
+  data.setHours(h, m, s ?? 0, 0)
+  return data
+}
+
+/**
+ * Soma a duração dos segmentos por tipo, recortada à janela [hora_inicio,
+ * hora_fim] do turno — a mesma janela que a barra exibe. Sem esse recorte,
+ * segmentos de hora extra (fora da barra, ver posicao() abaixo) inflariam a
+ * soma com tempo que o usuário nunca vê na própria barra.
+ */
+export function somarDuracaoPorTipo(segmentos: TimelineSegmento[], turno: TimelineTurno): Record<TimelineTipoSegmento, number> {
   const totais: Record<TimelineTipoSegmento, number> = { setup: 0, producao: 0, pausa: 0, parado: 0 }
 
   for (const segmento of segmentos) {
-    const duracaoSegundos = (new Date(segmento.fim).getTime() - new Date(segmento.inicio).getTime()) / 1000
+    const inicio = new Date(segmento.inicio)
+    const fim = new Date(segmento.fim)
+    const limiteInicio = horaComoData(inicio, turno.hora_inicio)
+    const limiteFim = horaComoData(inicio, turno.hora_fim)
+
+    const inicioClip = inicio < limiteInicio ? limiteInicio : inicio
+    const fimClip = fim > limiteFim ? limiteFim : fim
+
+    const duracaoSegundos = (fimClip.getTime() - inicioClip.getTime()) / 1000
     totais[segmento.tipo] += Math.max(0, duracaoSegundos)
   }
 
