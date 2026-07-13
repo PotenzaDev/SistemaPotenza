@@ -15,6 +15,10 @@ const FILTROS: { value: Filtro; label: string }[] = [
   { value: 'inativos', label: 'Inativos' },
 ]
 
+const INPUT_CLASS =
+  'w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white ' +
+  'placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors'
+
 const maquinaColumns: ResponsiveTableColumn<Maquina>[] = [
   {
     key: 'foto',
@@ -71,6 +75,8 @@ export function MaquinasPage() {
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState<string | null>(null)
   const [filtro, setFiltro]             = useState<Filtro>('ativos')
+  const [busca, setBusca]               = useState('')
+  const [grupoId, setGrupoId]           = useState<number | ''>('')
   const [modalOpen, setModalOpen]       = useState(false)
   const [editingMaquina, setEditingMaquina] = useState<Maquina | undefined>()
 
@@ -142,11 +148,29 @@ export function MaquinasPage() {
     return () => controller.abort()
   }, [load])
 
+  const grupos = useMemo(() => {
+    const mapa = new Map<number, string>()
+    for (const m of maquinas) {
+      if (m.etapa_fluxo) mapa.set(m.etapa_fluxo.id, m.etapa_fluxo.nome)
+    }
+    return Array.from(mapa, ([id, nome]) => ({ id, nome })).sort((a, b) => a.nome.localeCompare(b.nome))
+  }, [maquinas])
+
   const filtered = useMemo(() => {
-    if (filtro === 'ativos')   return maquinas.filter(m => m.ativa)
-    if (filtro === 'inativos') return maquinas.filter(m => !m.ativa)
-    return maquinas
-  }, [maquinas, filtro])
+    const buscaNormalizada = busca.trim().toLowerCase()
+
+    return maquinas.filter(m => {
+      if (filtro === 'ativos' && !m.ativa) return false
+      if (filtro === 'inativos' && m.ativa) return false
+      if (grupoId !== '' && m.etapa_fluxo_id !== grupoId) return false
+      if (buscaNormalizada) {
+        const nomeMatch   = m.nome.toLowerCase().includes(buscaNormalizada)
+        const codigoMatch = m.codigo?.toLowerCase().includes(buscaNormalizada) ?? false
+        if (!nomeMatch && !codigoMatch) return false
+      }
+      return true
+    })
+  }, [maquinas, filtro, busca, grupoId])
 
   function openCreate() {
     setEditingMaquina(undefined)
@@ -190,20 +214,41 @@ export function MaquinasPage() {
       </div>
 
       {/* filtros */}
-      <div className="flex items-center gap-1 p-1 bg-white/5 rounded-lg w-fit">
-        {FILTROS.map(f => (
-          <button
-            key={f.value}
-            onClick={() => setFiltro(f.value)}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              filtro === f.value
-                ? 'bg-[#00aa84] text-white'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1 p-1 bg-white/5 rounded-lg w-fit">
+          {FILTROS.map(f => (
+            <button
+              key={f.value}
+              onClick={() => setFiltro(f.value)}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                filtro === f.value
+                  ? 'bg-[#00aa84] text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        <input
+          type="text"
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar por nome ou código…"
+          className={`${INPUT_CLASS} sm:w-64`}
+        />
+
+        <select
+          value={grupoId}
+          onChange={e => setGrupoId(e.target.value ? Number(e.target.value) : '')}
+          className={`${INPUT_CLASS} sm:w-48`}
+        >
+          <option value="">Todos os grupos</option>
+          {grupos.map(g => (
+            <option key={g.id} value={g.id}>{g.nome}</option>
+          ))}
+        </select>
       </div>
 
       {/* tabela */}
@@ -222,11 +267,13 @@ export function MaquinasPage() {
         {!loading && !error && filtered.length === 0 && (
           <div className="flex items-center justify-center py-16">
             <p className="text-sm text-slate-500">
-              {filtro === 'todos'
-                ? 'Nenhuma máquina cadastrada.'
-                : filtro === 'ativos'
-                  ? 'Nenhuma máquina ativa.'
-                  : 'Nenhuma máquina inativa.'}
+              {busca || grupoId !== ''
+                ? 'Nenhuma máquina encontrada para os filtros selecionados.'
+                : filtro === 'todos'
+                  ? 'Nenhuma máquina cadastrada.'
+                  : filtro === 'ativos'
+                    ? 'Nenhuma máquina ativa.'
+                    : 'Nenhuma máquina inativa.'}
             </p>
           </div>
         )}
