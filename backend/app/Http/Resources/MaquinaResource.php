@@ -23,6 +23,7 @@ class MaquinaResource extends JsonResource
             'prioridade' => $this->prioridade,
             'etapa_fluxo' => $this->whenLoaded('etapaFluxo'),
             'configuracao_cabecote' => $this->whenLoaded('configuracaoCabecote'),
+            'regra_maquina' => $this->whenLoaded('regraMaquina'),
         ];
     }
 }

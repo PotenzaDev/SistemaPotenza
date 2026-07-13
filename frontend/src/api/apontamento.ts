@@ -153,6 +153,12 @@ export async function finalizarApontamento(id: number, payload: FinalizarPayload
   return res.data.data
 }
 
+/** Passo 4b: finaliza sem bipagem individual de fichas (máquinas com possui_producao=false) */
+export async function finalizarApontamentoSemProducao(id: number): Promise<Apontamento> {
+  const res = await apiClient.post<ApiEnvelope<Apontamento>>(`/apontamento/${id}/finalizar-sem-producao`)
+  return res.data.data
+}
+
 // ── Pausa / retomada ──────────────────────────────────────────────────────────
 
 /** Pausa manual: operário informa um motivo predefinido */

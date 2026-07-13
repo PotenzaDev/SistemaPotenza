@@ -36,6 +36,15 @@ class SessaoTrabalhoResource extends JsonResource
                         'ordem' => $this->maquina->etapaFluxo->ordem,
                     ]
                 ),
+                'regra_maquina' => $this->when(
+                    $this->maquina->relationLoaded('regraMaquina') && $this->maquina->regraMaquina,
+                    fn () => [
+                        'possui_setup'                 => $this->maquina->regraMaquina->possui_setup,
+                        'possui_producao'               => $this->maquina->regraMaquina->possui_producao,
+                        'permite_multiplas_passagens'   => $this->maquina->regraMaquina->permite_multiplas_passagens,
+                        'limite_passagens'              => $this->maquina->regraMaquina->limite_passagens,
+                    ]
+                ),
             ]),
         ];
     }

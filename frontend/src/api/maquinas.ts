@@ -15,6 +15,13 @@ export interface ConfiguracaoCabecoteMaquina {
   pinos_por_cabecote: number
 }
 
+export interface RegraMaquina {
+  possui_setup: boolean
+  possui_producao: boolean
+  permite_multiplas_passagens: boolean
+  limite_passagens: number | null
+}
+
 export interface Maquina {
   id: number
   nome: string
@@ -26,6 +33,7 @@ export interface Maquina {
   etapa_fluxo_id: number
   etapa_fluxo: EtapaFluxo | null
   configuracao_cabecote: ConfiguracaoCabecoteMaquina | null
+  regra_maquina: RegraMaquina | null
   tem_sessao_interrompida?: boolean
   tem_sessoes_pausadas?: boolean
 }

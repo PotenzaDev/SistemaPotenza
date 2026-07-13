@@ -46,7 +46,7 @@ class SessaoTrabalhoRepository implements SessaoTrabalhoRepositoryInterface
     {
         return SessaoTrabalho::where('operario_id', $operario->id)
             ->where('status', SessaoTrabalho::STATUS_ATIVA)
-            ->with(['maquina.etapaFluxo'])
+            ->with(['maquina.etapaFluxo', 'maquina.regraMaquina'])
             ->first();
     }
 

@@ -90,6 +90,8 @@ class ApontamentoService
             }
         }
 
+        $possuiSetup = $sessao->maquina->regraMaquina?->possui_setup ?? true;
+
         $apontamento = $this->apontamentoRepo->criar([
             'sessao_trabalho_id' => $sessao->id,
             'etapa_fluxo_id'     => $etapaFluxoId,
@@ -99,8 +101,8 @@ class ApontamentoService
             'cod_produto'        => $loteDados['cod_produto'],
             'qtde_total'         => $qtdeTotal,
             'ftec_peca_pilha'    => $ftecPecaPilha,
-            'status'             => Apontamento::STATUS_EM_SETUP,
-            'setup_inicio'       => Carbon::now(),
+            'status'             => $possuiSetup ? Apontamento::STATUS_EM_SETUP : Apontamento::STATUS_AGUARDANDO_PRODUCAO,
+            'setup_inicio'       => $possuiSetup ? Carbon::now() : null,
         ]);
 
         return $apontamento->load(['etapaFluxo', 'fichas', 'pausas.motivoPausa']);
@@ -135,6 +137,20 @@ class ApontamentoService
             throw new BusinessException('Nenhuma passagem anterior finalizada encontrada para este lote nesta etapa.', 422);
         }
 
+        $regras = $sessao->maquina->regraMaquina;
+
+        if ($regras && ! $regras->permite_multiplas_passagens) {
+            throw new BusinessException('Esta máquina não permite mais de uma passagem por ficha.', 422);
+        }
+
+        $proximaPassagem = $origem->numero_passagem + 1;
+
+        if ($regras && $regras->limite_passagens !== null && $proximaPassagem > $regras->limite_passagens) {
+            throw new BusinessException("Limite de {$regras->limite_passagens} passagens atingido nesta máquina.", 422);
+        }
+
+        $possuiSetup = $regras?->possui_setup ?? true;
+
         $apontamento = $this->apontamentoRepo->criar([
             'sessao_trabalho_id'   => $sessao->id,
             'etapa_fluxo_id'       => $etapaFluxoId,
@@ -144,9 +160,9 @@ class ApontamentoService
             'cod_produto'          => $origem->cod_produto,
             'qtde_total'           => $origem->qtde_total,
             'ftec_peca_pilha'      => $origem->ftec_peca_pilha,
-            'status'               => Apontamento::STATUS_EM_SETUP,
-            'setup_inicio'         => Carbon::now(),
-            'numero_passagem'      => $origem->numero_passagem + 1,
+            'status'               => $possuiSetup ? Apontamento::STATUS_EM_SETUP : Apontamento::STATUS_AGUARDANDO_PRODUCAO,
+            'setup_inicio'         => $possuiSetup ? Carbon::now() : null,
+            'numero_passagem'      => $proximaPassagem,
             'apontamento_origem_id' => $origem->id,
         ]);
 
@@ -361,6 +377,54 @@ class ApontamentoService
         $apontamento->update([
             'producao_fim'              => $fim,
             'producao_duracao_segundos' => $duracao,
+            'total_pausa_segundos'      => $totalPausas,
+            'status'                    => Apontamento::STATUS_FINALIZADO,
+        ]);
+
+        $apontamento->load(['etapaFluxo', 'fichas']);
+
+        $this->atualizarHistoricoLote($apontamento);
+
+        return $apontamento;
+    }
+
+    /**
+     * Finaliza direto de aguardando_producao, sem bipagem individual de fichas.
+     * Só é permitido quando a máquina está configurada com possui_producao=false.
+     * Cria uma ficha sintética com a qtde_total do lote como produzida.
+     */
+    public function finalizarSemProducao(Apontamento $apontamento): Apontamento
+    {
+        if ($apontamento->status !== Apontamento::STATUS_AGUARDANDO_PRODUCAO) {
+            throw new BusinessException('Apontamento não está aguardando produção.', 422);
+        }
+
+        $regras = $apontamento->sessaoTrabalho->maquina->regraMaquina;
+
+        if ($regras && $regras->possui_producao) {
+            throw new BusinessException('Esta máquina exige bipagem de fichas antes de finalizar.', 422);
+        }
+
+        $agora     = Carbon::now();
+        $qtdeTotal = (int) ($apontamento->qtde_total ?? 0);
+
+        $this->fichaRepo->criar([
+            'apontamento_id'   => $apontamento->id,
+            'cod_peca'         => $apontamento->cod_peca,
+            'pilha'            => 1,
+            'qtd_peca'         => $qtdeTotal,
+            'qtd_produzida'    => $qtdeTotal,
+            'bipada_at'        => $agora,
+            'fim_producao'     => $agora,
+            'duracao_segundos' => 0,
+        ]);
+
+        $totalPausas = (int) $apontamento->pausas()->whereNotNull('fim')->sum('duracao_segundos');
+
+        $apontamento->update([
+            'producao_inicio'           => $agora,
+            'producao_fim'              => $agora,
+            'producao_duracao_segundos' => 0,
             'total_pausa_segundos'      => $totalPausas,
             'status'                    => Apontamento::STATUS_FINALIZADO,
         ]);

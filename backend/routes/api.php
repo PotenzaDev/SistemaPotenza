@@ -86,6 +86,7 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->g
         Route::post('/{apontamento}/finalizar-setup', [ApontamentoController::class, 'finalizarSetup']);        // 2. encerra setup → aguardando_producao
         Route::post('/{apontamento}/bipar-ficha', [ApontamentoController::class, 'biparFicha']);            // 3. bipar ficha → em_producao (repete N vezes)
         Route::post('/{apontamento}/finalizar', [ApontamentoController::class, 'finalizar']);             // 4. encerra produção + registra qtd por ficha
+        Route::post('/{apontamento}/finalizar-sem-producao', [ApontamentoController::class, 'finalizarSemProducao']); // 4b. encerra sem bipar fichas (possui_producao=false)
         // Pausa / retomada
         Route::post('/{apontamento}/pausar', [ApontamentoController::class, 'pausar']);         // pausa manual com motivo
         Route::post('/{apontamento}/pausar-sistema', [ApontamentoController::class, 'pausarSistema']); // auto-pausa (beacon)

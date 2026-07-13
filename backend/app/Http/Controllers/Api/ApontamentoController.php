@@ -114,6 +114,19 @@ class ApontamentoController extends Controller
         );
     }
 
+    /** Finaliza sem bipagem individual de fichas (máquinas com possui_producao=false). */
+    public function finalizarSemProducao(Apontamento $apontamento): JsonResponse
+    {
+        $this->authorize('update', $apontamento);
+
+        $result = $this->apontamentoService->finalizarSemProducao($apontamento);
+
+        return $this->successResponse(
+            new ApontamentoResource($result),
+            'Apontamento finalizado com sucesso.'
+        );
+    }
+
     /** Últimas fichas bipadas pelo operário logado no mesmo setor da sessão ativa. */
     public function fichasRecentes(Request $request): JsonResponse
     {

@@ -28,6 +28,10 @@ class StoreMaquinaRequest extends FormRequest
             'cabecotes_topo' => ['nullable', 'integer', 'min:0'],
             'cabecotes_traseiros' => ['nullable', 'integer', 'min:0'],
             'pinos_por_cabecote' => ['nullable', 'integer', 'min:0'],
+            'possui_setup' => ['boolean'],
+            'possui_producao' => ['boolean'],
+            'permite_multiplas_passagens' => ['boolean'],
+            'limite_passagens' => ['nullable', 'integer', 'min:2'],
         ];
     }
 }

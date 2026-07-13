@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
-import { X, ImageIcon, Upload, ClipboardList, Settings2 } from 'lucide-react'
+import { X, ImageIcon, Upload, ClipboardList, Settings2, SlidersHorizontal } from 'lucide-react'
 import { getEtapasFluxo, type EtapaFluxo } from '@/api/etapasFluxo'
 import { createMaquina, updateMaquina, type Maquina } from '@/api/maquinas'
 
@@ -23,6 +23,10 @@ interface FormState {
   cabecotes_topo: string
   cabecotes_traseiros: string
   pinos_por_cabecote: string
+  possui_setup: boolean
+  possui_producao: boolean
+  permite_multiplas_passagens: boolean
+  limite_passagens: string
 }
 
 const EMPTY: FormState = {
@@ -37,10 +41,15 @@ const EMPTY: FormState = {
   cabecotes_topo: '',
   cabecotes_traseiros: '',
   pinos_por_cabecote: '',
+  possui_setup: true,
+  possui_producao: true,
+  permite_multiplas_passagens: true,
+  limite_passagens: '',
 }
 
 function fromMaquina(m: Maquina): FormState {
   const cabecote = m.configuracao_cabecote
+  const regras = m.regra_maquina
   return {
     nome:          m.nome,
     codigo:        m.codigo ?? '',
@@ -53,6 +62,10 @@ function fromMaquina(m: Maquina): FormState {
     cabecotes_topo:       cabecote ? String(cabecote.cabecotes_topo) : '',
     cabecotes_traseiros:  cabecote ? String(cabecote.cabecotes_traseiros) : '',
     pinos_por_cabecote:   cabecote ? String(cabecote.pinos_por_cabecote) : '',
+    possui_setup:                 regras ? regras.possui_setup : true,
+    possui_producao:               regras ? regras.possui_producao : true,
+    permite_multiplas_passagens:   regras ? regras.permite_multiplas_passagens : true,
+    limite_passagens:              regras?.limite_passagens ? String(regras.limite_passagens) : '',
   }
 }
 
@@ -65,7 +78,7 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
   const [etapas, setEtapas]         = useState<EtapaFluxo[]>([])
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState<string | null>(null)
-  const [activeTab, setActiveTab]   = useState<'dados' | 'cabecote'>('dados')
+  const [activeTab, setActiveTab]   = useState<'dados' | 'cabecote' | 'regras'>('dados')
   const fileRef                     = useRef<HTMLInputElement>(null)
 
   /* inicializa ao abrir */
@@ -126,6 +139,10 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
       setError('O arquivo selecionado não é uma imagem. Use PNG, JPG ou WEBP.')
       return
     }
+    if (form.limite_passagens.trim() && Number(form.limite_passagens) < 2) {
+      setError('O limite de passagens deve ser no mínimo 2.')
+      return
+    }
 
     const data = new FormData()
     data.append('nome',            form.nome.trim())
@@ -135,6 +152,11 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
     if (form.ano.trim())       data.append('ano',       form.ano.trim())
     if (form.descricao.trim()) data.append('descricao', form.descricao.trim())
     if (foto)                  data.append('foto',      foto)
+
+    data.append('possui_setup',                 form.possui_setup ? '1' : '0')
+    data.append('possui_producao',               form.possui_producao ? '1' : '0')
+    data.append('permite_multiplas_passagens',   form.permite_multiplas_passagens ? '1' : '0')
+    if (form.limite_passagens.trim()) data.append('limite_passagens', form.limite_passagens.trim())
 
     if (mostrarAbaCabecote) {
       data.append('cabecotes_inferiores', String(Number(form.cabecotes_inferiores) || 0))
@@ -191,21 +213,33 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
 
-          {/* tabs: Dados / Configuração de Cabeçote */}
-          {mostrarAbaCabecote && (
-            <div className="flex gap-1 border-b border-white/5">
-              <button
-                type="button"
-                onClick={() => setActiveTab('dados')}
-                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-t-lg transition-colors ${
-                  activeTab === 'dados'
-                    ? 'bg-white/5 text-white border border-b-0 border-white/10'
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                <ClipboardList className="w-3 h-3" />
-                Dados
-              </button>
+          {/* tabs: Dados / Regras / Configuração de Cabeçote */}
+          <div className="flex gap-1 border-b border-white/5">
+            <button
+              type="button"
+              onClick={() => setActiveTab('dados')}
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-t-lg transition-colors ${
+                activeTab === 'dados'
+                  ? 'bg-white/5 text-white border border-b-0 border-white/10'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <ClipboardList className="w-3 h-3" />
+              Dados
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('regras')}
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-t-lg transition-colors ${
+                activeTab === 'regras'
+                  ? 'bg-white/5 text-white border border-b-0 border-white/10'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <SlidersHorizontal className="w-3 h-3" />
+              Regras
+            </button>
+            {mostrarAbaCabecote && (
               <button
                 type="button"
                 onClick={() => setActiveTab('cabecote')}
@@ -218,11 +252,11 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
                 <Settings2 className="w-3 h-3" />
                 Configuração de Cabeçote
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* aba Dados */}
-          {(!mostrarAbaCabecote || activeTab === 'dados') && (
+          {activeTab === 'dados' && (
           <>
           {/* foto */}
           <div>
@@ -326,6 +360,58 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
             </button>
           </div>
           </>
+          )}
+
+          {/* aba Regras */}
+          {activeTab === 'regras' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between py-1">
+                <span className="text-xs font-medium text-slate-400">Possui Setup</span>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, possui_setup: !prev.possui_setup }))}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${form.possui_setup ? 'bg-[#00aa84]' : 'bg-white/10'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.possui_setup ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-xs font-medium text-slate-400">Possui Produção</span>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, possui_producao: !prev.possui_producao }))}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${form.possui_producao ? 'bg-[#00aa84]' : 'bg-white/10'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.possui_producao ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-xs font-medium text-slate-400">Permite múltiplas passagens</span>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, permite_multiplas_passagens: !prev.permite_multiplas_passagens }))}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${form.permite_multiplas_passagens ? 'bg-[#00aa84]' : 'bg-white/10'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.permite_multiplas_passagens ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              {form.permite_multiplas_passagens && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Limite de passagens</label>
+                  <input
+                    name="limite_passagens"
+                    type="number"
+                    min="2"
+                    step="1"
+                    value={form.limite_passagens}
+                    onChange={handleField}
+                    placeholder="Sem limite"
+                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Deixe em branco para não limitar o número de passagens.</p>
+                </div>
+              )}
+            </div>
           )}
 
           {/* aba Configuração de Cabeçote */}

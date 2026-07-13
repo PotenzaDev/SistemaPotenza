@@ -14,6 +14,7 @@ import {
   finalizarSetup,
   biparFicha,
   finalizarApontamento,
+  finalizarApontamentoSemProducao,
   getFichasRecentes,
   getFichasPorCor,
   getFichaSetup,
@@ -246,7 +247,7 @@ export function ApontamentoOperarioPage() {
       const ap = await biparLote({ cod_peca: parsedBarcode.cod_peca, ordem_lote: parsedBarcode.ordem_lote })
       setApontamento(ap)
       setBarcode('')
-      setFase('em_setup')
+      setFase(derivarFase(ap))
     } catch (err) {
       const data = (err as { response?: { data?: { loteCompleto?: boolean } } })?.response?.data
       if (data?.loteCompleto) {
@@ -270,7 +271,7 @@ export function ApontamentoOperarioPage() {
       setBarcode('')
       setQtdsFichas({})
       setSaiuSemPausar(false)
-      setFase('em_setup')
+      setFase(derivarFase(ap))
     } catch (err) {
       setErroApi(apiMsg(err))
     } finally {
@@ -357,6 +358,21 @@ export function ApontamentoOperarioPage() {
           qtd_produzida: parseInt(qtdsFichas[f.id] ?? '0', 10),
         })),
       })
+      setApontamento(ap)
+      setFase('concluido')
+    } catch (err) {
+      setErroApi(apiMsg(err))
+    } finally {
+      setAtualizando(false)
+    }
+  }
+
+  async function handleFinalizarSemProducao() {
+    if (!apontamento) return
+    if (!confirm('Finalizar este lote sem bipar fichas individualmente?')) return
+    setAtualizando(true); setErroApi(null)
+    try {
+      const ap = await finalizarApontamentoSemProducao(apontamento.id)
       setApontamento(ap)
       setFase('concluido')
     } catch (err) {
@@ -456,7 +472,7 @@ export function ApontamentoOperarioPage() {
       setBarcode('')
       setQtdsFichas({})
       setSaiuSemPausar(false)
-      setFase('em_setup')
+      setFase(derivarFase(ap))
     } catch (err) {
       setErroApi(apiMsg(err))
     } finally {
@@ -709,6 +725,18 @@ export function ApontamentoOperarioPage() {
               />
             </div>
           </div>
+          {sessao?.maquina.regra_maquina?.possui_producao === false && (
+            <button
+              type="button"
+              onClick={handleFinalizarSemProducao}
+              disabled={atualizando}
+              className="w-full py-3 text-sm font-semibold text-white bg-[#00aa84] hover:bg-[#009973] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              {atualizando
+                ? <><Loader2 className="w-4 h-4 animate-spin" />Finalizando…</>
+                : <><CheckCircle2 className="w-4 h-4" />Finalizar sem bipar fichas</>}
+            </button>
+          )}
           <BotaoPausar
             label="Pausar"
             disabled={atualizando}

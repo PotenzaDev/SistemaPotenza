@@ -17,7 +17,7 @@ class MaquinaController extends Controller
 {
     use ApiResponseTrait;
 
-    private const RELACOES = ['etapaFluxo', 'configuracaoCabecote'];
+    private const RELACOES = ['etapaFluxo', 'configuracaoCabecote', 'regraMaquina'];
 
     public function __construct(private readonly MaquinaService $maquinaService)
     {

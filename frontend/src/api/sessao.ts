@@ -1,10 +1,18 @@
 import { apiClient } from './client'
 import type { ApiEnvelope } from './auth'
 
+export interface SessaoMaquinaRegra {
+  possui_setup: boolean
+  possui_producao: boolean
+  permite_multiplas_passagens: boolean
+  limite_passagens: number | null
+}
+
 export interface SessaoMaquina {
   id: number
   nome: string
   etapa_fluxo: { id: number; nome: string; ordem: number } | null
+  regra_maquina?: SessaoMaquinaRegra
 }
 
 export interface PausaOciosa {
