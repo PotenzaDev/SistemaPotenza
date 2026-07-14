@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Wrench, Loader2, AlertCircle, X, CalendarDays, ArrowUpDown, Headphones, CheckCircle2 } from 'lucide-react'
+import { Wrench, Loader2, AlertCircle, X, CalendarDays, ArrowUpDown, Headphones, CheckCircle2, Plus } from 'lucide-react'
 import {
   getOrdensManutencao,
   type OrdemManutencao,
@@ -8,6 +8,7 @@ import {
 } from '@/api/manutencao'
 import { chamarSuporteManutencao } from '@/api/suporte'
 import { OrdemManutencaoModal } from '@/components/manutencao/OrdemManutencaoModal'
+import { CriarOrdemManutencaoModal } from '@/components/manutencao/CriarOrdemManutencaoModal'
 
 const PRIORIDADE_ORDER: Prioridade[] = ['critica', 'alta', 'normal', 'baixa']
 
@@ -67,6 +68,7 @@ export function ManutencaoPainelPage() {
   const [loading, setLoading]                   = useState(true)
   const [erroApi, setErroApi]                   = useState<string | null>(null)
   const [ordemSelecionada, setOrdemSelecionada] = useState<OrdemManutencao | null>(null)
+  const [modalCriarAberto, setModalCriarAberto] = useState(false)
 
   const [suporteStatus, setSuporteStatus] = useState<'idle' | 'loading' | 'ok'>('idle')
 
@@ -191,6 +193,10 @@ export function ManutencaoPainelPage() {
     setOrdemSelecionada(prev => prev?.id === updated.id ? updated : prev)
   }
 
+  function handleCreated(nova: OrdemManutencao) {
+    setOrdens(prev => [nova, ...prev])
+  }
+
   return (
     <div className="space-y-5">
       {/* Cabeçalho */}
@@ -202,22 +208,33 @@ export function ManutencaoPainelPage() {
           <h1 className="text-xl font-bold text-white">Painel de Manutenção</h1>
         </div>
 
-        <button
-          type="button"
-          onClick={handleChamarSuporte}
-          disabled={suporteStatus === 'loading'}
-          className={[
-            'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all',
-            suporteStatus === 'ok'
-              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-              : 'bg-orange-500/10 text-orange-400 border-orange-500/20 hover:bg-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed',
-          ].join(' ')}
-        >
-          {suporteStatus === 'loading' && <Loader2 className="w-4 h-4 animate-spin" />}
-          {suporteStatus === 'ok'      && <CheckCircle2 className="w-4 h-4" />}
-          {suporteStatus === 'idle'    && <Headphones className="w-4 h-4" />}
-          {suporteStatus === 'ok' ? 'Suporte avisado!' : 'Chamar Suporte'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setModalCriarAberto(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#00aa84] text-white hover:bg-[#00aa84]/90 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            Nova OS
+          </button>
+
+          <button
+            type="button"
+            onClick={handleChamarSuporte}
+            disabled={suporteStatus === 'loading'}
+            className={[
+              'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all',
+              suporteStatus === 'ok'
+                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                : 'bg-orange-500/10 text-orange-400 border-orange-500/20 hover:bg-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed',
+            ].join(' ')}
+          >
+            {suporteStatus === 'loading' && <Loader2 className="w-4 h-4 animate-spin" />}
+            {suporteStatus === 'ok'      && <CheckCircle2 className="w-4 h-4" />}
+            {suporteStatus === 'idle'    && <Headphones className="w-4 h-4" />}
+            {suporteStatus === 'ok' ? 'Suporte avisado!' : 'Chamar Suporte'}
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -396,12 +413,20 @@ export function ManutencaoPainelPage() {
         </div>
       ))}
 
-      {/* Modal */}
+      {/* Modal de detalhe/edição */}
       {ordemSelecionada !== null && (
         <OrdemManutencaoModal
           ordem={ordemSelecionada}
           onClose={() => setOrdemSelecionada(null)}
           onUpdate={handleUpdate}
+        />
+      )}
+
+      {/* Modal de criação */}
+      {modalCriarAberto && (
+        <CriarOrdemManutencaoModal
+          onClose={() => setModalCriarAberto(false)}
+          onCreated={handleCreated}
         />
       )}
     </div>

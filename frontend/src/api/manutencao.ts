@@ -67,6 +67,11 @@ export async function criarOrdem(data: CriarOrdemData): Promise<OrdemManutencao>
   return res.data.data
 }
 
+export async function criarOrdemAdmin(data: CriarOrdemData): Promise<OrdemManutencao> {
+  const res = await apiClient.post<ApiEnvelope<OrdemManutencao>>('/manutencao/admin', data)
+  return res.data.data
+}
+
 export async function atualizarStatusOrdem(id: number, status: StatusOrdem): Promise<OrdemManutencao> {
   const res = await apiClient.put<ApiEnvelope<OrdemManutencao>>(`/manutencao/admin/${id}`, { status })
   return res.data.data
