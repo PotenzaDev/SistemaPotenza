@@ -291,7 +291,7 @@ class SessaoTrabalhoService
             'duracao_segundos' => (int) $pausaAberta->inicio->diffInSeconds($fim),
         ]);
 
-        return $sessao->load(['maquina.etapaFluxo']);
+        return $sessao->load(['maquina.etapaFluxo', 'pausaOciosaAberta']);
     }
 
     /**

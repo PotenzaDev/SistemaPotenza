@@ -56,6 +56,7 @@ class DashboardService
         $maquinas = Maquina::where('ativa', true)
             ->with([
                 'sessaoAtiva.operario.user',
+                'sessaoAtiva.pausaOciosaAberta',
                 'sessaoAtiva.apontamentos' => fn ($q) => $q
                     ->whereIn('status', [
                         Apontamento::STATUS_EM_SETUP,
@@ -72,11 +73,12 @@ class DashboardService
         return $maquinas->map(function (Maquina $maquina) {
             $sessao      = $maquina->sessaoAtiva;
             $apontamento = $sessao?->apontamentos->first();
+            $pausaOciosa = $apontamento === null ? $sessao?->pausaOciosaAberta : null;
 
             return [
                 'id'                   => $maquina->id,
                 'nome'                 => $maquina->nome,
-                'status'               => $apontamento?->status ?? 'livre',
+                'status'               => $apontamento?->status ?? ($pausaOciosa ? 'pausa_ociosa' : 'livre'),
                 'operario'             => $sessao?->operario?->user?->name,
                 'lote'                 => $apontamento?->ordem_lote,
                 'cod_peca'             => $apontamento?->cod_peca,
@@ -88,7 +90,8 @@ class DashboardService
                     ? (int) round($apontamento->producao_duracao_segundos / 60) : null,
                 'total_pausa_min'      => $apontamento?->total_pausa_segundos !== null
                     ? (int) round($apontamento->total_pausa_segundos / 60) : null,
-                'inicio'               => $apontamento?->setup_inicio?->format('H:i'),
+                'inicio'               => $apontamento?->setup_inicio?->format('H:i')
+                    ?? $pausaOciosa?->inicio?->format('H:i'),
             ];
         })->values()->all();
     }

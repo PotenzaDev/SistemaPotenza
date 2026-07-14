@@ -15,6 +15,7 @@ const STATUS_CONFIG: Record<MaquinaDashboard['status'], { label: string; dot: st
   em_pausa_setup: { label: 'Pausa Setup', dot: 'bg-orange-500', text: 'text-orange-400' },
   em_pausa_aguardando: { label: 'Pausa', dot: 'bg-orange-500', text: 'text-orange-400' },
   em_pausa_producao: { label: 'Pausa Prod.', dot: 'bg-orange-500', text: 'text-orange-400' },
+  pausa_ociosa: { label: 'Pausa', dot: 'bg-orange-500', text: 'text-orange-400' },
 }
 
 const PIE_COLORS = ['#00aa84', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
