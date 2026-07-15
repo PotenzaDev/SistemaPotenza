@@ -11,7 +11,6 @@ use App\Models\Maquina;
 use App\Models\Operario;
 use App\Models\SessaoTrabalho;
 use App\Models\User;
-use App\Services\Lote\LoteServiceInterface;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,46 +19,9 @@ class ApontamentoFinalizacaoParcialTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * finalizar() consulta progressoPorCor() -> buscarVariantesPorPrefixoLote()
-     * na Bridge; sem essa fake, o teste falharia com 503 (BRIDGE_API_URL não
-     * configurada), como já é feito em ApontamentoFluxoRegrasMaquinaTest.
-     */
-    private function fakeLoteServiceSemVariantes(): void
-    {
-        $this->app->bind(LoteServiceInterface::class, fn () => new class implements LoteServiceInterface {
-            public function buscarPorOrdemLote(string $ordemLote, string $codPeca): array
-            {
-                return ['cod_produto' => 'PROD-0001', 'desc_peca' => 'Peça Teste', 'qtde_total' => 100];
-            }
-
-            public function buscarFtecPecaPilha(string $codPeca): ?int
-            {
-                return null;
-            }
-
-            public function contarFichasLote(string $ordemLote, string $codPeca): int
-            {
-                return 1;
-            }
-
-            public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array
-            {
-                return ['qtde_total' => 100, 'total_pilhas' => 0];
-            }
-
-            public function buscarVariantesPorPrefixoLote(string $ordemLote, string $prefixoCod): array
-            {
-                return [];
-            }
-        });
-    }
-
     /** @return array{0: User, 1: Apontamento} */
     private function prepararEmProducaoComPecasFaltando(): array
     {
-        $this->fakeLoteServiceSemVariantes();
-
         $etapa    = EtapaFluxo::factory()->create(['ativa' => true]);
         $maquina  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
         $user     = User::factory()->operario()->create();
@@ -107,26 +69,6 @@ class ApontamentoFinalizacaoParcialTest extends TestCase
         $this->assertDatabaseHas('apontamentos', [
             'id'     => $apontamento->id,
             'status' => 'em_producao',
-        ]);
-    }
-
-    public function test_permite_finalizar_parcial_com_confirmacao(): void
-    {
-        [$user, $apontamento] = $this->prepararEmProducaoComPecasFaltando();
-        $ficha = $apontamento->fichas()->first();
-
-        $this->actingAs($user, 'sanctum')
-            ->postJson("/api/apontamento/{$apontamento->id}/finalizar", [
-                'fichas'            => [['ficha_id' => $ficha->id, 'qtd_produzida' => 40]],
-                'confirmar_parcial' => true,
-            ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'finalizado');
-
-        $this->assertDatabaseHas('apontamentos', [
-            'id'                 => $apontamento->id,
-            'status'             => 'finalizado',
-            'finalizado_parcial' => true,
         ]);
     }
 

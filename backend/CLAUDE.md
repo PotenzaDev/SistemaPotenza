@@ -7,7 +7,7 @@ Autenticação via Laravel Sanctum. Três perfis de acesso.
 **Repositório:** `GuAncete/SistemaPotenza` (pasta `backend/` ou raiz)
 **PHP:** 8.2+
 **Framework:** Laravel 11
-**Bancos:** PostgreSQL (primário) + SQL Server interno (legado, via API Bridge)
+**Bancos:** PostgreSQL (primário) + SQL Server interno (legado, acesso direto)
 **Deploy:** VPS Hostinger — Ubuntu + Nginx + SSL
 
 ---
@@ -248,16 +248,26 @@ Usar **Laravel Policies** para autorização, nunca verificar role direto no con
 - Migrations versionadas no repositório
 
 ### SQL Server (legado — servidor interno `192.168.0.x`)
-- Banco `db1Fabri` (ERP legado) — **não há conexão direta** a partir do `backend/`
-- Acesso exclusivamente via **API Bridge** (projeto `bridge/`, rede interna):
-  o `backend/` faz requisições HTTP autenticadas (`X-Bridge-Token`) para a
-  Bridge, que consulta o SQL Server e retorna os dados já mapeados
-- Configuração em `config/services.php` (`bridge.url`, `bridge.token`),
-  via `BRIDGE_API_URL`/`BRIDGE_API_TOKEN` no `.env`
-- `App\Services\Lote\LoteService` implementa `LoteServiceInterface` como
-  cliente HTTP da Bridge; se `BRIDGE_API_URL` não estiver configurado ou a
-  Bridge estiver inacessível, uma `BusinessException` (503) é lançada com
-  mensagem descritiva do motivo da falha
+- Banco `db1Fabri` (ERP legado) — acesso **direto** a partir do `backend/`,
+  já que o sistema roda na mesma rede interna do SQL Server
+- Conexão dedicada `sqlsrv_legado` em `config/database.php` (`read_only`),
+  configurada via `SQLSRV_HOST`/`SQLSRV_PORT`/`SQLSRV_DATABASE`/
+  `SQLSRV_USERNAME`/`SQLSRV_PASSWORD`/`SQLSRV_ENCRYPT`/
+  `SQLSRV_TRUST_SERVER_CERTIFICATE` no `.env` — nunca reutilizar as
+  variáveis `DB_*` (essas são do Postgres primário)
+- `App\Services\Lote\LoteService` (implementa `LoteServiceInterface`) e
+  `App\Services\Produto\ProdutoImportService` (implementa
+  `ProdutoImportServiceInterface`) consultam `DB::connection('sqlsrv_legado')`
+  diretamente; se o SQL Server legado estiver inacessível, uma
+  `BusinessException` (503) é lançada (ou, em métodos com fallback
+  documentado no contrato da interface, um valor seguro é retornado)
+- O container `backend` precisa do driver ODBC/`pdo_sqlsrv` instalado
+  (ver `Dockerfile`) para essa conexão funcionar
+- **Projeto `bridge/` (API HTTP legada):** mantido no repositório sem uso.
+  Era o mecanismo antigo de acesso ao SQL Server quando `backend/` e o banco
+  não estavam na mesma rede. Não editar/depender dele — se a topologia de
+  rede mudar novamente, ele pode voltar a ser necessário, mas hoje nada em
+  `backend/` o chama
 
 ### Conventions de Migration
 ```php

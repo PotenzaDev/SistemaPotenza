@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Lote;
 
 use App\Exceptions\BusinessException;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Response;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 class LoteService implements LoteServiceInterface
 {
@@ -16,71 +15,106 @@ class LoteService implements LoteServiceInterface
         // Barcode entrega '06854'; o banco armazena '6854' — remove zeros à esquerda
         $ordemLote = ltrim($ordemLote, '0') ?: '0';
 
-        $response = $this->get('ficha-tecnica/lote', [
-            'lote'     => $ordemLote,
-            'cod_peca' => $codPeca,
-        ]);
+        $rows = $this->select(
+            'SELECT
+                Empresa, Lote, DataEmbalagem, Prod_Codi, CodiSemiAcabado,
+                DenoSemiAcabado, SubgSemiAcabado, TipoMate, Espess, Comp,
+                Larg, QtdBorComp, QtdBorLarg, Pintura, CorCopo,
+                Qtde_Prod, QtdeSemi, Qtde_Total
+             FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
+             WHERE CodiSemiAcabado = ? AND Lote = ?',
+            [$codPeca, $ordemLote]
+        );
 
-        if ($response->notFound()) {
+        if (empty($rows)) {
             throw new BusinessException(
                 "Produto '{$codPeca}' não encontrado no lote '{$ordemLote}'.",
                 422
             );
         }
 
-        if ($response->failed()) {
-            throw new BusinessException('Falha ao consultar a ficha técnica do lote.', 503);
-        }
+        // Dados descritivos vêm da primeira linha; qtde_total é a soma de todas as linhas
+        $first     = (array) $rows[0];
+        $qtdeTotal = (int) array_sum(
+            array_column(array_map(fn ($r) => (array) $r, $rows), 'Qtde_Total')
+        );
 
-        return $response->json();
+        return $this->mapear($first, $qtdeTotal);
     }
 
     public function buscarFtecPecaPilha(string $codPeca): ?int
     {
-        $response = $this->get('ficha-tecnica/pilha', [
-            'cod_peca' => $codPeca,
-        ]);
+        $row = $this->selectOne(
+            'SELECT TOP 1 FtecpecaPilha FROM [db1Fabri].[dbo].[FbmFichatecnica] WHERE CodiSemiAcabado = ?',
+            [$codPeca]
+        );
 
-        if ($response->failed()) {
-            throw new BusinessException('Falha ao consultar a ficha técnica da peça.', 503);
+        if (! $row) {
+            return null;
         }
 
-        return $response->json('ftec_peca_pilha');
+        $valor = (array) $row;
+
+        return isset($valor['FtecpecaPilha']) && $valor['FtecpecaPilha'] > 0
+            ? (int) $valor['FtecpecaPilha']
+            : null;
     }
 
     public function contarFichasLote(string $ordemLote, string $codPeca): int
     {
         $ordemLote = ltrim($ordemLote, '0') ?: '0';
 
-        $response = $this->get('ficha-tecnica/count-fichas', [
-            'lote'     => $ordemLote,
-            'cod_peca' => $codPeca,
-        ]);
-
-        if ($response->failed()) {
+        try {
+            $rows = $this->select(
+                'SELECT Prod_Codi FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
+                 WHERE CodiSemiAcabado = ? AND Lote = ?',
+                [$codPeca, $ordemLote]
+            );
+        } catch (BusinessException) {
             // fallback seguro: assume 1 ficha (comportamento original)
             return 1;
         }
 
-        return max(1, (int) $response->json('total'));
+        if (empty($rows)) {
+            return 1;
+        }
+
+        // O sufixo alfabético de Prod_Codi identifica a cor/acabamento do
+        // produto final (ex: "03950GD" -> "GD"). Quando todas as linhas
+        // compartilham o mesmo sufixo, cada uma é um produto distinto que
+        // precisa de sua própria ficha física (passagens legítimas =
+        // quantidade de linhas). Quando os sufixos diferem, as linhas são
+        // variantes de cor do mesmo corte, somadas em uma única ficha.
+        $sufixos = array_unique(array_map(
+            fn ($row) => preg_replace('/^[0-9]+/', '', (string) $row->Prod_Codi),
+            $rows
+        ));
+
+        return count($sufixos) === 1 ? count($rows) : 1;
     }
 
     public function buscarTotaisPorPrefixoLote(string $ordemLote, string $prefixoCod): array
     {
         $ordemLote = ltrim($ordemLote, '0') ?: '0';
 
-        $response = $this->get('ficha-tecnica/lote-variantes', [
-            'lote'        => $ordemLote,
-            'prefixo_cod' => $prefixoCod,
-        ]);
-
-        if ($response->failed()) {
+        try {
+            $result = $this->selectOne(
+                'SELECT COUNT(*) AS total_pilhas, SUM(Qtde_Total) AS qtde_total
+                 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
+                 WHERE SUBSTRING(CodiSemiAcabado, 1, 5) = ? AND Lote = ?',
+                [$prefixoCod, $ordemLote]
+            );
+        } catch (BusinessException) {
             return ['qtde_total' => null, 'total_pilhas' => 0];
         }
 
+        $row         = (array) $result;
+        $totalPilhas = (int) ($row['total_pilhas'] ?? 0);
+        $qtdeTotal   = $totalPilhas > 0 ? (int) ($row['qtde_total'] ?? 0) : null;
+
         return [
-            'qtde_total'   => $response->json('qtde_total'),
-            'total_pilhas' => (int) $response->json('total_pilhas'),
+            'qtde_total'   => $qtdeTotal,
+            'total_pilhas' => $totalPilhas,
         ];
     }
 
@@ -88,49 +122,79 @@ class LoteService implements LoteServiceInterface
     {
         $ordemLote = ltrim($ordemLote, '0') ?: '0';
 
-        $response = $this->get('ficha-tecnica/lote-variantes-detalhe', [
-            'lote'        => $ordemLote,
-            'prefixo_cod' => $prefixoCod,
-        ]);
-
-        if ($response->failed()) {
+        try {
+            $rows = $this->select(
+                'SELECT CodiSemiAcabado, DenoSemiAcabado, SUM(Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
+                 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
+                 WHERE SUBSTRING(CodiSemiAcabado, 1, 5) = ? AND Lote = ?
+                 GROUP BY CodiSemiAcabado, DenoSemiAcabado',
+                [$prefixoCod, $ordemLote]
+            );
+        } catch (BusinessException) {
             return [];
         }
 
-        return $response->json('variantes') ?? [];
+        return array_map(function ($row) {
+            $row = (array) $row;
+
+            // CodiSemiAcabado/DenoSemiAcabado costumam vir com espaços à direita
+            // (coluna CHAR de largura fixa no SQL Server) — sem o trim, o valor
+            // não bate com o cod_peca vindo do código de barras/fichas já
+            // gravadas, e a contagem por cor nunca casa (sempre fica em 0).
+            return [
+                'cod_peca'     => trim((string) ($row['CodiSemiAcabado'] ?? '')),
+                'desc_peca'    => trim((string) ($row['DenoSemiAcabado'] ?? '')),
+                'qtde_total'   => (int) ($row['qtde_total'] ?? 0),
+                'total_pilhas' => (int) ($row['total_pilhas'] ?? 0),
+            ];
+        }, $rows);
     }
 
-    private function get(string $uri, array $query): Response
+    private function mapear(array $row, int $qtdeTotal): array
     {
-        $url = (string) config('services.bridge.url');
+        return [
+            'lote'              => $row['Lote'],
+            'cod_produto'       => (string) ($row['Prod_Codi'] ?? ''),
+            'cod_peca'          => (string) ($row['CodiSemiAcabado'] ?? ''),
+            'desc_peca'         => (string) ($row['DenoSemiAcabado'] ?? ''),
+            'qtde_total'        => $qtdeTotal,
+            'empresa'           => $row['Empresa'] ?? null,
+            'data_embalagem'    => $row['DataEmbalagem'] ?? null,
+            'subg_semi_acabado' => $row['SubgSemiAcabado'] ?? null,
+            'tipo_mate'         => $row['TipoMate'] ?? null,
+            'espess'            => $row['Espess'] ?? null,
+            'comp'              => $row['Comp'] ?? null,
+            'larg'              => $row['Larg'] ?? null,
+            'qtd_bor_comp'      => $row['QtdBorComp'] ?? null,
+            'qtd_bor_larg'      => $row['QtdBorLarg'] ?? null,
+            'pintura'           => $row['Pintura'] ?? null,
+            'cor_copo'          => $row['CorCopo'] ?? null,
+            'qtde_prod'         => isset($row['Qtde_Prod']) ? (int) $row['Qtde_Prod'] : null,
+            'qtde_semi'         => isset($row['QtdeSemi']) ? (int) $row['QtdeSemi'] : null,
+        ];
+    }
 
-        if (empty($url)) {
-            throw new BusinessException(
-                'A URL da API Bridge não está configurada. Verifique a variável BRIDGE_API_URL no arquivo .env.',
-                503
-            );
-        }
-
+    private function select(string $query, array $bindings): array
+    {
         try {
-            $response = Http::baseUrl($url)
-                ->withHeader('X-Bridge-Token', (string) config('services.bridge.token'))
-                ->acceptJson()
-                ->timeout(5)
-                ->get($uri, $query);
-        } catch (ConnectionException) {
+            return DB::connection('sqlsrv_legado')->select($query, $bindings);
+        } catch (QueryException) {
             throw new BusinessException(
-                "Não foi possível conectar à API Bridge ({$url}). Verifique se o serviço está ativo.",
+                'Não foi possível conectar ao banco de dados legado (SQL Server). Verifique a conectividade de rede.',
                 503
             );
         }
+    }
 
-        if ($response->status() === 401 || $response->status() === 403) {
+    private function selectOne(string $query, array $bindings): ?object
+    {
+        try {
+            return DB::connection('sqlsrv_legado')->selectOne($query, $bindings);
+        } catch (QueryException) {
             throw new BusinessException(
-                'Autenticação negada na API Bridge. Verifique o token de acesso (BRIDGE_API_TOKEN).',
+                'Não foi possível conectar ao banco de dados legado (SQL Server). Verifique a conectividade de rede.',
                 503
             );
         }
-
-        return $response;
     }
 }
