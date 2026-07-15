@@ -91,6 +91,26 @@ return [
             'prefix_indexes' => true,
         ],
 
+        // Banco legado (ERP terceirizado), acessado diretamente agora que o
+        // backend está na mesma rede interna do SQL Server. Substitui a
+        // antiga API Bridge (projeto bridge/, mantido no repositório sem uso).
+        'sqlsrv_legado' => [
+            'driver' => 'sqlsrv',
+            'host' => env('SQLSRV_HOST', 'localhost'),
+            'port' => env('SQLSRV_PORT', '1433'),
+            'database' => env('SQLSRV_DATABASE', 'db1Fabri'),
+            'username' => env('SQLSRV_USERNAME', ''),
+            'password' => env('SQLSRV_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'read_only' => true,
+            // ODBC Driver 18 encripta por padrão, mas o certificado do SQL
+            // Server interno não é assinado por CA confiável.
+            'encrypt' => env('SQLSRV_ENCRYPT', 'no'),
+            'trust_server_certificate' => env('SQLSRV_TRUST_SERVER_CERTIFICATE', true),
+        ],
+
     ],
 
     /*

@@ -1,8 +1,15 @@
 FROM php:8.3-fpm
 
 RUN apt-get update && apt-get install -y \
-    git curl libpq-dev libzip-dev zip unzip \
+    git curl gnupg2 libpq-dev libzip-dev unixodbc-dev zip unzip \
     && docker-php-ext-install pdo pdo_pgsql zip \
+    && curl -sSL -O https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb \
+    && dpkg -i packages-microsoft-prod.deb \
+    && rm packages-microsoft-prod.deb \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
+    && pecl install sqlsrv pdo_sqlsrv \
+    && docker-php-ext-enable sqlsrv pdo_sqlsrv \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www

@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Models\Produto;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ProdutoControllerTest extends TestCase
@@ -104,30 +103,5 @@ class ProdutoControllerTest extends TestCase
         $this->actingAs($admin, 'sanctum')
             ->getJson('/api/produtos/buscar-erp?empresa=XXX&nome=cadeira')
             ->assertStatus(422);
-    }
-
-    public function test_buscar_erp_retorna_ja_importado_para_produto_existente_localmente(): void
-    {
-        config([
-            'services.bridge.url' => 'http://bridge.test/api',
-            'services.bridge.token' => 'test-token',
-        ]);
-
-        Produto::factory()->create(['cod_produto' => '123', 'empresa' => 'FBM']);
-
-        Http::fake([
-            'bridge.test/api/produtos*' => Http::response([
-                ['cod_produto' => '123', 'nome' => 'Cadeira', 'grupo' => 'MOVEIS', 'sub_grupo' => 'CADEIRAS'],
-                ['cod_produto' => '456', 'nome' => 'Mesa', 'grupo' => 'MOVEIS', 'sub_grupo' => 'MESAS'],
-            ], 200),
-        ]);
-
-        $admin = User::factory()->admin()->create();
-
-        $this->actingAs($admin, 'sanctum')
-            ->getJson('/api/produtos/buscar-erp?empresa=FBM&nome=cadeira')
-            ->assertOk()
-            ->assertJsonPath('data.0.ja_importado', true)
-            ->assertJsonPath('data.1.ja_importado', false);
     }
 }

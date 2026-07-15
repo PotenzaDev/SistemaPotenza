@@ -7,27 +7,34 @@ namespace App\Services\Produto;
 use App\Exceptions\BusinessException;
 use App\Models\Produto;
 use App\Models\ProdutoPeca;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Response;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 
 class ProdutoImportService implements ProdutoImportServiceInterface
 {
     public function buscarNoErp(string $empresa, ?string $nome, ?string $subGrupo): array
     {
-        $response = $this->get('produtos', [
-            'empresa' => $empresa,
-            'nome' => $nome,
-            'sub_grupo' => $subGrupo,
-            'data_corte' => $this->dataCorte(),
-        ]);
+        $filtroNome = $this->paraFiltroLike($nome);
+        $filtroSubGrupo = $this->paraFiltroLike($subGrupo);
 
-        if ($response->failed()) {
-            throw new BusinessException('Falha ao consultar produtos no ERP.', 503);
-        }
+        $rows = $this->select(
+            'SELECT Prod_Codi, Prod_Deno, Prod_Grupo, Prod_Sub_Grupo
+             FROM [db1Fabri].[dbo].[Produto_Cadastro] p
+             WHERE Empresa        = ?
+               AND Prod_Tipo      = \'P\'
+               AND Prod_Deno      LIKE ? ESCAPE \'\\\'
+               AND Prod_Sub_Grupo LIKE ? ESCAPE \'\\\'
+               AND EXISTS (
+                   SELECT 1 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica] f
+                   WHERE f.Prod_Codi = p.Prod_Codi
+                     AND f.DataEmbalagem > ?
+               )
+             ORDER BY Prod_Sub_Grupo, Prod_Codi',
+            [$empresa, $filtroNome, $filtroSubGrupo, $this->dataCorte()],
+            'Falha ao consultar produtos no ERP.'
+        );
 
-        $produtosErp = $response->json();
+        $produtosErp = array_map(fn ($row) => $this->mapearProduto((array) $row), $rows);
 
         $codigosImportados = Produto::query()
             ->where('empresa', $empresa)
@@ -45,28 +52,45 @@ class ProdutoImportService implements ProdutoImportServiceInterface
 
     public function buscarSubGruposNoErp(string $empresa): array
     {
-        $response = $this->get('produtos/sub-grupos', [
-            'empresa' => $empresa,
-            'data_corte' => $this->dataCorte(),
-        ]);
+        $rows = $this->select(
+            'SELECT DISTINCT Prod_Sub_Grupo
+             FROM [db1Fabri].[dbo].[Produto_Cadastro] p
+             WHERE Empresa        = ?
+               AND Prod_Tipo      = \'P\'
+               AND Prod_Sub_Grupo IS NOT NULL
+               AND Prod_Sub_Grupo <> \'\'
+               AND EXISTS (
+                   SELECT 1 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica] f
+                   WHERE f.Prod_Codi = p.Prod_Codi
+                     AND f.DataEmbalagem > ?
+               )
+             ORDER BY Prod_Sub_Grupo',
+            [$empresa, $this->dataCorte()],
+            'Falha ao consultar sub-grupos de produtos no ERP.'
+        );
 
-        if ($response->failed()) {
-            throw new BusinessException('Falha ao consultar sub-grupos de produtos no ERP.', 503);
-        }
-
-        return $response->json();
+        return array_map(fn ($row) => (string) ((array) $row)['Prod_Sub_Grupo'], $rows);
     }
 
     public function importar(array $dadosProdutoErp): Produto
     {
-        $codProduto = rawurlencode((string) $dadosProdutoErp['cod_produto']);
-        $response = $this->get("produtos/{$codProduto}/pecas", []);
+        $codProduto = (string) $dadosProdutoErp['cod_produto'];
 
-        if ($response->failed()) {
-            throw new BusinessException('Falha ao consultar peças do produto no ERP.', 503);
-        }
+        // Nota: não filtra por Empresa — a tabela FbmLoteFichaTecnica é sempre
+        // da mesma empresa.
+        $rows = $this->select(
+            'SELECT DISTINCT
+                CodiSemiAcabado, DenoSemiAcabado, SubgSemiAcabado, TipoMate, Espess, Comp, Larg
+             FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
+             WHERE Prod_Codi = ?
+               AND TipoMate IS NOT NULL
+               AND TipoMate <> \'\'
+             ORDER BY CodiSemiAcabado',
+            [$codProduto],
+            'Falha ao consultar peças do produto no ERP.'
+        );
 
-        $pecasErp = $response->json();
+        $pecasErp = array_map(fn ($row) => $this->mapearPeca((array) $row), $rows);
 
         return DB::transaction(function () use ($dadosProdutoErp, $pecasErp) {
             $produto = Produto::updateOrCreate(
@@ -120,37 +144,49 @@ class ProdutoImportService implements ProdutoImportServiceInterface
         return now()->subMonths(12)->toDateString();
     }
 
-    private function get(string $uri, array $query): Response
+    private function paraFiltroLike(?string $valor): string
     {
-        $url = (string) config('services.bridge.url');
-
-        if (empty($url)) {
-            throw new BusinessException(
-                'A URL da API Bridge não está configurada. Verifique a variável BRIDGE_API_URL no arquivo .env.',
-                503
-            );
+        if ($valor === null || $valor === '') {
+            return '%';
         }
 
+        $escapado = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $valor);
+
+        return '%'.$escapado.'%';
+    }
+
+    private function mapearProduto(array $row): array
+    {
+        // Prod_Codi é CHAR de largura fixa no SQL Server e costuma vir com
+        // espaços à direita — sem o trim, a comparação de "já importado"
+        // (por cod_produto) nunca bate.
+        return [
+            'cod_produto' => trim((string) ($row['Prod_Codi'] ?? '')),
+            'nome' => $row['Prod_Deno'] ?? null,
+            'grupo' => $row['Prod_Grupo'] ?? null,
+            'sub_grupo' => $row['Prod_Sub_Grupo'] ?? null,
+        ];
+    }
+
+    private function mapearPeca(array $row): array
+    {
+        return [
+            'cod_peca' => (string) ($row['CodiSemiAcabado'] ?? ''),
+            'nome' => $row['DenoSemiAcabado'] ?? null,
+            'sub_grupo' => $row['SubgSemiAcabado'] ?? null,
+            'tipo_mate' => $row['TipoMate'] ?? null,
+            'espessura' => $row['Espess'] ?? null,
+            'comprimento' => $row['Comp'] ?? null,
+            'largura' => $row['Larg'] ?? null,
+        ];
+    }
+
+    private function select(string $query, array $bindings, string $mensagemErro): array
+    {
         try {
-            $response = Http::baseUrl($url)
-                ->withHeader('X-Bridge-Token', (string) config('services.bridge.token'))
-                ->acceptJson()
-                ->timeout(5)
-                ->get($uri, $query);
-        } catch (ConnectionException) {
-            throw new BusinessException(
-                "Não foi possível conectar à API Bridge ({$url}). Verifique se o serviço está ativo.",
-                503
-            );
+            return DB::connection('sqlsrv_legado')->select($query, $bindings);
+        } catch (QueryException) {
+            throw new BusinessException($mensagemErro, 503);
         }
-
-        if ($response->status() === 401 || $response->status() === 403) {
-            throw new BusinessException(
-                'Autenticação negada na API Bridge. Verifique o token de acesso (BRIDGE_API_TOKEN).',
-                503
-            );
-        }
-
-        return $response;
     }
 }
