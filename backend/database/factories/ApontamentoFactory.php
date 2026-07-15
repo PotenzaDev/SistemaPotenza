@@ -35,4 +35,12 @@ class ApontamentoFactory extends Factory
     {
         return $this->state(fn (array $attributes) => ['status' => 'finalizado']);
     }
+
+    public function finalizadoParcial(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status'             => 'finalizado',
+            'finalizado_parcial' => true,
+        ]);
+    }
 }

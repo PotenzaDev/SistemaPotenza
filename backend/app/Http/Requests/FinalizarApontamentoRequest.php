@@ -19,6 +19,7 @@ class FinalizarApontamentoRequest extends FormRequest
             'fichas'                 => ['required', 'array', 'min:1'],
             'fichas.*.ficha_id'      => ['required', 'integer'],
             'fichas.*.qtd_produzida' => ['required', 'integer', 'min:0'],
+            'confirmar_parcial'      => ['sometimes', 'boolean'],
         ];
     }
 }

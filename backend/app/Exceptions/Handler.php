@@ -66,6 +66,17 @@ class Handler extends ExceptionHandler
             ], 409);
         }
 
+        if ($e instanceof FinalizacaoParcialException) {
+            return response()->json([
+                'success'              => false,
+                'message'              => $e->getMessage(),
+                'requiresConfirmation' => true,
+                'totalBipado'          => $e->totalBipado,
+                'qtdeTotal'            => $e->qtdeTotal,
+                'pendentesPorCor'      => $e->pendentesPorCor,
+            ], 409);
+        }
+
         if ($e instanceof LoteCompletoException) {
             return response()->json([
                 'success'       => false,

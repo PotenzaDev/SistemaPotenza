@@ -33,6 +33,7 @@ class Apontamento extends Model
         'total_pausa_segundos',
         'numero_passagem',
         'apontamento_origem_id',
+        'finalizado_parcial',
     ];
 
     protected $casts = [
@@ -46,6 +47,7 @@ class Apontamento extends Model
         'producao_duracao_segundos' => 'integer',
         'total_pausa_segundos'      => 'integer',
         'numero_passagem'           => 'integer',
+        'finalizado_parcial'        => 'boolean',
     ];
 
     public const STATUS_EM_SETUP             = 'em_setup';

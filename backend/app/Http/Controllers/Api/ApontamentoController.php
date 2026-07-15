@@ -106,7 +106,11 @@ class ApontamentoController extends Controller
     {
         $this->authorize('update', $apontamento);
 
-        $result = $this->apontamentoService->finalizar($apontamento, $request->validated('fichas'));
+        $result = $this->apontamentoService->finalizar(
+            $apontamento,
+            $request->validated('fichas'),
+            (bool) $request->validated('confirmar_parcial', false),
+        );
 
         return $this->successResponse(
             new ApontamentoResource($result),

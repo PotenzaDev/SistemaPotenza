@@ -76,6 +76,9 @@ export function ApontamentoOperarioPage() {
   const [showConfirmarNovaPassagem, setShowConfirmarNovaPassagem]       = useState(false)
   const [dadosNovaPassagem, setDadosNovaPassagem]                       = useState<{ cod_peca: string; ordem_lote: string } | null>(null)
   const [showConfirmarSegundaPassagem, setShowConfirmarSegundaPassagem] = useState(false)
+  const [showConfirmarFinalizarParcial1, setShowConfirmarFinalizarParcial1] = useState(false)
+  const [showConfirmarFinalizarParcial2, setShowConfirmarFinalizarParcial2] = useState(false)
+  const [dadosFinalizacaoParcial, setDadosFinalizacaoParcial] = useState<{ totalBipado: number; qtdeTotal: number } | null>(null)
   const [showModalSuporte, setShowModalSuporte]                         = useState(false)
   const [chamandoSuporte, setChamandoSuporte]                           = useState(false)
   const [suporteCooldown, setSuporteCooldown]                           = useState(false)
@@ -348,7 +351,7 @@ export function ApontamentoOperarioPage() {
     }
   }
 
-  async function handleFinalizar() {
+  async function handleFinalizar(confirmarParcial = false) {
     if (!apontamento) return
     setAtualizando(true); setErroApi(null)
     try {
@@ -357,14 +360,36 @@ export function ApontamentoOperarioPage() {
           ficha_id:      f.id,
           qtd_produzida: parseInt(qtdsFichas[f.id] ?? '0', 10),
         })),
+        confirmarParcial,
       })
       setApontamento(ap)
       setFase('concluido')
     } catch (err) {
-      setErroApi(apiMsg(err))
+      type Resp409 = { requiresConfirmation?: boolean; totalBipado?: number; qtdeTotal?: number }
+      const resp = (err as { response?: { status?: number; data?: Resp409 } })?.response
+      if (!confirmarParcial && resp?.status === 409 && resp?.data?.requiresConfirmation) {
+        setDadosFinalizacaoParcial({
+          totalBipado: resp.data.totalBipado ?? totalBipado,
+          qtdeTotal:   resp.data.qtdeTotal ?? qtdeTotal,
+        })
+        setShowConfirmarFinalizarParcial1(true)
+      } else {
+        setErroApi(apiMsg(err))
+      }
     } finally {
       setAtualizando(false)
     }
+  }
+
+  function handleConfirmarFinalizarParcial1() {
+    setShowConfirmarFinalizarParcial1(false)
+    setShowConfirmarFinalizarParcial2(true)
+  }
+
+  function handleConfirmarFinalizarParcial2() {
+    setShowConfirmarFinalizarParcial2(false)
+    setDadosFinalizacaoParcial(null)
+    void handleFinalizar(true)
   }
 
   async function handleFinalizarSemProducao() {
@@ -810,11 +835,11 @@ export function ApontamentoOperarioPage() {
             <button
               type="button"
               onClick={() => setFase('finalizando')}
-              disabled={atualizando || !loteZerado}
+              disabled={atualizando}
               className="w-full py-3 text-sm font-semibold text-white bg-[#00aa84] hover:bg-[#009973] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               <CheckCircle2 className="w-4 h-4" />
-              {loteZerado ? 'Finalizar Produção' : 'Faltam peças para finalizar'}
+              {loteZerado ? 'Finalizar Produção' : 'Finalizar Produção (parcial)'}
             </button>
             {!loteZerado && qtdeTotal > 0 && (
               <p className="text-xs text-center text-slate-500">
@@ -909,7 +934,7 @@ export function ApontamentoOperarioPage() {
               </button>
               <button
                 type="button"
-                onClick={handleFinalizar}
+                onClick={() => handleFinalizar()}
                 disabled={atualizando}
                 className="flex-1 py-2.5 text-sm font-semibold text-white bg-[#00aa84] hover:bg-[#009973] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center justify-center gap-2"
               >
@@ -1169,6 +1194,73 @@ export function ApontamentoOperarioPage() {
                 >
                   {atualizando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
                   Iniciar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 1/2 de confirmação — finalizar com peças/cores faltando */}
+      {showConfirmarFinalizarParcial1 && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[#0f1923] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-white/5">
+              <AlertCircle className="w-4 h-4 text-amber-400" />
+              <p className="text-sm font-semibold text-white">Finalizar faltando peças?</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-slate-400 leading-relaxed">
+                {dadosFinalizacaoParcial
+                  ? `Foram bipadas ${dadosFinalizacaoParcial.totalBipado} de ${dadosFinalizacaoParcial.qtdeTotal} peças. Deseja finalizar mesmo assim, deixando o restante para um próximo apontamento?`
+                  : 'Ainda faltam peças ou cores para completar este lote. Deseja finalizar mesmo assim?'}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowConfirmarFinalizarParcial1(false); setDadosFinalizacaoParcial(null) }}
+                  className="flex-1 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 text-sm font-medium text-slate-300 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmarFinalizarParcial1}
+                  className="flex-1 px-4 py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/20 text-sm font-medium text-amber-300 transition-all flex items-center justify-center gap-2"
+                >
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  Continuar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2/2 de confirmação — reforço antes de finalizar parcial */}
+      {showConfirmarFinalizarParcial2 && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[#0f1923] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-white/5">
+              <AlertCircle className="w-4 h-4 text-red-400" />
+              <p className="text-sm font-semibold text-white">Tem certeza?</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Esta finalização será registrada como parcial. Ao bipar este lote novamente, o apontamento continuará de onde parou.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowConfirmarFinalizarParcial2(false); setDadosFinalizacaoParcial(null) }}
+                  className="flex-1 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 text-sm font-medium text-slate-300 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmarFinalizarParcial2}
+                  disabled={atualizando}
+                  className="flex-1 px-4 py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/20 text-sm font-medium text-red-300 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {atualizando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                  Confirmar finalização parcial
                 </button>
               </div>
             </div>

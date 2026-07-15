@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Exceptions\BusinessException;
 use App\Exceptions\ConfirmacaoNecessariaException;
+use App\Exceptions\FinalizacaoParcialException;
 use App\Exceptions\LoteCompletoException;
 use App\Models\Apontamento;
 use App\Models\EventoSessao;
@@ -14,6 +15,7 @@ use App\Models\MotivoPausa;
 use App\Models\Operario;
 use App\Models\FichaCabecote;
 use App\Models\Pausa;
+use App\Models\SessaoTrabalho;
 use App\Repositories\Contracts\ApontamentoRepositoryInterface;
 use App\Repositories\Contracts\FichaApontamentoRepositoryInterface;
 use App\Repositories\Contracts\HistoricoLoteRepositoryInterface;
@@ -56,6 +58,29 @@ class ApontamentoService
             throw new BusinessException('Sessão está pausada. Retome antes de bipar um novo lote.', 422);
         }
 
+        $etapaFluxoId = $sessao->maquina->etapa_fluxo_id;
+
+        // Um apontamento anterior do mesmo lote/peça/etapa já finalizado decide o
+        // caminho antes de qualquer consulta à Bridge: se ele parou no meio
+        // (finalizado_parcial), retoma o MESMO registro; se já concluiu 100% das
+        // peças, bloqueia — não faz sentido reprocessar um lote/peça já feito.
+        $ultimoFinalizado = $this->apontamentoRepo->buscarUltimoFinalizadoPorLoteEtapa(
+            $dados['ordem_lote'],
+            $dados['cod_peca'],
+            $etapaFluxoId,
+        );
+
+        if ($ultimoFinalizado) {
+            if (! $ultimoFinalizado->finalizado_parcial) {
+                throw new BusinessException(
+                    'Este lote/peça já foi finalizado integralmente nesta etapa. Não é possível iniciar novo apontamento.',
+                    422
+                );
+            }
+
+            return $this->retomarFinalizadoParcial($ultimoFinalizado, $sessao);
+        }
+
         $loteDados       = $this->loteService->buscarPorOrdemLote($dados['ordem_lote'], $dados['cod_peca']);
         $ftecPecaPilha   = $this->loteService->buscarFtecPecaPilha($dados['cod_peca']);
         $totaisVariantes = $this->loteService->buscarTotaisPorPrefixoLote(
@@ -71,8 +96,6 @@ class ApontamentoService
         if ($totalPilhas === 0 && $loteDados['qtde_total'] && $ftecPecaPilha) {
             $totalPilhas = (int) ceil($loteDados['qtde_total'] / $ftecPecaPilha);
         }
-
-        $etapaFluxoId = $sessao->maquina->etapa_fluxo_id;
 
         if ($totalPilhas > 0) {
             $pilhasBipadas = $this->fichaRepo->contarPilhasBipadasDoLote(
@@ -103,6 +126,27 @@ class ApontamentoService
             'ftec_peca_pilha'    => $ftecPecaPilha,
             'status'             => $possuiSetup ? Apontamento::STATUS_EM_SETUP : Apontamento::STATUS_AGUARDANDO_PRODUCAO,
             'setup_inicio'       => $possuiSetup ? Carbon::now() : null,
+        ]);
+
+        return $apontamento->load(['etapaFluxo', 'fichas', 'pausas.motivoPausa']);
+    }
+
+    /**
+     * Reabre (mesmo id, sem criar registro novo) um apontamento que havia sido
+     * finalizado no meio do lote (finalizado_parcial), reatribuindo-o à sessão
+     * atual e voltando direto para em_producao — a fase em que ele estava
+     * quando foi finalizado parcialmente. `producao_duracao_segundos` não é
+     * zerado: finalizar() soma o tempo desta nova janela ao valor já
+     * acumulado, do mesmo jeito que finalizarSetup() acumula setup_duracao_segundos.
+     */
+    private function retomarFinalizadoParcial(Apontamento $apontamento, SessaoTrabalho $sessao): Apontamento
+    {
+        $apontamento->update([
+            'sessao_trabalho_id' => $sessao->id,
+            'status'             => Apontamento::STATUS_EM_PRODUCAO,
+            'producao_inicio'    => Carbon::now(),
+            'producao_fim'       => null,
+            'finalizado_parcial' => false,
         ]);
 
         return $apontamento->load(['etapaFluxo', 'fichas', 'pausas.motivoPausa']);
@@ -313,7 +357,7 @@ class ApontamentoService
      * Finaliza a produção.
      * Recebe array de [{ficha_id, qtd_produzida}] para cada ficha bipada.
      */
-    public function finalizar(Apontamento $apontamento, array $fichasQtd): Apontamento
+    public function finalizar(Apontamento $apontamento, array $fichasQtd, bool $confirmarParcial = false): Apontamento
     {
         if ($apontamento->status !== Apontamento::STATUS_EM_PRODUCAO) {
             throw new BusinessException('Apontamento não está em produção.', 422);
@@ -323,32 +367,22 @@ class ApontamentoService
             throw new BusinessException('Produção não iniciada ou já finalizada.', 422);
         }
 
-        $qtdeTotal   = $apontamento->qtde_total;
-        $totalBipado = $apontamento->fichas->sum('qtd_peca');
-
-        if ($qtdeTotal && $totalBipado < $qtdeTotal) {
-            throw new BusinessException(
-                "Bipe todas as fichas antes de finalizar. Bipado: {$totalBipado} de {$qtdeTotal} peças.",
-                422
-            );
-        }
+        $qtdeTotal   = (int) $apontamento->qtde_total;
+        $totalBipado = (int) $apontamento->fichas->sum('qtd_peca');
 
         // Gate por cor: o total acima é a soma de todas as cores da peça (mesmo
         // prefixo de 5 dígitos), então pode bater mesmo faltando uma cor inteira.
-        // Quando a Bridge responde com o detalhe por cor, exige que cada uma
-        // tenha atingido sua própria quantidade antes de liberar a finalização.
         $progresso = $this->progressoPorCor($apontamento);
-        $pendentes = array_filter($progresso, fn (array $p) => $p['falta'] > 0);
+        $pendentes = array_values(array_filter($progresso, fn (array $p) => $p['falta'] > 0));
 
-        if ($pendentes !== []) {
-            $lista = implode('; ', array_map(
-                fn (array $p) => "{$p['cor']} ({$p['cod_peca']}): {$p['qtd_bipada']}/{$p['qtde_total']}",
-                $pendentes
-            ));
+        $incompleto = ($qtdeTotal > 0 && $totalBipado < $qtdeTotal) || $pendentes !== [];
 
-            throw new BusinessException(
-                "Bipe todas as cores antes de finalizar. Pendente — {$lista}.",
-                422
+        if ($incompleto && ! $confirmarParcial) {
+            throw new FinalizacaoParcialException(
+                "Bipe todas as peças e cores antes de finalizar, ou confirme a finalização parcial. Bipado: {$totalBipado} de {$qtdeTotal} peças.",
+                $totalBipado,
+                $qtdeTotal,
+                $pendentes,
             );
         }
 
@@ -359,8 +393,9 @@ class ApontamentoService
             );
         }
 
-        $fim     = Carbon::now();
-        $duracao = $this->duracaoLiquida($apontamento, 'producao', $fim);
+        $fim           = Carbon::now();
+        $duracaoJanela = $this->duracaoLiquida($apontamento, 'producao', $fim);
+        $duracaoTotal  = (int) $apontamento->producao_duracao_segundos + $duracaoJanela;
 
         // Fecha o timer da última ficha em aberto (mesmo timestamp do fim da produção)
         $ultimaFicha = $apontamento->fichas()
@@ -376,9 +411,10 @@ class ApontamentoService
 
         $apontamento->update([
             'producao_fim'              => $fim,
-            'producao_duracao_segundos' => $duracao,
+            'producao_duracao_segundos' => $duracaoTotal,
             'total_pausa_segundos'      => $totalPausas,
             'status'                    => Apontamento::STATUS_FINALIZADO,
+            'finalizado_parcial'        => $incompleto,
         ]);
 
         $apontamento->load(['etapaFluxo', 'fichas']);

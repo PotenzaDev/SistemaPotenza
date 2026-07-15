@@ -71,6 +71,7 @@ export interface BiparFichaPayload {
 
 export interface FinalizarPayload {
   fichas: { ficha_id: number; qtd_produzida: number }[]
+  confirmarParcial?: boolean
 }
 
 export interface ResumoFichasPorCor {
@@ -149,7 +150,10 @@ export async function biparFicha(id: number, payload: BiparFichaPayload): Promis
 
 /** Passo 4: finalizar produção com qtd_produzida por ficha */
 export async function finalizarApontamento(id: number, payload: FinalizarPayload): Promise<Apontamento> {
-  const res = await apiClient.post<ApiEnvelope<Apontamento>>(`/apontamento/${id}/finalizar`, payload)
+  const res = await apiClient.post<ApiEnvelope<Apontamento>>(`/apontamento/${id}/finalizar`, {
+    fichas: payload.fichas,
+    confirmar_parcial: payload.confirmarParcial,
+  })
   return res.data.data
 }
 
