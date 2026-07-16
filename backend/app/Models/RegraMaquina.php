@@ -18,6 +18,7 @@ class RegraMaquina extends Model
         'permite_multiplas_passagens',
         'limite_passagens',
         'permite_finalizacao_parcial',
+        'permite_pecas_diferentes_lote',
     ];
 
     protected $casts = [
@@ -26,6 +27,7 @@ class RegraMaquina extends Model
         'permite_multiplas_passagens' => 'boolean',
         'limite_passagens' => 'integer',
         'permite_finalizacao_parcial' => 'boolean',
+        'permite_pecas_diferentes_lote' => 'boolean',
     ];
 
     public function maquina(): BelongsTo

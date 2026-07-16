@@ -33,6 +33,7 @@ class StoreMaquinaRequest extends FormRequest
             'permite_multiplas_passagens' => ['boolean'],
             'limite_passagens' => ['nullable', 'integer', 'min:2'],
             'permite_finalizacao_parcial' => ['boolean'],
+            'permite_pecas_diferentes_lote' => ['boolean'],
         ];
     }
 }

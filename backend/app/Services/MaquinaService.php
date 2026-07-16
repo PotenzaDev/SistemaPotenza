@@ -28,6 +28,7 @@ class MaquinaService
         'permite_multiplas_passagens',
         'limite_passagens',
         'permite_finalizacao_parcial',
+        'permite_pecas_diferentes_lote',
     ];
 
     public function criar(array $data, ?UploadedFile $foto): Maquina

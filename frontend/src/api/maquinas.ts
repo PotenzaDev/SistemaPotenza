@@ -21,6 +21,7 @@ export interface RegraMaquina {
   permite_multiplas_passagens: boolean
   limite_passagens: number | null
   permite_finalizacao_parcial: boolean
+  permite_pecas_diferentes_lote: boolean
 }
 
 export interface Maquina {

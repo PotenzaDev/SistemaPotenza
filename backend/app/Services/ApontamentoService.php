@@ -73,6 +73,17 @@ class ApontamentoService
         // este novo apontamento pula direto para aguardando_producao.
         $loteJaEmAndamento = $ativos->isNotEmpty();
 
+        if ($loteJaEmAndamento) {
+            $regrasLote = $sessao->maquina->regraMaquina;
+
+            if ($regrasLote && ! $regrasLote->permite_pecas_diferentes_lote) {
+                throw new BusinessException(
+                    'Esta máquina não permite bipar peças diferentes no mesmo lote. Finalize o apontamento ativo antes de iniciar outro.',
+                    422,
+                );
+            }
+        }
+
         if ($sessao->pausaOciosaAberta()->exists()) {
             throw new BusinessException('Sessão está pausada. Retome antes de bipar um novo lote.', 422);
         }

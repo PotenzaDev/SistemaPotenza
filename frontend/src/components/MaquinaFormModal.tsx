@@ -28,6 +28,7 @@ interface FormState {
   permite_multiplas_passagens: boolean
   limite_passagens: string
   permite_finalizacao_parcial: boolean
+  permite_pecas_diferentes_lote: boolean
 }
 
 const EMPTY: FormState = {
@@ -47,6 +48,7 @@ const EMPTY: FormState = {
   permite_multiplas_passagens: true,
   limite_passagens: '',
   permite_finalizacao_parcial: true,
+  permite_pecas_diferentes_lote: true,
 }
 
 function fromMaquina(m: Maquina): FormState {
@@ -69,6 +71,7 @@ function fromMaquina(m: Maquina): FormState {
     permite_multiplas_passagens:   regras ? regras.permite_multiplas_passagens : true,
     limite_passagens:              regras?.limite_passagens ? String(regras.limite_passagens) : '',
     permite_finalizacao_parcial:   regras ? regras.permite_finalizacao_parcial : true,
+    permite_pecas_diferentes_lote: regras ? regras.permite_pecas_diferentes_lote : true,
   }
 }
 
@@ -161,6 +164,7 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
     data.append('permite_multiplas_passagens',   form.permite_multiplas_passagens ? '1' : '0')
     if (form.limite_passagens.trim()) data.append('limite_passagens', form.limite_passagens.trim())
     data.append('permite_finalizacao_parcial',   form.permite_finalizacao_parcial ? '1' : '0')
+    data.append('permite_pecas_diferentes_lote', form.permite_pecas_diferentes_lote ? '1' : '0')
 
     if (mostrarAbaCabecote) {
       data.append('cabecotes_inferiores', String(Number(form.cabecotes_inferiores) || 0))
@@ -428,6 +432,21 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
               {!form.permite_finalizacao_parcial && (
                 <p className="text-xs text-slate-500">
                   Com essa opção desligada, o operário só consegue finalizar o apontamento nesta máquina com o lote 100% completo.
+                </p>
+              )}
+              <div className="flex items-center justify-between py-1">
+                <span className="text-xs font-medium text-slate-400">Permite peças diferentes no mesmo lote</span>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, permite_pecas_diferentes_lote: !prev.permite_pecas_diferentes_lote }))}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${form.permite_pecas_diferentes_lote ? 'bg-[#00aa84]' : 'bg-white/10'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.permite_pecas_diferentes_lote ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              {!form.permite_pecas_diferentes_lote && (
+                <p className="text-xs text-slate-500">
+                  Com essa opção desligada, o operário não consegue bipar uma peça diferente enquanto houver outra peça do mesmo lote ativa nesta máquina.
                 </p>
               )}
             </div>

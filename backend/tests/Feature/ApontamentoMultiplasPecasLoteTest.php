@@ -9,6 +9,7 @@ use App\Models\EtapaFluxo;
 use App\Models\Maquina;
 use App\Models\MotivoPausa;
 use App\Models\Operario;
+use App\Models\RegraMaquina;
 use App\Models\SessaoTrabalho;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -63,6 +64,48 @@ class ApontamentoMultiplasPecasLoteTest extends TestCase
             ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'Já existe um apontamento ativo para esta peça neste lote. Continue bipando fichas nele.');
+
+        $this->assertDatabaseCount('apontamentos', 1);
+    }
+
+    public function test_bloqueia_bipar_peca_nova_no_lote_quando_maquina_nao_permite(): void
+    {
+        $etapa    = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+        RegraMaquina::create([
+            'maquina_id'                     => $maquina->id,
+            'possui_setup'                   => true,
+            'possui_producao'                => true,
+            'permite_multiplas_passagens'    => true,
+            'limite_passagens'               => null,
+            'permite_finalizacao_parcial'    => true,
+            'permite_pecas_diferentes_lote'  => false,
+        ]);
+
+        $user     = User::factory()->operario()->create();
+        $operario = Operario::factory()->create(['user_id' => $user->id]);
+        $sessao   = SessaoTrabalho::factory()->create([
+            'operario_id' => $operario->id,
+            'maquina_id'  => $maquina->id,
+            'status'      => SessaoTrabalho::STATUS_ATIVA,
+        ]);
+
+        Apontamento::factory()->emProducao()->create([
+            'sessao_trabalho_id' => $sessao->id,
+            'etapa_fluxo_id'     => $etapa->id,
+            'ordem_lote'         => '12345',
+            'cod_peca'           => '1234567',
+        ]);
+
+        // Peça de prefixo diferente (55555), mesmo lote — bloqueada pela regra da máquina
+        // antes de chegar em qualquer consulta à Bridge.
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/apontamento/bipar', [
+                'cod_peca'   => '5555567',
+                'ordem_lote' => '12345',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Esta máquina não permite bipar peças diferentes no mesmo lote. Finalize o apontamento ativo antes de iniciar outro.');
 
         $this->assertDatabaseCount('apontamentos', 1);
     }
