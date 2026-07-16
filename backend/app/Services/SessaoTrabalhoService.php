@@ -317,15 +317,9 @@ class SessaoTrabalhoService
      */
     public function autoPausarApontamentoAtivo(SessaoTrabalho $sessao, string $nomeMotivo = 'Fim de Turno'): void
     {
-        $apontamento = $this->apontamentoRepo->buscarApontamentoAtivo($sessao);
+        $apontamentos = $this->apontamentoRepo->buscarApontamentosAtivos($sessao);
 
-        if (! $apontamento) {
-            return;
-        }
-
-        $fase = Apontamento::MAPA_FASE[$apontamento->status] ?? null;
-
-        if ($fase === null) {
+        if ($apontamentos->isEmpty()) {
             return;
         }
 
@@ -335,20 +329,28 @@ class SessaoTrabalhoService
             return;
         }
 
-        Pausa::create([
-            'apontamento_id'  => $apontamento->id,
-            'motivo_pausa_id' => $motivo->id,
-            'fase'            => $fase,
-            'inicio'          => Carbon::now(),
-        ]);
+        foreach ($apontamentos as $apontamento) {
+            $fase = Apontamento::MAPA_FASE[$apontamento->status] ?? null;
 
-        $novoStatus = match ($fase) {
-            'setup'      => Apontamento::STATUS_EM_PAUSA_SETUP,
-            'aguardando' => Apontamento::STATUS_EM_PAUSA_AGUARDANDO,
-            'producao'   => Apontamento::STATUS_EM_PAUSA_PRODUCAO,
-        };
+            if ($fase === null) {
+                continue;
+            }
 
-        $apontamento->update(['status' => $novoStatus]);
+            Pausa::create([
+                'apontamento_id'  => $apontamento->id,
+                'motivo_pausa_id' => $motivo->id,
+                'fase'            => $fase,
+                'inicio'          => Carbon::now(),
+            ]);
+
+            $novoStatus = match ($fase) {
+                'setup'      => Apontamento::STATUS_EM_PAUSA_SETUP,
+                'aguardando' => Apontamento::STATUS_EM_PAUSA_AGUARDANDO,
+                'producao'   => Apontamento::STATUS_EM_PAUSA_PRODUCAO,
+            };
+
+            $apontamento->update(['status' => $novoStatus]);
+        }
     }
 
     /**
@@ -357,18 +359,15 @@ class SessaoTrabalhoService
      */
     private function forcarRetomadaComNovoSetup(SessaoTrabalho $sessao): void
     {
-        $apontamento = $this->apontamentoRepo->buscarApontamentoAtivo($sessao);
-
-        if (! $apontamento) {
-            return;
-        }
-
+        $apontamentos   = $this->apontamentoRepo->buscarApontamentosAtivos($sessao);
         $statusPausados = Apontamento::statusPausados();
 
-        if (! in_array($apontamento->status, $statusPausados, true)) {
-            return;
-        }
+        foreach ($apontamentos as $apontamento) {
+            if (! in_array($apontamento->status, $statusPausados, true)) {
+                continue;
+            }
 
-        $this->apontamentoService->retomarComNovoSetup($apontamento);
+            $this->apontamentoService->retomarComNovoSetup($apontamento);
+        }
     }
 }

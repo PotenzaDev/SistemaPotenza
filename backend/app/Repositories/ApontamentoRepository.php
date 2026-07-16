@@ -14,6 +14,15 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
 {
     private const EAGER = ['etapaFluxo', 'fichas', 'pausas.motivoPausa'];
 
+    private const STATUS_ATIVOS = [
+        Apontamento::STATUS_EM_SETUP,
+        Apontamento::STATUS_AGUARDANDO_PRODUCAO,
+        Apontamento::STATUS_EM_PRODUCAO,
+        Apontamento::STATUS_EM_PAUSA_SETUP,
+        Apontamento::STATUS_EM_PAUSA_AGUARDANDO,
+        Apontamento::STATUS_EM_PAUSA_PRODUCAO,
+    ];
+
     public function criar(array $dados): Apontamento
     {
         return Apontamento::create($dados)->load(self::EAGER);
@@ -22,16 +31,17 @@ class ApontamentoRepository implements ApontamentoRepositoryInterface
     public function buscarApontamentoAtivo(SessaoTrabalho $sessao): ?Apontamento
     {
         return Apontamento::where('sessao_trabalho_id', $sessao->id)
-            ->whereIn('status', [
-                Apontamento::STATUS_EM_SETUP,
-                Apontamento::STATUS_AGUARDANDO_PRODUCAO,
-                Apontamento::STATUS_EM_PRODUCAO,
-                Apontamento::STATUS_EM_PAUSA_SETUP,
-                Apontamento::STATUS_EM_PAUSA_AGUARDANDO,
-                Apontamento::STATUS_EM_PAUSA_PRODUCAO,
-            ])
+            ->whereIn('status', self::STATUS_ATIVOS)
             ->with(self::EAGER)
             ->first();
+    }
+
+    public function buscarApontamentosAtivos(SessaoTrabalho $sessao): Collection
+    {
+        return Apontamento::where('sessao_trabalho_id', $sessao->id)
+            ->whereIn('status', self::STATUS_ATIVOS)
+            ->with(self::EAGER)
+            ->get();
     }
 
     public function somarQtdProduzida(int $etapaFluxoId, string $ordemLote): int

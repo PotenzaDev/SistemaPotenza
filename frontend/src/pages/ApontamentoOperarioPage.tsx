@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { getSessaoAtiva, getTurnoHoje, encerrarSessao, encerrarTurno, pausarSessao, pausarSessaoOciosa, retomarSessaoOciosa, cancelarSessao, type Sessao, type TurnoHoje } from '@/api/sessao'
 import {
-  getApontamentoAtivo,
+  getApontamentosAtivos,
   biparLote,
   segundaPassagem,
   finalizarSetup,
@@ -40,7 +40,7 @@ import { MotivoPausaModal } from '@/components/apontamento/MotivoPausaModal'
 import { PausadoPanel } from '@/components/apontamento/PausadoPanel'
 import { useTimerLiquido } from '@/hooks/useTimerLiquido'
 import { parseBarcode, BARCODE_LENGTH } from '@/lib/barcode'
-import { formatDuracao, derivarFase, apiMsg, mensagemFinalizarTurno, horarioLiberacaoTurno, fmtHoraDate, type Fase } from '@/lib/apontamentoFormat'
+import { formatDuracao, derivarFase, apiMsg, mensagemFinalizarTurno, horarioLiberacaoTurno, fmtHoraDate, STATUS_LABEL, type Fase } from '@/lib/apontamentoFormat'
 
 export function ApontamentoOperarioPage() {
   const navigate = useNavigate()
@@ -48,8 +48,11 @@ export function ApontamentoOperarioPage() {
   const [sessao, setSessao]                 = useState<Sessao | null>(null)
   const [turnoHoje, setTurnoHoje]           = useState<TurnoHoje | null>(null)
   const [now, setNow]                       = useState(() => new Date())
-  const [apontamento, setApontamento]       = useState<Apontamento | null>(null)
-  const [fase, setFase]                     = useState<Fase>('aguardando')
+  const [apontamentos, setApontamentos]     = useState<Apontamento[]>([])
+  const [focoId, setFocoId]                 = useState<number | null>(null)
+  // Override de fase só existe para "finalizando" — uma tela de revisão local
+  // (não é status do servidor). Toda outra fase é derivada de apontamento.status.
+  const [fasesOverride, setFasesOverride]   = useState<Record<number, Fase>>({})
   const [fichasRecentes, setFichasRecentes] = useState<FichaApontamento[]>([])
   const [resumoPorCor, setResumoPorCor]     = useState<ResumoFichasPorCor[]>([])
   const [fichaSetup, setFichaSetup]         = useState<FichaCabecote | null>(null)
@@ -84,6 +87,12 @@ export function ApontamentoOperarioPage() {
   const [suporteCooldown, setSuporteCooldown]                           = useState(false)
   const [suporteEnviado, setSuporteEnviado]                             = useState(false)
 
+  const apontamento = useMemo(
+    () => apontamentos.find(a => a.id === focoId) ?? null,
+    [apontamentos, focoId]
+  )
+  const fase: Fase = apontamento ? (fasesOverride[apontamento.id] ?? derivarFase(apontamento)) : 'aguardando'
+
   const parsedBarcode = barcode.length === BARCODE_LENGTH ? parseBarcode(barcode) : null
   const barcodeOk     = parsedBarcode !== null
 
@@ -107,38 +116,85 @@ export function ApontamentoOperarioPage() {
     [pausas]
   )
 
+  function upsertApontamento(ap: Apontamento) {
+    setApontamentos(prev => {
+      const idx = prev.findIndex(a => a.id === ap.id)
+      if (idx === -1) return [...prev, ap]
+      const next = [...prev]
+      next[idx] = ap
+      return next
+    })
+  }
+
+  function removerApontamento(id: number) {
+    setApontamentos(prev => prev.filter(a => a.id !== id))
+    setFasesOverride(prev => {
+      if (!(id in prev)) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }
+
+  function focarFinalizando(id: number) {
+    setFasesOverride(prev => ({ ...prev, [id]: 'finalizando' }))
+  }
+
+  function limparOverride(id: number) {
+    setFasesOverride(prev => {
+      if (!(id in prev)) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }
+
   useEffect(() => {
     Promise.all([
       getSessaoAtiva(),
-      getApontamentoAtivo(),
+      getApontamentosAtivos(),
       getFichasRecentes(),
       getMotivosAtivos(),
       getTurnoHoje(),
-    ]).then(([s, a, fr, mp, turno]) => {
+    ]).then(([s, aps, fr, mp, turno]) => {
       if (!s) { navigate('/operario', { replace: true }); return }
       setSessao(s)
       setFichasRecentes(fr)
       setMotivosPausa(mp)
       setTurnoHoje(turno)
 
-      if (!a) { setFase('aguardando'); return }
+      if (aps.length === 0) return
 
-      setApontamento(a)
-      const f = derivarFase(a)
-      setFase(f)
+      setApontamentos(aps)
+      setFocoId(aps[0].id)
 
-      if (f === 'em_pausa_setup' || f === 'em_pausa_producao') {
-        const openPausa = a.pausas.find(p => p.fim === null)
+      const focoInicial = derivarFase(aps[0])
+      if (focoInicial === 'em_pausa_setup' || focoInicial === 'em_pausa_producao') {
+        const openPausa = aps[0].pausas.find(p => p.fim === null)
         if (openPausa?.is_sistema) setSaiuSemPausar(true)
       }
 
-      if (f === 'em_producao' || f === 'finalizando' || f === 'em_pausa_producao') {
-        const init: Record<number, string> = {}
-        a.fichas.forEach(fi => { init[fi.id] = String(fi.qtd_peca) })
-        setQtdsFichas(init)
-      }
+      const init: Record<number, string> = {}
+      aps.forEach(a => {
+        const f = derivarFase(a)
+        if (f === 'em_producao' || f === 'em_pausa_producao') {
+          a.fichas.forEach(fi => { init[fi.id] = String(fi.qtd_peca) })
+        }
+      })
+      if (Object.keys(init).length > 0) setQtdsFichas(init)
     }).finally(() => setLoadingInicial(false))
   }, [navigate])
+
+  // Mantém o foco válido: se o apontamento focado sumir da lista, foca outro (ou nenhum).
+  useEffect(() => {
+    if (apontamentos.length === 0) {
+      if (focoId !== null) setFocoId(null)
+      return
+    }
+    if (!apontamentos.some(a => a.id === focoId)) {
+      setFocoId(apontamentos[0].id)
+    }
+  }, [apontamentos, focoId])
 
   useEffect(() => {
     if (fase === 'aguardando' || fase === 'aguardando_ficha' || fase === 'em_producao') {
@@ -183,13 +239,19 @@ export function ApontamentoOperarioPage() {
     return () => { ativo = false }
   }, [apontamento?.id, fase])
 
+  // Auto-pausa via beacon ao fechar a aba: cobre TODOS os apontamentos ativos
+  // da sessão (pode haver mais de um, do mesmo lote), não só o focado.
   useEffect(() => {
-    if (!apontamento || (fase !== 'em_setup' && fase !== 'em_producao')) return
-    const id = apontamento.id
-    const handler = () => pausarSistemaBeacon(id)
+    const ids = apontamentos
+      .filter(a => a.status === 'em_setup' || a.status === 'em_producao')
+      .map(a => a.id)
+
+    if (ids.length === 0) return
+
+    const handler = () => ids.forEach(id => pausarSistemaBeacon(id))
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [apontamento?.id, fase]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [apontamentos])
 
   async function recarregarFichasRecentes() {
     try { setFichasRecentes(await getFichasRecentes()) } catch { /* informativo */ }
@@ -248,9 +310,9 @@ export function ApontamentoOperarioPage() {
     setAtualizando(true); setErroApi(null)
     try {
       const ap = await biparLote({ cod_peca: parsedBarcode.cod_peca, ordem_lote: parsedBarcode.ordem_lote })
-      setApontamento(ap)
+      upsertApontamento(ap)
+      setFocoId(ap.id)
       setBarcode('')
-      setFase(derivarFase(ap))
     } catch (err) {
       const data = (err as { response?: { data?: { loteCompleto?: boolean } } })?.response?.data
       if (data?.loteCompleto) {
@@ -270,11 +332,10 @@ export function ApontamentoOperarioPage() {
     setAtualizando(true); setErroApi(null)
     try {
       const ap = await segundaPassagem(dadosNovaPassagem)
-      setApontamento(ap)
+      upsertApontamento(ap)
+      setFocoId(ap.id)
       setBarcode('')
-      setQtdsFichas({})
       setSaiuSemPausar(false)
-      setFase(derivarFase(ap))
     } catch (err) {
       setErroApi(apiMsg(err))
     } finally {
@@ -288,8 +349,7 @@ export function ApontamentoOperarioPage() {
     setAtualizando(true); setErroApi(null)
     try {
       const ap = await finalizarSetup(apontamento.id)
-      setApontamento(ap)
-      setFase('aguardando_ficha')
+      upsertApontamento(ap)
     } catch (err) {
       setErroApi(apiMsg(err))
     } finally {
@@ -306,7 +366,7 @@ export function ApontamentoOperarioPage() {
       pilha:      parsedBarcode.pilha,
       ...(confirmar && { confirmar: true }),
     })
-    setApontamento(ap)
+    upsertApontamento(ap)
     setQtdsFichas(prev => ({
       ...prev,
       ...Object.fromEntries(
@@ -316,7 +376,6 @@ export function ApontamentoOperarioPage() {
       ),
     }))
     setBarcode('')
-    setFase('em_producao')
     recarregarFichasRecentes()
   }
 
@@ -362,8 +421,8 @@ export function ApontamentoOperarioPage() {
         })),
         confirmarParcial,
       })
-      setApontamento(ap)
-      setFase('concluido')
+      limparOverride(ap.id)
+      upsertApontamento(ap)
     } catch (err) {
       type Resp409 = { requiresConfirmation?: boolean; totalBipado?: number; qtdeTotal?: number }
       const resp = (err as { response?: { status?: number; data?: Resp409 } })?.response
@@ -398,8 +457,7 @@ export function ApontamentoOperarioPage() {
     setAtualizando(true); setErroApi(null)
     try {
       const ap = await finalizarApontamentoSemProducao(apontamento.id)
-      setApontamento(ap)
-      setFase('concluido')
+      upsertApontamento(ap)
     } catch (err) {
       setErroApi(apiMsg(err))
     } finally {
@@ -412,8 +470,7 @@ export function ApontamentoOperarioPage() {
     setPausando(true); setErroApi(null)
     try {
       const ap = await pausarApontamento(apontamento.id, motivoId)
-      setApontamento(ap)
-      setFase(derivarFase(ap))
+      upsertApontamento(ap)
       setShowModalPausa(false)
     } catch (err) {
       setErroApi(apiMsg(err))
@@ -427,8 +484,7 @@ export function ApontamentoOperarioPage() {
     setRetomando(true); setErroApi(null)
     try {
       const ap = await retomarApontamento(apontamento.id)
-      setApontamento(ap)
-      setFase(derivarFase(ap))
+      upsertApontamento(ap)
       setSaiuSemPausar(false)
     } catch (err) {
       setErroApi(apiMsg(err))
@@ -479,25 +535,40 @@ export function ApontamentoOperarioPage() {
   }
 
   async function novoLote() {
-    setApontamento(null)
+    const finalizado = apontamento
+    if (finalizado) {
+      const restantes = apontamentos.filter(a => a.id !== finalizado.id)
+      removerApontamento(finalizado.id)
+      setQtdsFichas(prev => {
+        const next = { ...prev }
+        finalizado.fichas.forEach(f => { delete next[f.id] })
+        return next
+      })
+      setFocoId(restantes[0]?.id ?? null)
+    }
     setErroApi(null)
     setBarcode('')
-    setQtdsFichas({})
     setSaiuSemPausar(false)
     await recarregarFichasRecentes()
-    setFase('aguardando')
   }
 
   async function handleSegundaPassagem() {
     if (!apontamento) return
+    const idAntigo = apontamento.id
+    const fichasAntigas = apontamento.fichas
     setAtualizando(true); setErroApi(null)
     try {
       const ap = await segundaPassagem({ cod_peca: apontamento.cod_peca, ordem_lote: apontamento.ordem_lote })
-      setApontamento(ap)
+      removerApontamento(idAntigo)
+      upsertApontamento(ap)
+      setFocoId(ap.id)
+      setQtdsFichas(prev => {
+        const next = { ...prev }
+        fichasAntigas.forEach(f => { delete next[f.id] })
+        return next
+      })
       setBarcode('')
-      setQtdsFichas({})
       setSaiuSemPausar(false)
-      setFase(derivarFase(ap))
     } catch (err) {
       setErroApi(apiMsg(err))
     } finally {
@@ -515,7 +586,7 @@ export function ApontamentoOperarioPage() {
   }
   if (!sessao) return null
 
-  const podeEncerrar = fase === 'aguardando' || fase === 'concluido'
+  const podeEncerrar = apontamentos.every(a => derivarFase(a) === 'concluido')
   const acoesSessaoDesabilitadas = atualizando || pausando || retomando || encerrando || finalizandoTurno || pausandoSessao || cancelando || pausandoOciosa || retomandoOciosa
 
   const horarioLiberacao   = turnoHoje ? horarioLiberacaoTurno(turnoHoje) : null
@@ -587,6 +658,36 @@ export function ApontamentoOperarioPage() {
         <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
           <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
           <p className="text-xs text-red-400">{erroApi}</p>
+        </div>
+      )}
+
+      {/* Tira de seleção — só aparece quando o lote tem mais de uma peça em andamento */}
+      {apontamentos.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {apontamentos.map(a => {
+            const statusInfo = STATUS_LABEL[a.status]
+            const focado = a.id === focoId
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setFocoId(a.id)}
+                className={`shrink-0 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl border text-left transition-colors min-w-[150px] ${
+                  focado
+                    ? 'bg-[#00aa84]/10 border-[#00aa84]/40'
+                    : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.06]'
+                }`}
+              >
+                <span className={`text-xs font-semibold truncate max-w-[170px] ${focado ? 'text-white' : 'text-slate-300'}`}>
+                  {a.desc_peca ?? a.cod_peca}
+                </span>
+                <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                  lote {a.ordem_lote.replace(/^0+/, '')}
+                  {statusInfo && <span className={`font-medium ${statusInfo.color}`}>· {statusInfo.label}</span>}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -834,7 +935,7 @@ export function ApontamentoOperarioPage() {
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => setFase('finalizando')}
+              onClick={() => focarFinalizando(apontamento.id)}
               disabled={atualizando}
               className="w-full py-3 text-sm font-semibold text-white bg-[#00aa84] hover:bg-[#009973] disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors flex items-center justify-center gap-2"
             >
@@ -927,7 +1028,7 @@ export function ApontamentoOperarioPage() {
             <div className="flex gap-3 pt-1">
               <button
                 type="button"
-                onClick={() => setFase('em_producao')}
+                onClick={() => limparOverride(apontamento.id)}
                 className="flex-1 py-2.5 text-sm font-medium text-slate-400 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
               >
                 Voltar

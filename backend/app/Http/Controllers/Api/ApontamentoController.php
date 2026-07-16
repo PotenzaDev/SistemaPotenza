@@ -33,8 +33,8 @@ class ApontamentoController extends Controller
         private readonly SessaoTrabalhoRepositoryInterface   $sessaoRepo,
     ) {}
 
-    /** Retorna o apontamento ativo do operário (se houver). */
-    public function ativo(Request $request): JsonResponse
+    /** Retorna todos os apontamentos ativos da sessão do operário (pode haver mais de um, do mesmo lote). */
+    public function ativos(Request $request): JsonResponse
     {
         $sessao = $this->sessaoRepo->buscarSessaoAtiva($request->user()->operario);
 
@@ -42,13 +42,9 @@ class ApontamentoController extends Controller
             return $this->errorResponse('Nenhuma sessão ativa.', 404);
         }
 
-        $apontamento = $this->apontamentoRepo->buscarApontamentoAtivo($sessao);
+        $apontamentos = $this->apontamentoRepo->buscarApontamentosAtivos($sessao);
 
-        if (! $apontamento) {
-            return $this->errorResponse('Nenhum apontamento ativo.', 404);
-        }
-
-        return $this->successResponse(new ApontamentoResource($apontamento), 'Apontamento ativo.');
+        return $this->successResponse(ApontamentoResource::collection($apontamentos), 'Apontamentos ativos.');
     }
 
     /**

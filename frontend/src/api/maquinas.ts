@@ -20,6 +20,7 @@ export interface RegraMaquina {
   possui_producao: boolean
   permite_multiplas_passagens: boolean
   limite_passagens: number | null
+  permite_finalizacao_parcial: boolean
 }
 
 export interface Maquina {

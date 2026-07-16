@@ -84,12 +84,12 @@ export interface ResumoFichasPorCor {
 
 // ── Leitura ───────────────────────────────────────────────────────────────────
 
-export async function getApontamentoAtivo(): Promise<Apontamento | null> {
+export async function getApontamentosAtivos(): Promise<Apontamento[]> {
   try {
-    const res = await apiClient.get<ApiEnvelope<Apontamento>>('/apontamento/ativo')
-    return res.data.data
+    const res = await apiClient.get<ApiEnvelope<Apontamento[]>>('/apontamento/ativos')
+    return res.data.data ?? []
   } catch {
-    return null
+    return []
   }
 }
 

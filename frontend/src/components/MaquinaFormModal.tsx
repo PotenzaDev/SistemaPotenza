@@ -27,6 +27,7 @@ interface FormState {
   possui_producao: boolean
   permite_multiplas_passagens: boolean
   limite_passagens: string
+  permite_finalizacao_parcial: boolean
 }
 
 const EMPTY: FormState = {
@@ -45,6 +46,7 @@ const EMPTY: FormState = {
   possui_producao: true,
   permite_multiplas_passagens: true,
   limite_passagens: '',
+  permite_finalizacao_parcial: true,
 }
 
 function fromMaquina(m: Maquina): FormState {
@@ -66,6 +68,7 @@ function fromMaquina(m: Maquina): FormState {
     possui_producao:               regras ? regras.possui_producao : true,
     permite_multiplas_passagens:   regras ? regras.permite_multiplas_passagens : true,
     limite_passagens:              regras?.limite_passagens ? String(regras.limite_passagens) : '',
+    permite_finalizacao_parcial:   regras ? regras.permite_finalizacao_parcial : true,
   }
 }
 
@@ -157,6 +160,7 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
     data.append('possui_producao',               form.possui_producao ? '1' : '0')
     data.append('permite_multiplas_passagens',   form.permite_multiplas_passagens ? '1' : '0')
     if (form.limite_passagens.trim()) data.append('limite_passagens', form.limite_passagens.trim())
+    data.append('permite_finalizacao_parcial',   form.permite_finalizacao_parcial ? '1' : '0')
 
     if (mostrarAbaCabecote) {
       data.append('cabecotes_inferiores', String(Number(form.cabecotes_inferiores) || 0))
@@ -410,6 +414,21 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
                   />
                   <p className="mt-1 text-xs text-slate-500">Deixe em branco para não limitar o número de passagens.</p>
                 </div>
+              )}
+              <div className="flex items-center justify-between py-1">
+                <span className="text-xs font-medium text-slate-400">Permite finalização parcial</span>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, permite_finalizacao_parcial: !prev.permite_finalizacao_parcial }))}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${form.permite_finalizacao_parcial ? 'bg-[#00aa84]' : 'bg-white/10'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.permite_finalizacao_parcial ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              {!form.permite_finalizacao_parcial && (
+                <p className="text-xs text-slate-500">
+                  Com essa opção desligada, o operário só consegue finalizar o apontamento nesta máquina com o lote 100% completo.
+                </p>
               )}
             </div>
           )}

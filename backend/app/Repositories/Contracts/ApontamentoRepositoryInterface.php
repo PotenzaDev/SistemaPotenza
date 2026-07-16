@@ -15,6 +15,9 @@ interface ApontamentoRepositoryInterface
 
     public function buscarApontamentoAtivo(SessaoTrabalho $sessao): ?Apontamento;
 
+    /** Todos os apontamentos ativos (não finalizados) da sessão — pode haver mais de um, um por peça-base do mesmo lote. */
+    public function buscarApontamentosAtivos(SessaoTrabalho $sessao): Collection;
+
     public function somarQtdProduzida(int $etapaFluxoId, string $ordemLote): int;
 
     /**

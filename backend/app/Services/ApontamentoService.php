@@ -50,9 +50,28 @@ class ApontamentoService
             throw new BusinessException('Operário não possui sessão ativa. Selecione uma máquina primeiro.', 422);
         }
 
-        if ($this->apontamentoRepo->buscarApontamentoAtivo($sessao)) {
-            throw new BusinessException('Já existe um apontamento em andamento. Finalize-o antes de iniciar novo lote.', 422);
+        $ativos = $this->apontamentoRepo->buscarApontamentosAtivos($sessao);
+        $prefixoNovo = substr($dados['cod_peca'], 0, 5);
+
+        $deOutroLote = $ativos->first(fn (Apontamento $a) => $a->ordem_lote !== $dados['ordem_lote']);
+
+        if ($deOutroLote) {
+            throw new BusinessException(
+                "Já existe um apontamento em andamento do lote {$deOutroLote->ordem_lote}. Finalize-o antes de iniciar outro lote.",
+                422,
+            );
         }
+
+        $mesmaPecaBase = $ativos->first(fn (Apontamento $a) => substr($a->cod_peca, 0, 5) === $prefixoNovo);
+
+        if ($mesmaPecaBase) {
+            throw new BusinessException('Já existe um apontamento ativo para esta peça neste lote. Continue bipando fichas nele.', 422);
+        }
+
+        // Peça nova dentro de um lote que já tem outro apontamento ativo: o
+        // setup já foi feito quando a primeira peça do lote foi bipada, então
+        // este novo apontamento pula direto para aguardando_producao.
+        $loteJaEmAndamento = $ativos->isNotEmpty();
 
         if ($sessao->pausaOciosaAberta()->exists()) {
             throw new BusinessException('Sessão está pausada. Retome antes de bipar um novo lote.', 422);
@@ -113,7 +132,7 @@ class ApontamentoService
             }
         }
 
-        $possuiSetup = $sessao->maquina->regraMaquina?->possui_setup ?? true;
+        $possuiSetup = ! $loteJaEmAndamento && ($sessao->maquina->regraMaquina?->possui_setup ?? true);
 
         $apontamento = $this->apontamentoRepo->criar([
             'sessao_trabalho_id' => $sessao->id,
@@ -376,6 +395,15 @@ class ApontamentoService
         $pendentes = array_values(array_filter($progresso, fn (array $p) => $p['falta'] > 0));
 
         $incompleto = ($qtdeTotal > 0 && $totalBipado < $qtdeTotal) || $pendentes !== [];
+
+        $regras = $apontamento->sessaoTrabalho->maquina->regraMaquina;
+
+        if ($incompleto && $regras && ! $regras->permite_finalizacao_parcial) {
+            throw new BusinessException(
+                "Esta máquina não permite finalização parcial. Bipe todas as peças e cores antes de finalizar. Bipado: {$totalBipado} de {$qtdeTotal} peças.",
+                422,
+            );
+        }
 
         if ($incompleto && ! $confirmarParcial) {
             throw new FinalizacaoParcialException(
