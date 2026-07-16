@@ -7,7 +7,8 @@ RUN apt-get update && apt-get install -y \
     && dpkg -i packages-microsoft-prod.deb \
     && rm packages-microsoft-prod.deb \
     && apt-get update -o Acquire::AllowInsecureRepositories=true \
-    && ACCEPT_EULA=Y apt-get install -y --allow-unauthenticated msodbcsql18 \
+    && ACCEPT_EULA=Y apt-get install -y --allow-unauthenticated msodbcsql17 \
+    && printf 'openssl_conf = openssl_init\n\n[openssl_init]\nproviders = provider_sect\nssl_conf = ssl_sect\n\n[provider_sect]\ndefault = default_sect\nlegacy = legacy_sect\n\n[default_sect]\nactivate = 1\n\n[legacy_sect]\nactivate = 1\n\n[ssl_sect]\nsystem_default = system_default_sect\n\n[system_default_sect]\nCipherString = ALL:@SECLEVEL=0\n' > /etc/ssl/openssl.cnf \
     && pecl install sqlsrv pdo_sqlsrv \
     && docker-php-ext-enable sqlsrv pdo_sqlsrv \
     && rm -rf /var/lib/apt/lists/*
