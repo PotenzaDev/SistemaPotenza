@@ -11,7 +11,10 @@ use App\Http\Resources\OperarioResource;
 use App\Http\Traits\ApiResponseTrait;
 use App\Models\Operario;
 use App\Services\OperarioService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
+use Picqer\Barcode\BarcodeGeneratorHTML;
+use Symfony\Component\HttpFoundation\Response;
 
 class OperarioController extends Controller
 {
@@ -61,5 +64,18 @@ class OperarioController extends Controller
         $operario->user->delete();
 
         return $this->successResponse(null, 'Operário removido.');
+    }
+
+    public function crachaPdf(Operario $operario): Response
+    {
+        $generator = new BarcodeGeneratorHTML();
+        $barcodeHtml = $generator->getBarcode($operario->matricula, $generator::TYPE_CODE_128, 3, 90);
+
+        $pdf = Pdf::loadView('pdf.cracha-operario', [
+            'matricula'    => $operario->matricula,
+            'barcodeHtml'  => $barcodeHtml,
+        ]);
+
+        return $pdf->stream("cracha-operario-{$operario->matricula}.pdf");
     }
 }

@@ -91,7 +91,9 @@
       "Bash(powershell -Command \"Get-ChildItem -Path 'C:\\\\Gustavo\\\\Potenza\\\\SistemaApontamento\\\\bridge\\\\app' -Recurse -File | Select-Object -ExpandProperty FullName\")",
       "Bash(powershell -Command \"Get-ChildItem -Path 'C:\\\\Gustavo\\\\Potenza\\\\SistemaApontamento\\\\bridge\\\\tests' -Recurse -File | Select-Object -ExpandProperty FullName\")",
       "Bash(composer --version)",
-      "Bash(composer update *)"
+      "Bash(composer update *)",
+      "Bash(composer show *)",
+      "Bash(xargs -I{} basename {})"
     ]
   }
 }

@@ -141,6 +141,7 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:admin'])->grou
 Route::middleware(['auth:sanctum', 'check_password_change', 'role:admin,funcionario'])->group(function () {
     Route::apiResource('maquinas', MaquinaController::class)->middleware('module:maquinas');
     Route::apiResource('operarios', OperarioController::class)->middleware('module:operarios');
+    Route::get('/operarios/{operario}/cracha-pdf', [OperarioController::class, 'crachaPdf'])->middleware('module:operarios');
     Route::get('/etapas-fluxo', [EtapaFluxoController::class, 'index'])->middleware('module:operarios');
     Route::apiResource('motivos-pausa', MotivoPausaController::class)->except(['show'])->middleware('module:motivos_pausa');
     Route::apiResource('brocas', BrocaController::class)->except(['show'])->middleware('module:brocas');

@@ -51,3 +51,8 @@ export async function updateOperario(id: number, payload: UpdateOperarioPayload)
   const res = await apiClient.put<ApiEnvelope<Operario>>(`/operarios/${id}`, payload)
   return res.data.data
 }
+
+export async function baixarCrachaOperarioPdf(id: number): Promise<Blob> {
+  const res = await apiClient.get(`/operarios/${id}/cracha-pdf`, { responseType: 'blob' })
+  return res.data
+}
