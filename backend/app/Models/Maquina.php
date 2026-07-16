@@ -35,7 +35,7 @@ class Maquina extends Model
 
     public function getFotoUrlAttribute(): ?string
     {
-        return $this->foto ? Storage::disk('public')->url($this->foto) : null;
+        return $this->foto ? '/storage/' . $this->foto : null;
     }
 
     public function etapaFluxo(): BelongsTo
