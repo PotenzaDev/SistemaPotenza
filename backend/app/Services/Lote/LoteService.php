@@ -124,12 +124,11 @@ class LoteService implements LoteServiceInterface
 
         try {
             $rows = $this->select(
-                'SELECT f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, p.Prod_CorCodi,
+                'SELECT f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi,
                         SUM(f.Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
                  FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica] f
-                 LEFT JOIN [db1Fabri].[dbo].[Produto_Cadastro] p ON p.Prod_Codi = f.Prod_Codi
                  WHERE SUBSTRING(f.CodiSemiAcabado, 1, 5) = ? AND f.Lote = ?
-                 GROUP BY f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, p.Prod_CorCodi',
+                 GROUP BY f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi',
                 [$prefixoCod, $ordemLote]
             );
         } catch (BusinessException) {
@@ -149,12 +148,11 @@ class LoteService implements LoteServiceInterface
 
         try {
             $rows = $this->select(
-                'SELECT f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, p.Prod_CorCodi,
+                'SELECT f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi,
                         SUM(f.Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
                  FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica] f
-                 LEFT JOIN [db1Fabri].[dbo].[Produto_Cadastro] p ON p.Prod_Codi = f.Prod_Codi
                  WHERE f.Lote = ?
-                 GROUP BY f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, p.Prod_CorCodi',
+                 GROUP BY f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi',
                 [$ordemLote]
             );
         } catch (BusinessException) {
@@ -165,10 +163,12 @@ class LoteService implements LoteServiceInterface
     }
 
     /**
-     * Valida o cod_produto+cor lidos do código de barras contra o cadastro
-     * de produtos do ERP (Produto_Cadastro) e confirma que esse produto de
-     * fato pertence à ficha (CodiSemiAcabado+Lote) sendo bipada em
-     * FbmLoteFichaTecnica.
+     * Encontra, dentro do lote/peça sendo bipado, a ficha física cujo
+     * Prod_Codi+Prod_CorCodi correspondem ao cod_produto+cor lidos do código
+     * de barras. A FbmLoteFichaTecnica já expõe Prod_CorCodi diretamente
+     * (via ParmGrad no lado do ERP), então uma única consulta resolve tanto
+     * a validação quanto a diferenciação de ficha por produto/cor — sem
+     * depender de Produto_Cadastro.
      */
     public function buscarProdutoCompativel(
         string $codPeca,
@@ -177,42 +177,27 @@ class LoteService implements LoteServiceInterface
         string $corCodigo,
     ): array {
         $ordemLote = ltrim($ordemLote, '0') ?: '0';
+        $corCodigo = ltrim($corCodigo, '0') ?: '0';
 
-        $produto = $this->selectOne(
-            'SELECT TOP 1 Prod_Codi, Prod_Deno, Prod_Cor, Prod_CorCodi
-             FROM [db1Fabri].[dbo].[Produto_Cadastro]
-             WHERE Prod_Codi = ? AND Prod_CorCodi = ?',
-            [$codProduto, $corCodigo]
-        );
-
-        if (! $produto) {
-            throw new BusinessException(
-                "Produto '{$codProduto}' cor '{$corCodigo}' não encontrado no cadastro do ERP.",
-                422
-            );
-        }
-
-        $fichaCompativel = $this->selectOne(
-            'SELECT TOP 1 Prod_Codi
+        $ficha = $this->selectOne(
+            'SELECT TOP 1 Prod_Codi, Prod_CorCodi
              FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
-             WHERE CodiSemiAcabado = ? AND Lote = ? AND Prod_Codi = ?',
-            [$codPeca, $ordemLote, $codProduto]
+             WHERE CodiSemiAcabado = ? AND Lote = ? AND Prod_Codi LIKE ? AND Prod_CorCodi = ?',
+            [$codPeca, $ordemLote, '%' . ltrim($codProduto, '0') . '%', $corCodigo]
         );
 
-        if (! $fichaCompativel) {
+        if (! $ficha) {
             throw new BusinessException(
-                "Produto '{$codProduto}' não corresponde a nenhuma ficha do lote '{$ordemLote}' para a peça '{$codPeca}'.",
+                "Produto '{$codProduto}' cor '{$corCodigo}' não corresponde a nenhuma ficha do lote '{$ordemLote}' para a peça '{$codPeca}'.",
                 422
             );
         }
 
-        $row = (array) $produto;
+        $row = (array) $ficha;
 
         return [
-            'cod_produto'  => trim((string) ($row['Prod_Codi'] ?? '')),
-            'cor_codigo'   => trim((string) ($row['Prod_CorCodi'] ?? '')),
-            'desc_produto' => trim((string) ($row['Prod_Deno'] ?? '')),
-            'desc_cor'     => trim((string) ($row['Prod_Cor'] ?? '')),
+            'cod_produto' => trim((string) ($row['Prod_Codi'] ?? '')),
+            'cor_codigo'  => trim((string) ($row['Prod_CorCodi'] ?? '')),
         ];
     }
 

@@ -53,16 +53,16 @@ interface LoteServiceInterface
     public function buscarVariantesPorPrefixoLote(string $ordemLote, string $prefixoCod): array;
 
     /**
-     * Valida o cod_produto+cor lidos do código de barras contra o cadastro
-     * de produtos do ERP (view Produto_Cadastro) e confirma que esse produto
-     * de fato pertence à ficha (CodiSemiAcabado+Lote) sendo bipada em
-     * FbmLoteFichaTecnica — é o que permite diferenciar, dentro do mesmo
-     * lote/peça, qual ficha física corresponde a qual produto/cor exatos.
+     * Encontra, dentro do lote/peça (CodiSemiAcabado+Lote) sendo bipado, a
+     * ficha física cujo Prod_Codi+Prod_CorCodi correspondem ao cod_produto+cor
+     * lidos do código de barras — direto em FbmLoteFichaTecnica, que já expõe
+     * Prod_CorCodi (via ParmGrad no lado do ERP). É o que permite diferenciar,
+     * dentro do mesmo lote/peça, qual ficha física corresponde a qual
+     * produto/cor exatos, sem depender de Produto_Cadastro.
      *
-     * @return array{cod_produto: string, cor_codigo: string, desc_produto: string, desc_cor: string}
+     * @return array{cod_produto: string, cor_codigo: string}
      *
-     * @throws \App\Exceptions\BusinessException quando o produto/cor não existe no cadastro (422),
-     *                                            quando não corresponde a nenhuma ficha do lote (422),
+     * @throws \App\Exceptions\BusinessException quando não corresponde a nenhuma ficha do lote (422),
      *                                            ou quando o SQL Server legado está inacessível (503).
      */
     public function buscarProdutoCompativel(

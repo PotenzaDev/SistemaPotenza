@@ -94,7 +94,8 @@
       "Bash(composer update *)",
       "Bash(composer show *)",
       "Bash(xargs -I{} basename {})",
-      "Bash(xargs -I{} cat {})"
+      "Bash(xargs -I{} cat {})",
+      "Bash(vendor/bin/phpunit --filter=ApontamentoMultiplasPecasLoteTest)"
     ]
   }
 }

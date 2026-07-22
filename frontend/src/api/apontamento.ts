@@ -16,6 +16,8 @@ export interface Pausa {
 export interface FichaApontamento {
   id: number
   cod_peca: string
+  cod_produto: string | null
+  cor_codigo: string | null
   pilha: number
   qtd_peca: number
   qtd_produzida: number | null
@@ -86,6 +88,7 @@ export interface ResumoFichasPorCor {
   qtde_total: number
   qtd_bipada: number
   falta: number
+  total_pilhas: number
 }
 
 // ── Leitura ───────────────────────────────────────────────────────────────────
