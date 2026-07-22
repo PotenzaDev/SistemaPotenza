@@ -104,8 +104,10 @@ class ApontamentoFinalizacaoParcialTest extends TestCase
 
         $this->actingAs($userNovo, 'sanctum')
             ->postJson('/api/apontamento/bipar', [
-                'cod_peca'   => '1234567',
-                'ordem_lote' => '12345',
+                'cod_peca'    => '1234567',
+                'ordem_lote'  => '12345',
+                'cod_produto' => '03460',
+                'cor_codigo'  => '040',
             ])
             ->assertCreated()
             ->assertJsonPath('data.id', $origem->id)
@@ -151,8 +153,10 @@ class ApontamentoFinalizacaoParcialTest extends TestCase
 
         $this->actingAs($userNovo, 'sanctum')
             ->postJson('/api/apontamento/bipar', [
-                'cod_peca'   => '1234567',
-                'ordem_lote' => '12345',
+                'cod_peca'    => '1234567',
+                'ordem_lote'  => '12345',
+                'cod_produto' => '03460',
+                'cor_codigo'  => '040',
             ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'Este lote/peça já foi finalizado integralmente nesta etapa. Não é possível iniciar novo apontamento.');

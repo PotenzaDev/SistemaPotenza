@@ -19,11 +19,13 @@ class EtapaFluxo extends Model
         'ordem',
         'ativa',
         'requer_config_cabecote',
+        'apontamento_por_lote',
     ];
 
     protected $casts = [
         'ativa' => 'boolean',
         'requer_config_cabecote' => 'boolean',
+        'apontamento_por_lote' => 'boolean',
     ];
 
     public function maquinas(): HasMany

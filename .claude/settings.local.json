@@ -93,7 +93,8 @@
       "Bash(composer --version)",
       "Bash(composer update *)",
       "Bash(composer show *)",
-      "Bash(xargs -I{} basename {})"
+      "Bash(xargs -I{} basename {})",
+      "Bash(xargs -I{} cat {})"
     ]
   }
 }

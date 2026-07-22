@@ -43,14 +43,20 @@ class TimelineMaquinaService
         $turnoDoDia = Turno::doDia($data->dayOfWeekIso, $data);
         $turno = $turnoDoDia;
 
-        if (! $turno) {
-            $temMovimentacao = ! $maquinas->isEmpty() && $this->movimentacao->existeParaMaquinas(
-                $data->copy()->startOfDay(),
-                $data->copy()->endOfDay(),
-                $maquinas->pluck('id'),
-            );
+        $idsComMovimentacao = $this->movimentacao->idsMaquinasComMovimentacao(
+            $data->copy()->startOfDay(),
+            $data->copy()->endOfDay(),
+            $maquinas->pluck('id'),
+        );
 
-            if (! $temMovimentacao) {
+        // Só entram máquinas que tiveram movimentação real no dia — mesmo em
+        // dia de semana com turno cadastrado, máquina ativa sem nenhum
+        // apontamento não aparece na timeline (ao invés de virar uma barra
+        // inteira "parado").
+        $maquinas = $maquinas->whereIn('id', $idsComMovimentacao);
+
+        if (! $turno) {
+            if ($maquinas->isEmpty()) {
                 return ['turno' => null, 'maquinas' => []];
             }
 

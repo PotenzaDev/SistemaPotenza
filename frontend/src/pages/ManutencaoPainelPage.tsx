@@ -293,7 +293,7 @@ export function ManutencaoPainelPage() {
           <select
             value={filtroSetor}
             onChange={e => setFiltroSetor(e.target.value)}
-            className="w-44 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[#00aa84]/50 focus:ring-1 focus:ring-[#00aa84]/30 transition [color-scheme:dark]"
+            className="w-44 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[#00aa84]/50 focus:ring-1 focus:ring-[#00aa84]/30 transition"
           >
             <option value="">Todos os setores</option>
             {setoresDisponiveis.map(nome => (
@@ -306,7 +306,7 @@ export function ManutencaoPainelPage() {
             type="date"
             value={filtroData}
             onChange={e => setFiltroData(e.target.value)}
-            className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[#00aa84]/50 focus:ring-1 focus:ring-[#00aa84]/30 transition [color-scheme:dark]"
+            className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[#00aa84]/50 focus:ring-1 focus:ring-[#00aa84]/30 transition"
           />
 
           {/* Limpar */}

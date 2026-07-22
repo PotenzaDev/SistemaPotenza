@@ -17,6 +17,7 @@ class EtapaFluxoResource extends JsonResource
             'ordem' => $this->ordem,
             'ativa' => (bool) $this->ativa,
             'requer_config_cabecote' => (bool) $this->requer_config_cabecote,
+            'apontamento_por_lote' => (bool) $this->apontamento_por_lote,
         ];
     }
 }

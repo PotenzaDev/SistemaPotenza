@@ -36,10 +36,12 @@ class ApontamentoAtivoUnicoTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->postJson('/api/apontamento/bipar', [
-                'cod_peca'   => '9999999',
-                'ordem_lote' => '99999',
-                'qtd_peca'   => 10,
-                'pilha'      => 2,
+                'cod_peca'    => '9999999',
+                'ordem_lote'  => '99999',
+                'qtd_peca'    => 10,
+                'pilha'       => 2,
+                'cod_produto' => '03460',
+                'cor_codigo'  => '040',
             ])
             ->assertStatus(422)
             ->assertJsonPath('success', false);
@@ -63,10 +65,12 @@ class ApontamentoAtivoUnicoTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->postJson('/api/apontamento/bipar', [
-                'cod_peca'   => '9999999',
-                'ordem_lote' => '99999',
-                'qtd_peca'   => 10,
-                'pilha'      => 2,
+                'cod_peca'    => '9999999',
+                'ordem_lote'  => '99999',
+                'qtd_peca'    => 10,
+                'pilha'       => 2,
+                'cod_produto' => '03460',
+                'cor_codigo'  => '040',
             ])
             ->assertStatus(422)
             ->assertJsonPath('success', false);

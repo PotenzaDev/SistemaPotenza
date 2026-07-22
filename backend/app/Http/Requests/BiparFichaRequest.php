@@ -16,11 +16,13 @@ class BiparFichaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'cod_peca'   => ['required', 'string'],
-            'ordem_lote' => ['required', 'string'],
-            'qtd_peca'   => ['required', 'integer', 'min:1'],
-            'pilha'      => ['required', 'integer', 'min:1'],
-            'confirmar'  => ['sometimes', 'boolean'],
+            'cod_peca'    => ['required', 'string'],
+            'ordem_lote'  => ['required', 'string'],
+            'qtd_peca'    => ['required', 'integer', 'min:1'],
+            'pilha'       => ['required', 'integer', 'min:1'],
+            'cod_produto' => ['required', 'string'],
+            'cor_codigo'  => ['required', 'string'],
+            'confirmar'   => ['sometimes', 'boolean'],
         ];
     }
 }

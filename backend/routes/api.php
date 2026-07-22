@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\ApontamentoController;
+use App\Http\Controllers\Api\ApontamentoCorteController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BrocaController;
 use App\Http\Controllers\Api\ChamadaSuporteController;
@@ -91,6 +92,13 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->g
         Route::post('/{apontamento}/pausar', [ApontamentoController::class, 'pausar']);         // pausa manual com motivo
         Route::post('/{apontamento}/pausar-sistema', [ApontamentoController::class, 'pausarSistema']); // auto-pausa (beacon)
         Route::post('/{apontamento}/retomar', [ApontamentoController::class, 'retomar']);        // retoma pausa
+    });
+
+    // Apontamento de corte (seccionadoras): por lote, sem setup, 1a bipagem já vai para produção.
+    Route::prefix('apontamento-corte')->group(function () {
+        Route::post('/bipar', [ApontamentoCorteController::class, 'bipar']);
+        Route::get('/{apontamento}/checklist', [ApontamentoCorteController::class, 'checklist']);
+        Route::post('/{apontamento}/finalizar', [ApontamentoCorteController::class, 'finalizar']);
     });
 
     Route::get('/manutencao', [ManutencaoPublicoController::class, 'index']);

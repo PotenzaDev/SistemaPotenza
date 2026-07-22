@@ -570,7 +570,7 @@ export function OrdemManutencaoModal({ ordem, onClose, onUpdate }: OrdemManutenc
                         type="date"
                         value={novoServico.data}
                         onChange={e => setNovoServico(s => ({ ...s, data: e.target.value }))}
-                        className="w-36 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[#00aa84]/50 focus:ring-1 focus:ring-[#00aa84]/30 transition [color-scheme:dark]"
+                        className="w-36 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-[#00aa84]/50 focus:ring-1 focus:ring-[#00aa84]/30 transition"
                       />
                       <button
                         type="button"

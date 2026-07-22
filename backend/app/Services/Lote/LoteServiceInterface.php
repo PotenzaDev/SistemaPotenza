@@ -51,4 +51,36 @@ interface LoteServiceInterface
      * @return array<int, array{cod_peca: string, desc_peca: string, qtde_total: int, total_pilhas: int}>
      */
     public function buscarVariantesPorPrefixoLote(string $ordemLote, string $prefixoCod): array;
+
+    /**
+     * Valida o cod_produto+cor lidos do código de barras contra o cadastro
+     * de produtos do ERP (view Produto_Cadastro) e confirma que esse produto
+     * de fato pertence à ficha (CodiSemiAcabado+Lote) sendo bipada em
+     * FbmLoteFichaTecnica — é o que permite diferenciar, dentro do mesmo
+     * lote/peça, qual ficha física corresponde a qual produto/cor exatos.
+     *
+     * @return array{cod_produto: string, cor_codigo: string, desc_produto: string, desc_cor: string}
+     *
+     * @throws \App\Exceptions\BusinessException quando o produto/cor não existe no cadastro (422),
+     *                                            quando não corresponde a nenhuma ficha do lote (422),
+     *                                            ou quando o SQL Server legado está inacessível (503).
+     */
+    public function buscarProdutoCompativel(
+        string $codPeca,
+        string $ordemLote,
+        string $codProduto,
+        string $corCodigo,
+    ): array;
+
+    /**
+     * Detalha, um por um, todos os cod_peca (peça/produto) do LOTE inteiro —
+     * ao contrário de buscarVariantesPorPrefixoLote(), que restringe às
+     * variantes de um mesmo prefixo de 5 dígitos. Usado pelo apontamento de
+     * corte (por lote), onde a seccionadora pode cortar peças de produtos
+     * completamente diferentes dentro do mesmo lote físico. Em caso de falha
+     * no SQL Server legado retorna [] (fallback seguro).
+     *
+     * @return array<int, array{cod_peca: string, desc_peca: string, qtde_total: int, total_pilhas: int}>
+     */
+    public function buscarFichasDoLote(string $ordemLote): array;
 }

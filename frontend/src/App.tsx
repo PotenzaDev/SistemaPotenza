@@ -22,6 +22,7 @@ import { UsuariosSistemaPage }      from '@/pages/UsuariosSistemaPage'
 import { RotinasPage }              from '@/pages/RotinasPage'
 import { MaquinasDisponiveisPage }  from '@/pages/MaquinasDisponiveisPage'
 import { ApontamentoOperarioPage }  from '@/pages/ApontamentoOperarioPage'
+import { ApontamentoCorteOperarioPage } from '@/pages/ApontamentoCorteOperarioPage'
 import { ManutencaoPainelPage }        from '@/pages/ManutencaoPainelPage'
 import { ChamadasSuportePage }         from '@/pages/ChamadasSuportePage'
 import { ManutencaoSolicitarPage }     from '@/pages/ManutencaoSolicitarPage'
@@ -141,6 +142,7 @@ function App() {
           <Route index element={<Navigate to="maquinas" replace />} />
           <Route path="maquinas"             element={<MaquinasDisponiveisPage />} />
           <Route path="apontamento"          element={<ApontamentoOperarioPage />} />
+          <Route path="apontamento-corte"    element={<ApontamentoCorteOperarioPage />} />
           <Route path="manutencao/solicitar" element={<ManutencaoSolicitarPage />} />
         </Route>
 

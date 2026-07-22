@@ -1,5 +1,5 @@
 # Sistema Potenza — Backend Laravel
-
+4
 ## Visão Geral
 API REST para o sistema de apontamento de produção (chão de fábrica).
 Autenticação via Laravel Sanctum. Três perfis de acesso.

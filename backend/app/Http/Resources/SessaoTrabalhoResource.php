@@ -31,9 +31,10 @@ class SessaoTrabalhoResource extends JsonResource
                 'etapa_fluxo' => $this->when(
                     $this->maquina->relationLoaded('etapaFluxo'),
                     fn () => [
-                        'id'    => $this->maquina->etapaFluxo->id,
-                        'nome'  => $this->maquina->etapaFluxo->nome,
-                        'ordem' => $this->maquina->etapaFluxo->ordem,
+                        'id'                   => $this->maquina->etapaFluxo->id,
+                        'nome'                 => $this->maquina->etapaFluxo->nome,
+                        'ordem'                => $this->maquina->etapaFluxo->ordem,
+                        'apontamento_por_lote' => (bool) $this->maquina->etapaFluxo->apontamento_por_lote,
                     ]
                 ),
                 'regra_maquina' => $this->when(

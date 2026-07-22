@@ -112,6 +112,12 @@ class ApontamentoService
         }
 
         $loteDados       = $this->loteService->buscarPorOrdemLote($dados['ordem_lote'], $dados['cod_peca']);
+        $produto         = $this->loteService->buscarProdutoCompativel(
+            $dados['cod_peca'],
+            $dados['ordem_lote'],
+            $dados['cod_produto'],
+            $dados['cor_codigo'],
+        );
         $ftecPecaPilha   = $this->loteService->buscarFtecPecaPilha($dados['cod_peca']);
         $totaisVariantes = $this->loteService->buscarTotaisPorPrefixoLote(
             $dados['ordem_lote'],
@@ -151,7 +157,7 @@ class ApontamentoService
             'cod_peca'           => $dados['cod_peca'],
             'ordem_lote'         => $dados['ordem_lote'],
             'desc_peca'          => $loteDados['desc_peca'],
-            'cod_produto'        => $loteDados['cod_produto'],
+            'cod_produto'        => $produto['cod_produto'],
             'qtde_total'         => $qtdeTotal,
             'ftec_peca_pilha'    => $ftecPecaPilha,
             'status'             => $possuiSetup ? Apontamento::STATUS_EM_SETUP : Apontamento::STATUS_AGUARDANDO_PRODUCAO,
@@ -351,6 +357,13 @@ class ApontamentoService
             }
         }
 
+        $produto = $this->loteService->buscarProdutoCompativel(
+            $dados['cod_peca'],
+            $apontamento->ordem_lote,
+            $dados['cod_produto'],
+            $dados['cor_codigo'],
+        );
+
         // Marco de tempo compartilhado: fim da ficha anterior = inicio desta
         $agora = Carbon::now();
 
@@ -367,6 +380,8 @@ class ApontamentoService
         $this->fichaRepo->criar([
             'apontamento_id' => $apontamento->id,
             'cod_peca'       => $dados['cod_peca'],
+            'cod_produto'    => $produto['cod_produto'],
+            'cor_codigo'     => $produto['cor_codigo'],
             'pilha'          => $pilha,
             'qtd_peca'       => (int) $dados['qtd_peca'],
             'bipada_at'      => $agora,
@@ -753,16 +768,23 @@ class ApontamentoService
             return [];
         }
 
-        $bipadoPorCodigo = $apontamento->fichas->groupBy('cod_peca')
-            ->map(fn ($fichas) => (int) $fichas->sum('qtd_peca'));
+        // Chave composta: o mesmo cod_peca (CodiSemiAcabado) pode aparecer em
+        // mais de uma ficha física do lote para produtos/cores diferentes —
+        // agrupar só por cod_peca colapsaria essas fichas distintas.
+        $bipadoPorFicha = $apontamento->fichas->groupBy(
+            fn (FichaApontamento $f) => "{$f->cod_peca}|{$f->cod_produto}|{$f->cor_codigo}"
+        )->map(fn ($fichas) => (int) $fichas->sum('qtd_peca'));
 
-        return array_map(function (array $variante) use ($bipadoPorCodigo) {
+        return array_map(function (array $variante) use ($bipadoPorFicha) {
             // A cor/acabamento é o último segmento da descrição (ex: "... - Nature").
             $partesDesc = explode(' - ', $variante['desc_peca']);
-            $qtdBipada  = (int) ($bipadoPorCodigo[$variante['cod_peca']] ?? 0);
+            $chave      = "{$variante['cod_peca']}|{$variante['cod_produto']}|{$variante['cor_codigo']}";
+            $qtdBipada  = (int) ($bipadoPorFicha[$chave] ?? 0);
 
             return [
                 'cod_peca'    => $variante['cod_peca'],
+                'cod_produto' => $variante['cod_produto'],
+                'cor_codigo'  => $variante['cor_codigo'],
                 'cor'         => trim((string) end($partesDesc)),
                 'qtde_total'  => $variante['qtde_total'],
                 'qtd_bipada'  => $qtdBipada,

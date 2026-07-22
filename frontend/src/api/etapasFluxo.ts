@@ -6,6 +6,7 @@ export interface EtapaFluxo {
   nome: string
   ordem: number
   requer_config_cabecote: boolean
+  apontamento_por_lote: boolean
 }
 
 export async function getEtapasFluxo(signal?: AbortSignal): Promise<EtapaFluxo[]> {

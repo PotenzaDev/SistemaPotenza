@@ -158,6 +158,7 @@ export function ApontamentoOperarioPage() {
       getTurnoHoje(),
     ]).then(([s, aps, fr, mp, turno]) => {
       if (!s) { navigate('/operario', { replace: true }); return }
+      if (s.maquina.etapa_fluxo?.apontamento_por_lote) { navigate('/operario/apontamento-corte', { replace: true }); return }
       setSessao(s)
       setFichasRecentes(fr)
       setMotivosPausa(mp)
@@ -309,7 +310,12 @@ export function ApontamentoOperarioPage() {
     if (!parsedBarcode) return
     setAtualizando(true); setErroApi(null)
     try {
-      const ap = await biparLote({ cod_peca: parsedBarcode.cod_peca, ordem_lote: parsedBarcode.ordem_lote })
+      const ap = await biparLote({
+        cod_peca:    parsedBarcode.cod_peca,
+        ordem_lote:  parsedBarcode.ordem_lote,
+        cod_produto: parsedBarcode.cod_produto,
+        cor_codigo:  parsedBarcode.cor_codigo,
+      })
       upsertApontamento(ap)
       setFocoId(ap.id)
       setBarcode('')
@@ -360,10 +366,12 @@ export function ApontamentoOperarioPage() {
   async function executarBiparFicha(confirmar: boolean) {
     if (!apontamento || !parsedBarcode) return
     const ap = await biparFicha(apontamento.id, {
-      cod_peca:   parsedBarcode.cod_peca,
-      ordem_lote: parsedBarcode.ordem_lote,
-      qtd_peca:   parsedBarcode.qtd_peca,
-      pilha:      parsedBarcode.pilha,
+      cod_peca:    parsedBarcode.cod_peca,
+      ordem_lote:  parsedBarcode.ordem_lote,
+      qtd_peca:    parsedBarcode.qtd_peca,
+      pilha:       parsedBarcode.pilha,
+      cod_produto: parsedBarcode.cod_produto,
+      cor_codigo:  parsedBarcode.cor_codigo,
       ...(confirmar && { confirmar: true }),
     })
     upsertApontamento(ap)

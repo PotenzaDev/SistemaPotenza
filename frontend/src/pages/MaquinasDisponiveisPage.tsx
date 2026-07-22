@@ -3,11 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { Loader2, MonitorSmartphone, ImageIcon, RotateCcw } from 'lucide-react'
 import { getMaquinasDisponiveis, type Maquina } from '@/api/maquinas'
-import { iniciarSessao, getSessaoAtiva, getSessoesPausadas, getTurnoHoje, type SessaoPausada, type TurnoHoje } from '@/api/sessao'
+import { iniciarSessao, getSessaoAtiva, getSessoesPausadas, getTurnoHoje, type Sessao, type SessaoPausada, type TurnoHoje } from '@/api/sessao'
 import { ConfirmarMaquinaModal } from '@/components/ConfirmarMaquinaModal'
 import { EscolherSessaoModal } from '@/components/EscolherSessaoModal'
 import { InformarTurnoModal } from '@/components/InformarTurnoModal'
 import { useAuth } from '@/hooks/useAuth'
+
+/** Máquinas de corte (por lote) têm uma tela de apontamento própria, sem etapa de setup. */
+function destinoApontamento(sessao: Sessao): string {
+  return sessao.maquina.etapa_fluxo?.apontamento_por_lote
+    ? '/operario/apontamento-corte'
+    : '/operario/apontamento'
+}
 
 export function MaquinasDisponiveisPage() {
   const { user } = useAuth()
@@ -39,7 +46,7 @@ export function MaquinasDisponiveisPage() {
       .then(sessao => {
         if (controller.signal.aborted) return
         if (sessao) {
-          navigate('/operario/apontamento', { replace: true })
+          navigate(destinoApontamento(sessao), { replace: true })
           return
         }
         return Promise.all([
@@ -74,8 +81,8 @@ export function MaquinasDisponiveisPage() {
 
     setConfirmando(true)
     try {
-      await iniciarSessao(selecionada.id)
-      navigate('/operario/apontamento')
+      const sessao = await iniciarSessao(selecionada.id)
+      navigate(destinoApontamento(sessao))
     } catch {
       setConfirmando(false)
     }
@@ -85,8 +92,8 @@ export function MaquinasDisponiveisPage() {
     if (!informandoTurno) return
     setConfirmandoTurno(true)
     try {
-      await iniciarSessao(informandoTurno.id, undefined, inicio, fim)
-      navigate('/operario/apontamento')
+      const sessao = await iniciarSessao(informandoTurno.id, undefined, inicio, fim)
+      navigate(destinoApontamento(sessao))
     } catch {
       setConfirmandoTurno(false)
     }
@@ -119,8 +126,8 @@ export function MaquinasDisponiveisPage() {
     if (!escolhendo) return
     setRetomandoId(sessaoPausadaId)
     try {
-      await iniciarSessao(escolhendo.id, sessaoPausadaId)
-      navigate('/operario/apontamento')
+      const sessao = await iniciarSessao(escolhendo.id, sessaoPausadaId)
+      navigate(destinoApontamento(sessao))
     } catch {
       setRetomandoId(null)
     }
@@ -138,8 +145,8 @@ export function MaquinasDisponiveisPage() {
 
     setIniciandoNova(true)
     try {
-      await iniciarSessao(escolhendo.id)
-      navigate('/operario/apontamento')
+      const sessao = await iniciarSessao(escolhendo.id)
+      navigate(destinoApontamento(sessao))
     } catch {
       setIniciandoNova(false)
     }

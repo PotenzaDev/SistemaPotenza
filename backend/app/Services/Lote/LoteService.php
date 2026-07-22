@@ -124,30 +124,108 @@ class LoteService implements LoteServiceInterface
 
         try {
             $rows = $this->select(
-                'SELECT CodiSemiAcabado, DenoSemiAcabado, SUM(Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
-                 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
-                 WHERE SUBSTRING(CodiSemiAcabado, 1, 5) = ? AND Lote = ?
-                 GROUP BY CodiSemiAcabado, DenoSemiAcabado',
+                'SELECT f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, p.Prod_CorCodi,
+                        SUM(f.Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
+                 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica] f
+                 LEFT JOIN [db1Fabri].[dbo].[Produto_Cadastro] p ON p.Prod_Codi = f.Prod_Codi
+                 WHERE SUBSTRING(f.CodiSemiAcabado, 1, 5) = ? AND f.Lote = ?
+                 GROUP BY f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, p.Prod_CorCodi',
                 [$prefixoCod, $ordemLote]
             );
         } catch (BusinessException) {
             return [];
         }
 
-        return array_map(function ($row) {
-            $row = (array) $row;
+        // CodiSemiAcabado/DenoSemiAcabado costumam vir com espaços à direita
+        // (coluna CHAR de largura fixa no SQL Server) — sem o trim, o valor
+        // não bate com o cod_peca vindo do código de barras/fichas já
+        // gravadas, e a contagem por cor nunca casa (sempre fica em 0).
+        return array_map(fn ($row) => $this->mapearFichaDoLote((array) $row), $rows);
+    }
 
-            // CodiSemiAcabado/DenoSemiAcabado costumam vir com espaços à direita
-            // (coluna CHAR de largura fixa no SQL Server) — sem o trim, o valor
-            // não bate com o cod_peca vindo do código de barras/fichas já
-            // gravadas, e a contagem por cor nunca casa (sempre fica em 0).
-            return [
-                'cod_peca'     => trim((string) ($row['CodiSemiAcabado'] ?? '')),
-                'desc_peca'    => trim((string) ($row['DenoSemiAcabado'] ?? '')),
-                'qtde_total'   => (int) ($row['qtde_total'] ?? 0),
-                'total_pilhas' => (int) ($row['total_pilhas'] ?? 0),
-            ];
-        }, $rows);
+    public function buscarFichasDoLote(string $ordemLote): array
+    {
+        $ordemLote = ltrim($ordemLote, '0') ?: '0';
+
+        try {
+            $rows = $this->select(
+                'SELECT f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, p.Prod_CorCodi,
+                        SUM(f.Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
+                 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica] f
+                 LEFT JOIN [db1Fabri].[dbo].[Produto_Cadastro] p ON p.Prod_Codi = f.Prod_Codi
+                 WHERE f.Lote = ?
+                 GROUP BY f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, p.Prod_CorCodi',
+                [$ordemLote]
+            );
+        } catch (BusinessException) {
+            return [];
+        }
+
+        return array_map(fn ($row) => $this->mapearFichaDoLote((array) $row), $rows);
+    }
+
+    /**
+     * Valida o cod_produto+cor lidos do código de barras contra o cadastro
+     * de produtos do ERP (Produto_Cadastro) e confirma que esse produto de
+     * fato pertence à ficha (CodiSemiAcabado+Lote) sendo bipada em
+     * FbmLoteFichaTecnica.
+     */
+    public function buscarProdutoCompativel(
+        string $codPeca,
+        string $ordemLote,
+        string $codProduto,
+        string $corCodigo,
+    ): array {
+        $ordemLote = ltrim($ordemLote, '0') ?: '0';
+
+        $produto = $this->selectOne(
+            'SELECT TOP 1 Prod_Codi, Prod_Deno, Prod_Cor, Prod_CorCodi
+             FROM [db1Fabri].[dbo].[Produto_Cadastro]
+             WHERE Prod_Codi = ? AND Prod_CorCodi = ?',
+            [$codProduto, $corCodigo]
+        );
+
+        if (! $produto) {
+            throw new BusinessException(
+                "Produto '{$codProduto}' cor '{$corCodigo}' não encontrado no cadastro do ERP.",
+                422
+            );
+        }
+
+        $fichaCompativel = $this->selectOne(
+            'SELECT TOP 1 Prod_Codi
+             FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
+             WHERE CodiSemiAcabado = ? AND Lote = ? AND Prod_Codi = ?',
+            [$codPeca, $ordemLote, $codProduto]
+        );
+
+        if (! $fichaCompativel) {
+            throw new BusinessException(
+                "Produto '{$codProduto}' não corresponde a nenhuma ficha do lote '{$ordemLote}' para a peça '{$codPeca}'.",
+                422
+            );
+        }
+
+        $row = (array) $produto;
+
+        return [
+            'cod_produto'  => trim((string) ($row['Prod_Codi'] ?? '')),
+            'cor_codigo'   => trim((string) ($row['Prod_CorCodi'] ?? '')),
+            'desc_produto' => trim((string) ($row['Prod_Deno'] ?? '')),
+            'desc_cor'     => trim((string) ($row['Prod_Cor'] ?? '')),
+        ];
+    }
+
+    private function mapearFichaDoLote(array $row): array
+    {
+        return [
+            'cod_peca'     => trim((string) ($row['CodiSemiAcabado'] ?? '')),
+            'desc_peca'    => trim((string) ($row['DenoSemiAcabado'] ?? '')),
+            'cod_produto'  => trim((string) ($row['Prod_Codi'] ?? '')),
+            'cor_codigo'   => trim((string) ($row['Prod_CorCodi'] ?? '')),
+            'qtde_total'   => (int) ($row['qtde_total'] ?? 0),
+            'total_pilhas' => (int) ($row['total_pilhas'] ?? 0),
+        ];
     }
 
     private function mapear(array $row, int $qtdeTotal): array

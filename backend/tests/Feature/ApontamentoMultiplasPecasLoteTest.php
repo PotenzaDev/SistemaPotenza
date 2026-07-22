@@ -59,8 +59,10 @@ class ApontamentoMultiplasPecasLoteTest extends TestCase
         $this->actingAs($user, 'sanctum')
             ->postJson('/api/apontamento/bipar', [
                 // Mesmo prefixo de 5 dígitos (12345) do apontamento já ativo — só a cor muda.
-                'cod_peca'   => '1234599',
-                'ordem_lote' => '12345',
+                'cod_peca'    => '1234599',
+                'ordem_lote'  => '12345',
+                'cod_produto' => '03460',
+                'cor_codigo'  => '040',
             ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'Já existe um apontamento ativo para esta peça neste lote. Continue bipando fichas nele.');
@@ -101,8 +103,10 @@ class ApontamentoMultiplasPecasLoteTest extends TestCase
         // antes de chegar em qualquer consulta à Bridge.
         $this->actingAs($user, 'sanctum')
             ->postJson('/api/apontamento/bipar', [
-                'cod_peca'   => '5555567',
-                'ordem_lote' => '12345',
+                'cod_peca'    => '5555567',
+                'ordem_lote'  => '12345',
+                'cod_produto' => '03460',
+                'cor_codigo'  => '040',
             ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'Esta máquina não permite bipar peças diferentes no mesmo lote. Finalize o apontamento ativo antes de iniciar outro.');
@@ -116,8 +120,10 @@ class ApontamentoMultiplasPecasLoteTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->postJson('/api/apontamento/bipar', [
-                'cod_peca'   => '9999999',
-                'ordem_lote' => '99999',
+                'cod_peca'    => '9999999',
+                'ordem_lote'  => '99999',
+                'cod_produto' => '03460',
+                'cor_codigo'  => '040',
             ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'Já existe um apontamento em andamento do lote 12345. Finalize-o antes de iniciar outro lote.');

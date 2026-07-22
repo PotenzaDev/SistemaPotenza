@@ -12,13 +12,17 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
+    public function __construct(
+        private readonly MovimentacaoDiaService $movimentacao,
+    ) {}
+
     public function resumo(): array
     {
         $hoje = Carbon::today();
 
         return [
             'kpis'              => $this->kpis($hoje),
-            'maquinas'          => $this->estadoMaquinas(),
+            'maquinas'          => $this->estadoMaquinas($hoje),
             'producao_por_hora' => $this->producaoPorHora($hoje),
             'pausas_por_motivo' => $this->pausasPorMotivo($hoje),
         ];
@@ -51,7 +55,7 @@ class DashboardService
         ];
     }
 
-    private function estadoMaquinas(): array
+    private function estadoMaquinas(Carbon $hoje): array
     {
         $maquinas = Maquina::where('ativa', true)
             ->with([
@@ -69,6 +73,22 @@ class DashboardService
             ])
             ->orderBy('nome')
             ->get();
+
+        // Só entram máquinas com sessão aberta agora (operário presente na
+        // máquina, mesmo sem apontamento criado ainda) ou com alguma
+        // movimentação (setup/produção/ficha bipada) já registrada hoje —
+        // máquina ativa sem nenhuma atividade no dia não aparece.
+        $idsComSessaoAtiva = $maquinas->filter(fn (Maquina $m) => $m->sessaoAtiva !== null)->pluck('id');
+
+        $idsComMovimentacao = $this->movimentacao->idsMaquinasComMovimentacao(
+            $hoje->copy()->startOfDay(),
+            $hoje->copy()->endOfDay(),
+            $maquinas->pluck('id'),
+        );
+
+        $idsQueTrabalharam = $idsComSessaoAtiva->merge($idsComMovimentacao)->unique();
+
+        $maquinas = $maquinas->whereIn('id', $idsQueTrabalharam);
 
         return $maquinas->map(function (Maquina $maquina) {
             $sessao      = $maquina->sessaoAtiva;

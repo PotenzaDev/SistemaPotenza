@@ -18,7 +18,7 @@ export function FichasDoLote({ fichas, resumoPorCor }: FichasDoLoteProps) {
       {resumoPorCor.length > 1 && (
         <div className="grid grid-cols-1 gap-2 px-5 py-3 border-b border-white/5 bg-white/[0.02]">
           {resumoPorCor.map(r => (
-            <div key={r.cod_peca} className="flex items-center justify-between gap-3">
+            <div key={`${r.cod_peca}|${r.cod_produto}|${r.cor_codigo}`} className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
                 <Palette className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                 <span className="text-xs font-medium text-white truncate">{r.cor}</span>

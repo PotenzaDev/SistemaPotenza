@@ -14,6 +14,8 @@ class FichaApontamento extends Model
     protected $fillable = [
         'apontamento_id',
         'cod_peca',
+        'cod_produto',
+        'cor_codigo',
         'pilha',
         'qtd_peca',
         'qtd_produzida',

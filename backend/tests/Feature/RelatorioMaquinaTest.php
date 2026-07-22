@@ -425,6 +425,38 @@ class RelatorioMaquinaTest extends TestCase
         $this->assertSame(40, $relatorio['totais']['qtd_pecas']);
     }
 
+    public function test_relatorio_nao_inclui_maquina_ativa_sem_movimentacao_no_periodo(): void
+    {
+        $segunda = Carbon::parse('2026-06-08 00:00:00'); // turno 08:00-17:00
+        $terca   = $segunda->copy()->addDay();           // turno 08:00-17:00
+
+        $etapa      = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquinaOk  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+        $maquinaSem = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+
+        $sessao = $this->criarSessao($maquinaOk, $segunda->copy()->setTime(7, 30));
+
+        Apontamento::create([
+            'sessao_trabalho_id'     => $sessao->id,
+            'etapa_fluxo_id'         => $etapa->id,
+            'cod_peca'               => '1234567',
+            'ordem_lote'             => '00001',
+            'desc_peca'              => 'Peça Segunda',
+            'cod_produto'            => 'PROD-0001',
+            'qtde_total'             => 10,
+            'status'                 => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio'           => $segunda->copy()->setTime(8, 0),
+            'setup_fim'              => $segunda->copy()->setTime(9, 0),
+            'setup_duracao_segundos' => 3600,
+        ]);
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioMaquinasPorPeriodo($segunda, $terca);
+
+        $this->assertCount(1, $relatorio['maquinas']);
+        $this->assertSame($maquinaOk->id, $relatorio['maquinas'][0]['maquina_id']);
+        $this->assertFalse(collect($relatorio['maquinas'])->contains('maquina_id', $maquinaSem->id));
+    }
+
     public function test_relatorio_nao_inclui_maquina_inativa(): void
     {
         $segunda = Carbon::parse('2026-06-08 00:00:00');
