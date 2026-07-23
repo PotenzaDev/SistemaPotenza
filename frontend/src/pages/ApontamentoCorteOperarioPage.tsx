@@ -240,6 +240,8 @@ export function ApontamentoCorteOperarioPage() {
       void recarregarFichasRecentes()
     } catch (err) {
       setErroApi(apiMsg(err))
+      setBarcode('')
+      setTimeout(() => barcodeRef.current?.focus(), 50)
     } finally {
       setAtualizando(false)
     }
