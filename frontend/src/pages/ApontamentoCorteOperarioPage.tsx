@@ -630,7 +630,7 @@ export function ApontamentoCorteOperarioPage() {
             <div>
               <p className="text-base font-semibold text-white">Finalizar turno?</p>
               <p className="text-sm text-slate-400 mt-1">
-                {mensagemFinalizarTurno(fase)}
+                {mensagemFinalizarTurno(fase === 'revisando' ? 'finalizando' : fase)}
               </p>
             </div>
             <div className="flex gap-3">
