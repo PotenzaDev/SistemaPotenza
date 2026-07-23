@@ -95,7 +95,10 @@
       "Bash(composer show *)",
       "Bash(xargs -I{} basename {})",
       "Bash(xargs -I{} cat {})",
-      "Bash(vendor/bin/phpunit --filter=ApontamentoMultiplasPecasLoteTest)"
+      "Bash(vendor/bin/phpunit --filter=ApontamentoMultiplasPecasLoteTest)",
+      "Bash(gh pr *)",
+      "Read(//c/Gustavo/Potenza/**)",
+      "Bash(vendor/bin/phpunit --filter=ApontamentoCorteTest)"
     ]
   }
 }

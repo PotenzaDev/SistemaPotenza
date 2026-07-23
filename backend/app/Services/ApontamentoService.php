@@ -636,6 +636,14 @@ class ApontamentoService
             throw new BusinessException('Apontamento não está pausado.', 422);
         }
 
+        // Máquinas de corte (apontamento por lote) não têm fase de setup — o
+        // apontamento já nasce direto em em_producao (ApontamentoCorteService).
+        // Forçar em_setup aqui colocaria o apontamento num status que esse
+        // fluxo não sabe tratar; segue o mesmo caminho do retomar() normal.
+        if ($apontamento->etapaFluxo?->apontamento_por_lote) {
+            return $this->retomar($apontamento);
+        }
+
         $estavaEmSetup = $apontamento->status === Apontamento::STATUS_EM_PAUSA_SETUP;
         $pausaAberta   = $apontamento->pausas()->whereNull('fim')->first();
         $agora         = Carbon::now();

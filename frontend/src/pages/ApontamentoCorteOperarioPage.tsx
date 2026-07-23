@@ -3,8 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   Loader2, LogOut, CheckCircle2, RotateCcw,
   AlertCircle, Cpu, ScanLine, Timer, PackageCheck, QrCode,
+  Flag, Pause, Ban, Bell,
 } from 'lucide-react'
-import { getSessaoAtiva, encerrarSessao, type Sessao } from '@/api/sessao'
+import {
+  getSessaoAtiva, encerrarSessao, getTurnoHoje, encerrarTurno,
+  pausarSessao, cancelarSessao, type Sessao, type TurnoHoje,
+} from '@/api/sessao'
 import {
   getApontamentosAtivos,
   getFichasRecentes,
@@ -16,6 +20,7 @@ import {
 } from '@/api/apontamento'
 import { biparCorte, getChecklistLote, finalizarApontamentoCorte, type ChecklistLoteItem } from '@/api/apontamentoCorte'
 import { getMotivosAtivos, type MotivoPausa } from '@/api/motivosPausa'
+import { chamarSuporte } from '@/api/suporte'
 import { FichasRecentes } from '@/components/FichasRecentes'
 import { BarcodeCard } from '@/components/apontamento/BarcodeCard'
 import { BarcodeInline } from '@/components/apontamento/BarcodeInline'
@@ -25,7 +30,7 @@ import { MotivoPausaModal } from '@/components/apontamento/MotivoPausaModal'
 import { PausadoPanel } from '@/components/apontamento/PausadoPanel'
 import { useTimerLiquido } from '@/hooks/useTimerLiquido'
 import { parseBarcode, BARCODE_LENGTH } from '@/lib/barcode'
-import { formatDuracao, apiMsg } from '@/lib/apontamentoFormat'
+import { formatDuracao, apiMsg, mensagemFinalizarTurno, horarioLiberacaoTurno, fmtHoraDate } from '@/lib/apontamentoFormat'
 
 type FaseCorte = 'aguardando' | 'em_producao' | 'em_pausa_producao' | 'revisando' | 'concluido'
 
@@ -33,6 +38,8 @@ export function ApontamentoCorteOperarioPage() {
   const navigate = useNavigate()
 
   const [sessao, setSessao]                 = useState<Sessao | null>(null)
+  const [turnoHoje, setTurnoHoje]           = useState<TurnoHoje | null>(null)
+  const [now, setNow]                       = useState(() => new Date())
   const [apontamento, setApontamento]       = useState<Apontamento | null>(null)
   const [checklist, setChecklist]           = useState<ChecklistLoteItem[]>([])
   const [fichasRecentes, setFichasRecentes] = useState<FichaApontamento[]>([])
@@ -43,6 +50,14 @@ export function ApontamentoCorteOperarioPage() {
   const [pausando, setPausando]             = useState(false)
   const [retomando, setRetomando]           = useState(false)
   const [encerrando, setEncerrando]         = useState(false)
+  const [pausandoSessao, setPausandoSessao]     = useState(false)
+  const [cancelando, setCancelando]             = useState(false)
+  const [finalizandoTurno, setFinalizandoTurno] = useState(false)
+  const [showModalTurno, setShowModalTurno]     = useState(false)
+  const [showModalSuporte, setShowModalSuporte] = useState(false)
+  const [chamandoSuporte, setChamandoSuporte]   = useState(false)
+  const [suporteCooldown, setSuporteCooldown]   = useState(false)
+  const [suporteEnviado, setSuporteEnviado]     = useState(false)
   const [erroApi, setErroApi]               = useState<string | null>(null)
   const [showModalPausa, setShowModalPausa] = useState(false)
   const [saiuSemPausar, setSaiuSemPausar]   = useState(false)
@@ -83,13 +98,15 @@ export function ApontamentoCorteOperarioPage() {
       getApontamentosAtivos(),
       getFichasRecentes(),
       getMotivosAtivos(),
-    ]).then(([s, aps, fr, mp]) => {
+      getTurnoHoje(),
+    ]).then(([s, aps, fr, mp, turno]) => {
       if (!s) { navigate('/operario', { replace: true }); return }
       if (!s.maquina.etapa_fluxo?.apontamento_por_lote) { navigate('/operario/apontamento', { replace: true }); return }
 
       setSessao(s)
       setFichasRecentes(fr)
       setMotivosPausa(mp)
+      setTurnoHoje(turno)
 
       const ap = aps[0] ?? null
       if (ap) {
@@ -121,6 +138,11 @@ export function ApontamentoCorteOperarioPage() {
   }, [fase])
 
   useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
     if (!apontamento || apontamento.status !== 'em_producao') return
     const handler = () => pausarSistemaBeacon(apontamento.id)
     window.addEventListener('beforeunload', handler)
@@ -139,6 +161,59 @@ export function ApontamentoCorteOperarioPage() {
       navigate('/operario', { replace: true })
     } catch {
       setEncerrando(false)
+    }
+  }
+
+  async function handlePausarSessao() {
+    if (!confirm('Pausar a sessão? O trabalho em andamento será refeito ao retomar.')) return
+    setPausandoSessao(true)
+    try {
+      await pausarSessao()
+      navigate('/operario', { replace: true })
+    } catch (err) {
+      setErroApi(apiMsg(err))
+      setPausandoSessao(false)
+    }
+  }
+
+  async function handleCancelarSessao() {
+    if (!confirm('Cancelar esta sessão? O trabalho em andamento ainda não finalizado será perdido. Apontamentos já finalizados são mantidos.')) return
+    setCancelando(true)
+    try {
+      await cancelarSessao()
+      navigate('/operario', { replace: true })
+    } catch (err) {
+      setErroApi(apiMsg(err))
+      setCancelando(false)
+    }
+  }
+
+  async function handleFinalizarTurno() {
+    setFinalizandoTurno(true)
+    try {
+      await encerrarTurno()
+      setShowModalTurno(false)
+      navigate('/operario', { replace: true })
+    } catch (err) {
+      setErroApi(apiMsg(err))
+      setShowModalTurno(false)
+      setFinalizandoTurno(false)
+    }
+  }
+
+  async function handleChamarSuporte() {
+    setChamandoSuporte(true)
+    try {
+      await chamarSuporte()
+      setShowModalSuporte(false)
+      setSuporteEnviado(true)
+      setSuporteCooldown(true)
+      setTimeout(() => setSuporteEnviado(false), 4000)
+      setTimeout(() => setSuporteCooldown(false), 60_000)
+    } catch {
+      setShowModalSuporte(false)
+    } finally {
+      setChamandoSuporte(false)
     }
   }
 
@@ -165,6 +240,8 @@ export function ApontamentoCorteOperarioPage() {
       void recarregarFichasRecentes()
     } catch (err) {
       setErroApi(apiMsg(err))
+      setBarcode('')
+      setTimeout(() => barcodeRef.current?.focus(), 50)
     } finally {
       setAtualizando(false)
     }
@@ -260,6 +337,10 @@ export function ApontamentoCorteOperarioPage() {
   if (!sessao) return null
 
   const podeEncerrar = !apontamento || apontamento.status === 'finalizado'
+  const acoesSessaoDesabilitadas = atualizando || pausando || retomando || encerrando || finalizandoTurno || pausandoSessao || cancelando
+
+  const horarioLiberacao   = turnoHoje ? horarioLiberacaoTurno(turnoHoje) : null
+  const podeFinalizarTurno = !horarioLiberacao || now >= horarioLiberacao
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
@@ -279,15 +360,47 @@ export function ApontamentoCorteOperarioPage() {
             )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleEncerrar}
-          disabled={encerrando || !podeEncerrar}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 bg-white/5 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
-        >
-          {encerrando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
-          Encerrar
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowModalTurno(true)}
+            disabled={acoesSessaoDesabilitadas || !podeFinalizarTurno}
+            title={!podeFinalizarTurno && horarioLiberacao ? `Disponível a partir das ${fmtHoraDate(horarioLiberacao)}` : undefined}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400 bg-amber-500/5 border border-amber-500/20 hover:bg-amber-500/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <Flag className="w-3.5 h-3.5" />
+            Finalizar Turno
+          </button>
+          <button
+            type="button"
+            onClick={handlePausarSessao}
+            disabled={acoesSessaoDesabilitadas}
+            title="Pausa a sessão; ao retomar, o trabalho em andamento precisará ser refeito"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 bg-white/5 hover:bg-amber-500/10 hover:text-amber-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            {pausandoSessao ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pause className="w-3.5 h-3.5" />}
+            Pausar Sessão
+          </button>
+          <button
+            type="button"
+            onClick={handleEncerrar}
+            disabled={encerrando || !podeEncerrar}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 bg-white/5 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            {encerrando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+            Encerrar
+          </button>
+          <button
+            type="button"
+            onClick={handleCancelarSessao}
+            disabled={cancelando}
+            title="Cancela a sessão; apontamentos não finalizados são excluídos"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 bg-white/5 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            {cancelando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+            Cancelar Sessão
+          </button>
+        </div>
       </div>
 
       {/* Erro global */}
@@ -505,6 +618,102 @@ export function ApontamentoCorteOperarioPage() {
             >
               <RotateCcw className="w-4 h-4" />Bipar novo lote
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de finalizar turno */}
+      {showModalTurno && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={finalizandoTurno ? undefined : () => setShowModalTurno(false)} />
+          <div className="relative z-10 w-full max-w-sm bg-[#0f1923] border border-white/10 rounded-2xl shadow-2xl px-6 py-6 space-y-4">
+            <div>
+              <p className="text-base font-semibold text-white">Finalizar turno?</p>
+              <p className="text-sm text-slate-400 mt-1">
+                {mensagemFinalizarTurno(fase)}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowModalTurno(false)}
+                disabled={finalizandoTurno}
+                className="flex-1 py-2.5 text-sm font-medium text-slate-400 bg-white/5 hover:bg-white/10 disabled:opacity-40 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleFinalizarTurno}
+                disabled={finalizandoTurno}
+                className="flex-1 py-2.5 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {finalizandoTurno
+                  ? <><Loader2 className="w-4 h-4 animate-spin" />Finalizando…</>
+                  : <><Flag className="w-4 h-4" />Finalizar Turno</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Botão fixo — chamar suporte (visível em todas as fases exceto concluído) */}
+      {fase !== 'concluido' && (
+        <button
+          type="button"
+          onClick={() => !suporteCooldown && setShowModalSuporte(true)}
+          disabled={suporteCooldown}
+          title={suporteCooldown ? 'Suporte já solicitado. Aguarde 1 minuto.' : 'Chamar suporte'}
+          className={[
+            'fixed bottom-6 right-6 z-50',
+            'flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-medium',
+            'border shadow-lg transition-colors',
+            suporteEnviado
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              : suporteCooldown
+                ? 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
+                : 'bg-orange-500/5 border-orange-500/20 text-orange-400 hover:bg-orange-500/10',
+          ].join(' ')}
+        >
+          {suporteEnviado
+            ? <><CheckCircle2 className="w-3.5 h-3.5" />Suporte chamado</>
+            : <><Bell className="w-3.5 h-3.5" />Suporte</>}
+        </button>
+      )}
+
+      {/* Modal de confirmação — chamar suporte */}
+      {showModalSuporte && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[#0f1923] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-white/5">
+              <Bell className="w-4 h-4 text-orange-400" />
+              <p className="text-sm font-semibold text-white">Chamar suporte?</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Um aviso será enviado ao administrador com o nome desta máquina e o seu nome.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowModalSuporte(false)}
+                  disabled={chamandoSuporte}
+                  className="flex-1 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 text-sm font-medium text-slate-300 transition-all disabled:opacity-40"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleChamarSuporte}
+                  disabled={chamandoSuporte}
+                  className="flex-1 px-4 py-3 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/20 text-sm font-medium text-orange-300 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {chamandoSuporte
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Enviando…</>
+                    : <><Bell className="w-3.5 h-3.5" />Confirmar</>}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
