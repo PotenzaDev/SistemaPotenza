@@ -14,6 +14,8 @@ class FichaApontamentoResource extends JsonResource
         return [
             'id'               => $this->id,
             'cod_peca'         => $this->cod_peca,
+            'cod_produto'      => $this->cod_produto,
+            'cor_codigo'       => $this->cor_codigo,
             'pilha'            => $this->pilha,
             'qtd_peca'         => $this->qtd_peca,
             'qtd_produzida'    => $this->qtd_produzida,

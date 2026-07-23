@@ -11,7 +11,7 @@ export interface SessaoMaquinaRegra {
 export interface SessaoMaquina {
   id: number
   nome: string
-  etapa_fluxo: { id: number; nome: string; ordem: number } | null
+  etapa_fluxo: { id: number; nome: string; ordem: number; apontamento_por_lote: boolean } | null
   regra_maquina?: SessaoMaquinaRegra
 }
 

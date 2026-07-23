@@ -124,30 +124,101 @@ class LoteService implements LoteServiceInterface
 
         try {
             $rows = $this->select(
-                'SELECT CodiSemiAcabado, DenoSemiAcabado, SUM(Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
-                 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
-                 WHERE SUBSTRING(CodiSemiAcabado, 1, 5) = ? AND Lote = ?
-                 GROUP BY CodiSemiAcabado, DenoSemiAcabado',
+                'SELECT f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi,
+                        SUM(f.Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
+                 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica] f
+                 WHERE SUBSTRING(f.CodiSemiAcabado, 1, 5) = ? AND f.Lote = ?
+                 GROUP BY f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi',
                 [$prefixoCod, $ordemLote]
             );
         } catch (BusinessException) {
             return [];
         }
 
-        return array_map(function ($row) {
-            $row = (array) $row;
+        // CodiSemiAcabado/DenoSemiAcabado costumam vir com espaços à direita
+        // (coluna CHAR de largura fixa no SQL Server) — sem o trim, o valor
+        // não bate com o cod_peca vindo do código de barras/fichas já
+        // gravadas, e a contagem por cor nunca casa (sempre fica em 0).
+        return array_map(fn ($row) => $this->mapearFichaDoLote((array) $row), $rows);
+    }
 
-            // CodiSemiAcabado/DenoSemiAcabado costumam vir com espaços à direita
-            // (coluna CHAR de largura fixa no SQL Server) — sem o trim, o valor
-            // não bate com o cod_peca vindo do código de barras/fichas já
-            // gravadas, e a contagem por cor nunca casa (sempre fica em 0).
-            return [
-                'cod_peca'     => trim((string) ($row['CodiSemiAcabado'] ?? '')),
-                'desc_peca'    => trim((string) ($row['DenoSemiAcabado'] ?? '')),
-                'qtde_total'   => (int) ($row['qtde_total'] ?? 0),
-                'total_pilhas' => (int) ($row['total_pilhas'] ?? 0),
-            ];
-        }, $rows);
+    public function buscarFichasDoLote(string $ordemLote): array
+    {
+        $ordemLote = ltrim($ordemLote, '0') ?: '0';
+
+        try {
+            $rows = $this->select(
+                'SELECT f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi,
+                        SUM(f.Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
+                 FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica] f
+                 WHERE f.Lote = ?
+                 GROUP BY f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi',
+                [$ordemLote]
+            );
+        } catch (BusinessException) {
+            return [];
+        }
+
+        return array_map(fn ($row) => $this->mapearFichaDoLote((array) $row), $rows);
+    }
+
+    /**
+     * Encontra, dentro do lote/peça sendo bipado, a ficha física cujo
+     * Prod_Codi+Prod_CorCodi correspondem ao cod_produto+cor lidos do código
+     * de barras. A FbmLoteFichaTecnica já expõe Prod_CorCodi diretamente
+     * (via ParmGrad no lado do ERP), então uma única consulta resolve tanto
+     * a validação quanto a diferenciação de ficha por produto/cor — sem
+     * depender de Produto_Cadastro. total_pilhas é calculado a partir de
+     * TotalPcPilha/Qtde_Total DESTA linha específica (não agregado por
+     * produto/cor) — linhas diferentes do mesmo produto podem ter totais
+     * de pilha diferentes.
+     */
+    public function buscarProdutoCompativel(
+        string $codPeca,
+        string $ordemLote,
+        string $codProduto,
+        string $corCodigo,
+    ): array {
+        $ordemLote = ltrim($ordemLote, '0') ?: '0';
+        $corCodigo = ltrim($corCodigo, '0') ?: '0';
+
+        $ficha = $this->selectOne(
+            'SELECT TOP 1 Prod_Codi, Prod_CorCodi, TotalPcPilha, Qtde_Total
+             FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
+             WHERE CodiSemiAcabado = ? AND Lote = ? AND Prod_Codi LIKE ? AND Prod_CorCodi = ?',
+            [$codPeca, $ordemLote, '%' . ltrim($codProduto, '0') . '%', $corCodigo]
+        );
+
+        if (! $ficha) {
+            throw new BusinessException(
+                "Produto '{$codProduto}' cor '{$corCodigo}' não corresponde a nenhuma ficha do lote '{$ordemLote}' para a peça '{$codPeca}'.",
+                422
+            );
+        }
+
+        $row = (array) $ficha;
+
+        $totalPcPilha = (float) ($row['TotalPcPilha'] ?? 0);
+        $qtdeTotal    = (float) ($row['Qtde_Total'] ?? 0);
+        $totalPilhas  = $totalPcPilha > 0 ? (int) ceil($qtdeTotal / $totalPcPilha) : 0;
+
+        return [
+            'cod_produto'  => trim((string) ($row['Prod_Codi'] ?? '')),
+            'cor_codigo'   => trim((string) ($row['Prod_CorCodi'] ?? '')),
+            'total_pilhas' => $totalPilhas,
+        ];
+    }
+
+    private function mapearFichaDoLote(array $row): array
+    {
+        return [
+            'cod_peca'     => trim((string) ($row['CodiSemiAcabado'] ?? '')),
+            'desc_peca'    => trim((string) ($row['DenoSemiAcabado'] ?? '')),
+            'cod_produto'  => trim((string) ($row['Prod_Codi'] ?? '')),
+            'cor_codigo'   => trim((string) ($row['Prod_CorCodi'] ?? '')),
+            'qtde_total'   => (int) ($row['qtde_total'] ?? 0),
+            'total_pilhas' => (int) ($row['total_pilhas'] ?? 0),
+        ];
     }
 
     private function mapear(array $row, int $qtdeTotal): array

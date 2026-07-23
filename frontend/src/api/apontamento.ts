@@ -16,6 +16,8 @@ export interface Pausa {
 export interface FichaApontamento {
   id: number
   cod_peca: string
+  cod_produto: string | null
+  cor_codigo: string | null
   pilha: number
   qtd_peca: number
   qtd_produzida: number | null
@@ -59,6 +61,8 @@ export interface Apontamento {
 export interface BiparLotePayload {
   cod_peca: string
   ordem_lote: string
+  cod_produto: string
+  cor_codigo: string
 }
 
 export interface BiparFichaPayload {
@@ -66,6 +70,8 @@ export interface BiparFichaPayload {
   ordem_lote: string
   qtd_peca: number
   pilha: number
+  cod_produto: string
+  cor_codigo: string
   confirmar?: boolean
 }
 
@@ -76,6 +82,8 @@ export interface FinalizarPayload {
 
 export interface ResumoFichasPorCor {
   cod_peca: string
+  cod_produto: string
+  cor_codigo: string
   cor: string
   qtde_total: number
   qtd_bipada: number
@@ -131,7 +139,7 @@ export async function biparLote(payload: BiparLotePayload): Promise<Apontamento>
 }
 
 /** Passo 1b: inicia nova passagem do mesmo lote (sem re-scanear, usa cod_peca + ordem_lote do apontamento anterior) */
-export async function segundaPassagem(payload: BiparLotePayload): Promise<Apontamento> {
+export async function segundaPassagem(payload: Pick<BiparLotePayload, 'cod_peca' | 'ordem_lote'>): Promise<Apontamento> {
   const res = await apiClient.post<ApiEnvelope<Apontamento>>('/apontamento/segunda-passagem', payload)
   return res.data.data
 }

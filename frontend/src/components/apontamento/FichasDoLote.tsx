@@ -6,7 +6,24 @@ interface FichasDoLoteProps {
   resumoPorCor: ResumoFichasPorCor[]
 }
 
+function chaveProduto(f: Pick<FichaApontamento, 'cod_peca' | 'cod_produto' | 'cor_codigo'>): string {
+  return `${f.cod_peca}|${f.cod_produto ?? ''}|${f.cor_codigo ?? ''}`
+}
+
 export function FichasDoLote({ fichas, resumoPorCor }: FichasDoLoteProps) {
+  // Só agrupa por produto quando há mais de uma cor/produto no lote — no caso
+  // comum (uma peça só) a lista plana já é a visão mais direta.
+  const grupos = resumoPorCor.length > 1
+    ? resumoPorCor
+        .map(r => ({
+          chave: `${r.cod_peca}|${r.cod_produto}|${r.cor_codigo}`,
+          titulo: r.cor,
+          codPeca: r.cod_peca,
+          fichas: fichas.filter(f => chaveProduto(f) === `${r.cod_peca}|${r.cod_produto}|${r.cor_codigo}`),
+        }))
+        .filter(grupo => grupo.fichas.length > 0)
+    : [{ chave: 'unico', titulo: null, codPeca: null, fichas }]
+
   return (
     <div className="bg-[#0f1923] border border-white/5 rounded-xl overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-3 border-b border-white/5">
@@ -18,7 +35,7 @@ export function FichasDoLote({ fichas, resumoPorCor }: FichasDoLoteProps) {
       {resumoPorCor.length > 1 && (
         <div className="grid grid-cols-1 gap-2 px-5 py-3 border-b border-white/5 bg-white/[0.02]">
           {resumoPorCor.map(r => (
-            <div key={r.cod_peca} className="flex items-center justify-between gap-3">
+            <div key={`${r.cod_peca}|${r.cod_produto}|${r.cor_codigo}`} className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
                 <Palette className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                 <span className="text-xs font-medium text-white truncate">{r.cor}</span>
@@ -33,23 +50,36 @@ export function FichasDoLote({ fichas, resumoPorCor }: FichasDoLoteProps) {
         </div>
       )}
       <div className="max-h-52 overflow-y-auto divide-y divide-white/5">
-        {fichas.map(f => {
-          const totalPilhas = f.total_pilhas
-          return (
-            <div key={f.id} className="flex items-center justify-between gap-3 px-5 py-3">
-              <div>
-                <span className="text-xs font-mono font-semibold text-white">{f.cod_peca}</span>
-                <span className="ml-2 text-xs text-slate-500">{f.qtd_peca} pç</span>
+        {grupos.map(grupo => (
+          <div key={grupo.chave}>
+            {grupo.titulo && (
+              <div className="flex items-center gap-2 px-5 py-1.5 bg-white/[0.03]">
+                <Palette className="w-3 h-3 text-slate-500 shrink-0" />
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider truncate">
+                  {grupo.titulo}
+                </span>
+                <span className="text-[10px] font-mono text-slate-600 shrink-0">{grupo.codPeca}</span>
               </div>
-              <div className="bg-[#00aa84]/10 border border-[#00aa84]/20 rounded-lg px-3 py-1.5 text-center min-w-[64px]">
-                <p className="text-xs text-slate-500 leading-none mb-0.5">Pilha</p>
-                <p className="text-sm font-bold text-[#00aa84] tabular-nums">
-                  {totalPilhas > 0 ? `${f.pilha} / ${totalPilhas}` : String(f.pilha)}
-                </p>
-              </div>
-            </div>
-          )
-        })}
+            )}
+            {grupo.fichas.map(f => {
+              const totalPilhas = f.total_pilhas
+              return (
+                <div key={f.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <div>
+                    <span className="text-xs font-mono font-semibold text-white">{f.cod_peca}</span>
+                    <span className="ml-2 text-xs text-slate-500">{f.qtd_peca} pç</span>
+                  </div>
+                  <div className="bg-[#00aa84]/10 border border-[#00aa84]/20 rounded-lg px-3 py-1.5 text-center min-w-[64px]">
+                    <p className="text-xs text-slate-500 leading-none mb-0.5">Pilha</p>
+                    <p className="text-sm font-bold text-[#00aa84] tabular-nums">
+                      {totalPilhas > 0 ? `${f.pilha} / ${totalPilhas}` : String(f.pilha)}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ))}
       </div>
     </div>
   )

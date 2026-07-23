@@ -321,6 +321,10 @@ class RelatorioProducaoService
         $maquinasResultado = [];
 
         foreach ($acumulado as $dados) {
+            if ($dados['dias_com_movimentacao'] === 0) {
+                continue;
+            }
+
             $tempoTurno    = $dados['tempo_turno_segundos'];
             $tempoSetup    = $dados['tempo_setup_segundos'];
             $tempoProducao = $dados['tempo_producao_segundos'];

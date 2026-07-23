@@ -51,4 +51,39 @@ interface LoteServiceInterface
      * @return array<int, array{cod_peca: string, desc_peca: string, qtde_total: int, total_pilhas: int}>
      */
     public function buscarVariantesPorPrefixoLote(string $ordemLote, string $prefixoCod): array;
+
+    /**
+     * Encontra, dentro do lote/peça (CodiSemiAcabado+Lote) sendo bipado, a
+     * ficha física cujo Prod_Codi+Prod_CorCodi correspondem ao cod_produto+cor
+     * lidos do código de barras — direto em FbmLoteFichaTecnica, que já expõe
+     * Prod_CorCodi (via ParmGrad no lado do ERP). É o que permite diferenciar,
+     * dentro do mesmo lote/peça, qual ficha física corresponde a qual
+     * produto/cor exatos, sem depender de Produto_Cadastro. total_pilhas vem
+     * de TotalPcPilha/Qtde_Total DESTA linha específica — não é agregado por
+     * produto/cor, já que linhas diferentes do mesmo produto podem exigir
+     * totais de pilha diferentes.
+     *
+     * @return array{cod_produto: string, cor_codigo: string, total_pilhas: int}
+     *
+     * @throws \App\Exceptions\BusinessException quando não corresponde a nenhuma ficha do lote (422),
+     *                                            ou quando o SQL Server legado está inacessível (503).
+     */
+    public function buscarProdutoCompativel(
+        string $codPeca,
+        string $ordemLote,
+        string $codProduto,
+        string $corCodigo,
+    ): array;
+
+    /**
+     * Detalha, um por um, todos os cod_peca (peça/produto) do LOTE inteiro —
+     * ao contrário de buscarVariantesPorPrefixoLote(), que restringe às
+     * variantes de um mesmo prefixo de 5 dígitos. Usado pelo apontamento de
+     * corte (por lote), onde a seccionadora pode cortar peças de produtos
+     * completamente diferentes dentro do mesmo lote físico. Em caso de falha
+     * no SQL Server legado retorna [] (fallback seguro).
+     *
+     * @return array<int, array{cod_peca: string, desc_peca: string, qtde_total: int, total_pilhas: int}>
+     */
+    public function buscarFichasDoLote(string $ordemLote): array;
 }

@@ -81,20 +81,53 @@ class RelatorioTimelineMaquinaTest extends TestCase
         $this->assertSegmento($segmentos[3], 'producao', $segunda->copy()->setTime(10, 30), $segunda->copy()->setTime(12, 0));
     }
 
-    public function test_maquina_sem_sessao_no_dia_fica_parada_ate_o_instante_atual(): void
+    public function test_maquina_sem_sessao_no_dia_nao_aparece_na_timeline(): void
     {
         $segunda = Carbon::parse('2026-06-08 00:00:00');
         Carbon::setTestNow($segunda->copy()->setTime(10, 0));
 
         $etapa = EtapaFluxo::factory()->create(['ativa' => true]);
-        $maquina = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+        Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
 
-        $timeline = app(TimelineMaquinaService::class)->timelineDoDia($segunda, $maquina->id);
+        $timeline = app(TimelineMaquinaService::class)->timelineDoDia($segunda);
 
-        $segmentos = $timeline['maquinas'][0]['segmentos'];
+        // Turno do dia continua informado (é o turno cadastrado para segunda),
+        // mas nenhuma máquina teve movimentação real, então a lista vem vazia.
+        $this->assertNotNull($timeline['turno']);
+        $this->assertSame([], $timeline['maquinas']);
+    }
 
-        $this->assertCount(1, $segmentos);
-        $this->assertSegmento($segmentos[0], 'parado', $segunda->copy()->setTime(8, 0), $segunda->copy()->setTime(10, 0));
+    public function test_maquina_sem_movimentacao_nao_aparece_junto_de_maquina_que_trabalhou(): void
+    {
+        $segunda = Carbon::parse('2026-06-08 00:00:00'); // turno 08:00-17:00
+        Carbon::setTestNow($segunda->copy()->setTime(10, 0));
+
+        $etapa       = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquinaOk   = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+        $maquinaSem  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+
+        $sessao = $this->criarSessao($maquinaOk, $segunda->copy()->setTime(7, 30));
+
+        Apontamento::create([
+            'sessao_trabalho_id' => $sessao->id,
+            'etapa_fluxo_id' => $etapa->id,
+            'cod_peca' => '1234567',
+            'ordem_lote' => '00001',
+            'desc_peca' => 'Peça Teste',
+            'cod_produto' => 'PROD-0001',
+            'qtde_total' => 100,
+            'status' => Apontamento::STATUS_EM_PRODUCAO,
+            'setup_inicio' => $segunda->copy()->setTime(8, 0),
+            'setup_fim' => $segunda->copy()->setTime(8, 30),
+            'producao_inicio' => $segunda->copy()->setTime(8, 30),
+            'producao_fim' => null,
+        ]);
+
+        $timeline = app(TimelineMaquinaService::class)->timelineDoDia($segunda);
+
+        $this->assertCount(1, $timeline['maquinas']);
+        $this->assertSame($maquinaOk->id, $timeline['maquinas'][0]['maquina_id']);
+        $this->assertFalse(collect($timeline['maquinas'])->contains('maquina_id', $maquinaSem->id));
     }
 
     public function test_dia_sem_turno_configurado_retorna_turno_nulo_e_sem_maquinas(): void
