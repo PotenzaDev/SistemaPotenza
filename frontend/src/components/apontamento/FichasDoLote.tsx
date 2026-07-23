@@ -19,11 +19,10 @@ export function FichasDoLote({ fichas, resumoPorCor }: FichasDoLoteProps) {
           chave: `${r.cod_peca}|${r.cod_produto}|${r.cor_codigo}`,
           titulo: r.cor,
           codPeca: r.cod_peca,
-          totalPilhas: r.total_pilhas as number | null,
           fichas: fichas.filter(f => chaveProduto(f) === `${r.cod_peca}|${r.cod_produto}|${r.cor_codigo}`),
         }))
         .filter(grupo => grupo.fichas.length > 0)
-    : [{ chave: 'unico', titulo: null, codPeca: null, totalPilhas: null as number | null, fichas }]
+    : [{ chave: 'unico', titulo: null, codPeca: null, fichas }]
 
   return (
     <div className="bg-[#0f1923] border border-white/5 rounded-xl overflow-hidden">
@@ -63,11 +62,7 @@ export function FichasDoLote({ fichas, resumoPorCor }: FichasDoLoteProps) {
               </div>
             )}
             {grupo.fichas.map(f => {
-              // Prioriza o total de pilhas do próprio produto/cor (resumoPorCor);
-              // f.total_pilhas é calculado no backend somando todos os produtos
-              // do prefixo, então superestima o total quando o lote tem mais de
-              // uma variante (ver grupo.totalPilhas acima).
-              const totalPilhas = grupo.totalPilhas ?? f.total_pilhas
+              const totalPilhas = f.total_pilhas
               return (
                 <div key={f.id} className="flex items-center justify-between gap-3 px-5 py-3">
                   <div>

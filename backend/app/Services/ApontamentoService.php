@@ -384,6 +384,7 @@ class ApontamentoService
             'cor_codigo'     => $produto['cor_codigo'],
             'pilha'          => $pilha,
             'qtd_peca'       => (int) $dados['qtd_peca'],
+            'total_pilhas'   => $produto['total_pilhas'],
             'bipada_at'      => $agora,
         ]);
 
@@ -782,14 +783,13 @@ class ApontamentoService
             $qtdBipada  = (int) ($bipadoPorFicha[$chave] ?? 0);
 
             return [
-                'cod_peca'     => $variante['cod_peca'],
-                'cod_produto'  => $variante['cod_produto'],
-                'cor_codigo'   => $variante['cor_codigo'],
-                'cor'          => trim((string) end($partesDesc)),
-                'qtde_total'   => $variante['qtde_total'],
-                'qtd_bipada'   => $qtdBipada,
-                'falta'        => max(0, $variante['qtde_total'] - $qtdBipada),
-                'total_pilhas' => $variante['total_pilhas'],
+                'cod_peca'    => $variante['cod_peca'],
+                'cod_produto' => $variante['cod_produto'],
+                'cor_codigo'  => $variante['cor_codigo'],
+                'cor'         => trim((string) end($partesDesc)),
+                'qtde_total'  => $variante['qtde_total'],
+                'qtd_bipada'  => $qtdBipada,
+                'falta'       => max(0, $variante['qtde_total'] - $qtdBipada),
             ];
         }, $variantes);
     }

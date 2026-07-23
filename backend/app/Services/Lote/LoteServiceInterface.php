@@ -58,9 +58,12 @@ interface LoteServiceInterface
      * lidos do código de barras — direto em FbmLoteFichaTecnica, que já expõe
      * Prod_CorCodi (via ParmGrad no lado do ERP). É o que permite diferenciar,
      * dentro do mesmo lote/peça, qual ficha física corresponde a qual
-     * produto/cor exatos, sem depender de Produto_Cadastro.
+     * produto/cor exatos, sem depender de Produto_Cadastro. total_pilhas vem
+     * de TotalPcPilha/Qtde_Total DESTA linha específica — não é agregado por
+     * produto/cor, já que linhas diferentes do mesmo produto podem exigir
+     * totais de pilha diferentes.
      *
-     * @return array{cod_produto: string, cor_codigo: string}
+     * @return array{cod_produto: string, cor_codigo: string, total_pilhas: int}
      *
      * @throws \App\Exceptions\BusinessException quando não corresponde a nenhuma ficha do lote (422),
      *                                            ou quando o SQL Server legado está inacessível (503).

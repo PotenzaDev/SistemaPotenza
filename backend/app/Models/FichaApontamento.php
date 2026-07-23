@@ -19,6 +19,7 @@ class FichaApontamento extends Model
         'pilha',
         'qtd_peca',
         'qtd_produzida',
+        'total_pilhas',
         'bipada_at',
         'fim_producao',
         'duracao_segundos',
@@ -30,24 +31,12 @@ class FichaApontamento extends Model
         'qtd_peca'         => 'integer',
         'pilha'            => 'integer',
         'qtd_produzida'    => 'integer',
+        'total_pilhas'     => 'integer',
         'duracao_segundos' => 'integer',
     ];
 
     public function apontamento(): BelongsTo
     {
         return $this->belongsTo(Apontamento::class);
-    }
-
-    /** Calcula total de pilhas do lote: ceil(qtde_total / ftec_peca_pilha da ficha técnica) */
-    public function getTotalPilhasAttribute(): int
-    {
-        $qtdeTotal     = $this->apontamento?->qtde_total;
-        $ftecPecaPilha = $this->apontamento?->ftec_peca_pilha;
-
-        if (! $qtdeTotal || ! $ftecPecaPilha) {
-            return 0;
-        }
-
-        return (int) ceil($qtdeTotal / $ftecPecaPilha);
     }
 }

@@ -168,7 +168,10 @@ class LoteService implements LoteServiceInterface
      * de barras. A FbmLoteFichaTecnica já expõe Prod_CorCodi diretamente
      * (via ParmGrad no lado do ERP), então uma única consulta resolve tanto
      * a validação quanto a diferenciação de ficha por produto/cor — sem
-     * depender de Produto_Cadastro.
+     * depender de Produto_Cadastro. total_pilhas é calculado a partir de
+     * TotalPcPilha/Qtde_Total DESTA linha específica (não agregado por
+     * produto/cor) — linhas diferentes do mesmo produto podem ter totais
+     * de pilha diferentes.
      */
     public function buscarProdutoCompativel(
         string $codPeca,
@@ -180,7 +183,7 @@ class LoteService implements LoteServiceInterface
         $corCodigo = ltrim($corCodigo, '0') ?: '0';
 
         $ficha = $this->selectOne(
-            'SELECT TOP 1 Prod_Codi, Prod_CorCodi
+            'SELECT TOP 1 Prod_Codi, Prod_CorCodi, TotalPcPilha, Qtde_Total
              FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica]
              WHERE CodiSemiAcabado = ? AND Lote = ? AND Prod_Codi LIKE ? AND Prod_CorCodi = ?',
             [$codPeca, $ordemLote, '%' . ltrim($codProduto, '0') . '%', $corCodigo]
@@ -195,9 +198,14 @@ class LoteService implements LoteServiceInterface
 
         $row = (array) $ficha;
 
+        $totalPcPilha = (float) ($row['TotalPcPilha'] ?? 0);
+        $qtdeTotal    = (float) ($row['Qtde_Total'] ?? 0);
+        $totalPilhas  = $totalPcPilha > 0 ? (int) ceil($qtdeTotal / $totalPcPilha) : 0;
+
         return [
-            'cod_produto' => trim((string) ($row['Prod_Codi'] ?? '')),
-            'cor_codigo'  => trim((string) ($row['Prod_CorCodi'] ?? '')),
+            'cod_produto'  => trim((string) ($row['Prod_Codi'] ?? '')),
+            'cor_codigo'   => trim((string) ($row['Prod_CorCodi'] ?? '')),
+            'total_pilhas' => $totalPilhas,
         ];
     }
 

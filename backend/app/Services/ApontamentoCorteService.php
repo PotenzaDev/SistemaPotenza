@@ -115,6 +115,7 @@ class ApontamentoCorteService
             'cor_codigo'     => $produto['cor_codigo'],
             'pilha'          => (int) $dados['pilha'],
             'qtd_peca'       => (int) $dados['qtd_peca'],
+            'total_pilhas'   => $produto['total_pilhas'],
             'bipada_at'      => $agora,
         ]);
 
@@ -167,6 +168,7 @@ class ApontamentoCorteService
             'cor_codigo'     => $produto['cor_codigo'],
             'pilha'          => $pilha,
             'qtd_peca'       => (int) $dados['qtd_peca'],
+            'total_pilhas'   => $produto['total_pilhas'],
             'bipada_at'      => $agora,
         ]);
 

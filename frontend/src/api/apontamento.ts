@@ -88,7 +88,6 @@ export interface ResumoFichasPorCor {
   qtde_total: number
   qtd_bipada: number
   falta: number
-  total_pilhas: number
 }
 
 // ── Leitura ───────────────────────────────────────────────────────────────────
