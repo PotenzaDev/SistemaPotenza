@@ -77,6 +77,16 @@ class Handler extends ExceptionHandler
             ], 409);
         }
 
+        if ($e instanceof ApontamentoJaFinalizadoException) {
+            return response()->json([
+                'success'                 => false,
+                'message'                 => $e->getMessage(),
+                'requiresConfirmation'    => true,
+                'apontamentoJaFinalizado' => true,
+                'apontamentoOrigemId'     => $e->apontamentoOrigemId,
+            ], 409);
+        }
+
         if ($e instanceof LoteCompletoException) {
             return response()->json([
                 'success'       => false,

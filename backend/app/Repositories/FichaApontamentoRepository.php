@@ -59,11 +59,18 @@ class FichaApontamentoRepository implements FichaApontamentoRepositoryInterface
         ->count();
     }
 
-    public function contarVezesPilhaBipadaNoApontamento(int $apontamentoId, string $codPeca, int $pilha): int
-    {
+    public function contarVezesPilhaBipadaNoApontamento(
+        int $apontamentoId,
+        string $codPeca,
+        int $pilha,
+        string $codProduto,
+        string $corCodigo,
+    ): int {
         return FichaApontamento::where('apontamento_id', $apontamentoId)
             ->where('pilha', $pilha)
             ->where('cod_peca', $codPeca)
+            ->where('cod_produto', $codProduto)
+            ->where('cor_codigo', $corCodigo)
             ->count();
     }
 
@@ -73,9 +80,13 @@ class FichaApontamentoRepository implements FichaApontamentoRepositoryInterface
         int $etapaFluxoId,
         int $pilha,
         int $apontamentoIdAtual,
+        string $codProduto,
+        string $corCodigo,
     ): int {
         return FichaApontamento::where('pilha', $pilha)
             ->where('cod_peca', $codPeca)
+            ->where('cod_produto', $codProduto)
+            ->where('cor_codigo', $corCodigo)
             ->where('apontamento_id', '!=', $apontamentoIdAtual)
             ->whereHas('apontamento', function ($q) use ($ordemLote, $etapaFluxoId) {
                 $q->where('ordem_lote', $ordemLote)

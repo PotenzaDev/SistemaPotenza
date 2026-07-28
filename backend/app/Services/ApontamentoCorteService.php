@@ -134,6 +134,8 @@ class ApontamentoCorteService
             $apontamento->id,
             $dados['cod_peca'],
             $pilha,
+            $dados['cod_produto'],
+            $dados['cor_codigo'],
         );
 
         if ($vezesBipada > 0) {

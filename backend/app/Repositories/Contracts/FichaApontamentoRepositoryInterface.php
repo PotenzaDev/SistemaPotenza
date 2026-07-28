@@ -27,14 +27,25 @@ interface FichaApontamentoRepositoryInterface
      * apontamento informado. Usado para detectar bipagem duplicada acidental
      * (mesma ficha lida duas vezes na mesma produção), comparada contra o
      * total de fichas físicas permitidas para essa pilha (retornado pela bridge).
+     * A comparação inclui cod_produto/cor_codigo porque o mesmo cod_peca (peça
+     * base) pode ter variantes de produto/cor com numeração de pilha própria —
+     * sem esses campos, fichas físicas distintas colidiriam como se fossem a mesma.
      */
-    public function contarVezesPilhaBipadaNoApontamento(int $apontamentoId, string $codPeca, int $pilha): int;
+    public function contarVezesPilhaBipadaNoApontamento(
+        int $apontamentoId,
+        string $codPeca,
+        int $pilha,
+        string $codProduto,
+        string $corCodigo,
+    ): int;
 
     /**
      * Conta quantas vezes uma pilha específica foi bipada em OUTROS apontamentos
      * (diferentes do informado) do mesmo lote/peça/etapa. Usado para detectar
      * repasse legítimo da peça por uma passagem anterior já finalizada — não é
      * comparado contra o limite da bridge, apenas exige confirmação do operário.
+     * Assim como em contarVezesPilhaBipadaNoApontamento, cod_produto/cor_codigo
+     * evitam colisão entre variantes distintas da mesma peça base.
      */
     public function contarVezesPilhaBipadaEmOutrosApontamentos(
         string $ordemLote,
@@ -42,6 +53,8 @@ interface FichaApontamentoRepositoryInterface
         int $etapaFluxoId,
         int $pilha,
         int $apontamentoIdAtual,
+        string $codProduto,
+        string $corCodigo,
     ): int;
 
     public function atualizarQtdProduzida(int $fichaId, int $qtdProduzida): FichaApontamento;

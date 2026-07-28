@@ -9,6 +9,7 @@ use App\Models\EtapaFluxo;
 use App\Models\FichaApontamento;
 use App\Models\Maquina;
 use App\Models\Operario;
+use App\Models\RegraMaquina;
 use App\Models\SessaoTrabalho;
 use App\Models\User;
 use Carbon\Carbon;
@@ -123,7 +124,93 @@ class ApontamentoFinalizacaoParcialTest extends TestCase
         $this->assertDatabaseCount('apontamentos', 1);
     }
 
-    public function test_bloqueia_bipar_quando_lote_peca_ja_finalizado_completo(): void
+    public function test_bipar_pede_confirmacao_quando_lote_peca_ja_finalizado_completo(): void
+    {
+        $etapa    = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+        $user     = User::factory()->operario()->create();
+        $operario = Operario::factory()->create(['user_id' => $user->id]);
+        $sessao   = SessaoTrabalho::factory()->create([
+            'operario_id' => $operario->id,
+            'maquina_id'  => $maquina->id,
+            'status'      => SessaoTrabalho::STATUS_ATIVA,
+        ]);
+
+        $origem = Apontamento::factory()->finalizado()->create([
+            'sessao_trabalho_id' => $sessao->id,
+            'etapa_fluxo_id'     => $etapa->id,
+            'ordem_lote'         => '12345',
+            'cod_peca'           => '1234567',
+            'qtde_total'         => 100,
+        ]);
+
+        $userNovo     = User::factory()->operario()->create();
+        $operarioNovo = Operario::factory()->create(['user_id' => $userNovo->id]);
+        SessaoTrabalho::factory()->create([
+            'operario_id' => $operarioNovo->id,
+            'maquina_id'  => $maquina->id,
+            'status'      => SessaoTrabalho::STATUS_ATIVA,
+        ]);
+
+        $this->actingAs($userNovo, 'sanctum')
+            ->postJson('/api/apontamento/bipar', [
+                'cod_peca'    => '1234567',
+                'ordem_lote'  => '12345',
+                'cod_produto' => '03460',
+                'cor_codigo'  => '040',
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('requiresConfirmation', true)
+            ->assertJsonPath('apontamentoJaFinalizado', true)
+            ->assertJsonPath('apontamentoOrigemId', $origem->id);
+
+        $this->assertDatabaseCount('apontamentos', 1);
+    }
+
+    public function test_bloqueia_bipar_quando_maquina_nao_permite_multiplas_passagens(): void
+    {
+        $etapa    = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+        RegraMaquina::create([
+            'maquina_id'                   => $maquina->id,
+            'permite_multiplas_passagens'  => false,
+        ]);
+        $user     = User::factory()->operario()->create();
+        $operario = Operario::factory()->create(['user_id' => $user->id]);
+        $sessao   = SessaoTrabalho::factory()->create([
+            'operario_id' => $operario->id,
+            'maquina_id'  => $maquina->id,
+            'status'      => SessaoTrabalho::STATUS_ATIVA,
+        ]);
+
+        Apontamento::factory()->finalizado()->create([
+            'sessao_trabalho_id' => $sessao->id,
+            'etapa_fluxo_id'     => $etapa->id,
+            'ordem_lote'         => '12345',
+            'cod_peca'           => '1234567',
+            'qtde_total'         => 100,
+        ]);
+
+        $userNovo     = User::factory()->operario()->create();
+        $operarioNovo = Operario::factory()->create(['user_id' => $userNovo->id]);
+        SessaoTrabalho::factory()->create([
+            'operario_id' => $operarioNovo->id,
+            'maquina_id'  => $maquina->id,
+            'status'      => SessaoTrabalho::STATUS_ATIVA,
+        ]);
+
+        $this->actingAs($userNovo, 'sanctum')
+            ->postJson('/api/apontamento/bipar', [
+                'cod_peca'    => '1234567',
+                'ordem_lote'  => '12345',
+                'cod_produto' => '03460',
+                'cor_codigo'  => '040',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Este lote/peça já foi finalizado integralmente nesta etapa. Não é possível iniciar novo apontamento.');
+    }
+
+    public function test_bipar_confirmado_inicia_segunda_passagem_apos_lote_ja_finalizado(): void
     {
         $etapa    = EtapaFluxo::factory()->create(['ativa' => true]);
         $maquina  = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
@@ -158,7 +245,16 @@ class ApontamentoFinalizacaoParcialTest extends TestCase
                 'cod_produto' => '03460',
                 'cor_codigo'  => '040',
             ])
-            ->assertStatus(422)
-            ->assertJsonPath('message', 'Este lote/peça já foi finalizado integralmente nesta etapa. Não é possível iniciar novo apontamento.');
+            ->assertStatus(409);
+
+        $this->actingAs($userNovo, 'sanctum')
+            ->postJson('/api/apontamento/segunda-passagem', [
+                'cod_peca'   => '1234567',
+                'ordem_lote' => '12345',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.numero_passagem', 2);
+
+        $this->assertDatabaseCount('apontamentos', 2);
     }
 }
