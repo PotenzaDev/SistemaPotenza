@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\ApontamentoJaFinalizadoException;
 use App\Exceptions\BusinessException;
 use App\Exceptions\ConfirmacaoNecessariaException;
 use App\Exceptions\FinalizacaoParcialException;
@@ -101,14 +102,23 @@ class ApontamentoService
         );
 
         if ($ultimoFinalizado) {
-            if (! $ultimoFinalizado->finalizado_parcial) {
+            if ($ultimoFinalizado->finalizado_parcial) {
+                return $this->retomarFinalizadoParcial($ultimoFinalizado, $sessao);
+            }
+
+            $regrasPassagem = $sessao->maquina->regraMaquina;
+
+            if ($regrasPassagem && ! $regrasPassagem->permite_multiplas_passagens) {
                 throw new BusinessException(
                     'Este lote/peça já foi finalizado integralmente nesta etapa. Não é possível iniciar novo apontamento.',
                     422
                 );
             }
 
-            return $this->retomarFinalizadoParcial($ultimoFinalizado, $sessao);
+            throw new ApontamentoJaFinalizadoException(
+                'Esta peça já teve um apontamento finalizado nesta etapa. Deseja iniciar uma nova passagem?',
+                $ultimoFinalizado->id,
+            );
         }
 
         $loteDados       = $this->loteService->buscarPorOrdemLote($dados['ordem_lote'], $dados['cod_peca']);
@@ -313,6 +323,8 @@ class ApontamentoService
             $apontamento->id,
             $dados['cod_peca'],
             $pilha,
+            $dados['cod_produto'],
+            $dados['cor_codigo'],
         );
 
         if ($vezesBipadaAtual > 0) {
@@ -346,6 +358,8 @@ class ApontamentoService
                 $apontamento->etapa_fluxo_id,
                 $pilha,
                 $apontamento->id,
+                $dados['cod_produto'],
+                $dados['cor_codigo'],
             );
 
             if ($vezesBipadaAnterior > 0) {

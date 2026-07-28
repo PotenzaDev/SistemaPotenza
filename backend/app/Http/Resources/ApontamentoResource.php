@@ -21,6 +21,8 @@ class ApontamentoResource extends JsonResource
             'cod_produto' => $this->cod_produto,
             'qtde_total'  => $this->qtde_total,
             'status'      => $this->status,
+            'numero_passagem'       => $this->numero_passagem,
+            'apontamento_origem_id' => $this->apontamento_origem_id,
             'etapa_fluxo' => $this->whenLoaded('etapaFluxo', fn () => [
                 'id'   => $this->etapaFluxo->id,
                 'nome' => $this->etapaFluxo->nome,

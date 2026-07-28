@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
             EtapaFluxoSeeder::class,
             UserSeeder::class,
             RotinaSeeder::class,
+            MaquinaOperarioSeeder::class,
         ]);
     }
 }

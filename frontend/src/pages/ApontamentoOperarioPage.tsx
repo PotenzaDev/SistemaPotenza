@@ -78,6 +78,7 @@ export function ApontamentoOperarioPage() {
   const [qtdsFichas, setQtdsFichas]         = useState<Record<number, string>>({})
   const [showConfirmarNovaPassagem, setShowConfirmarNovaPassagem]       = useState(false)
   const [dadosNovaPassagem, setDadosNovaPassagem]                       = useState<{ cod_peca: string; ordem_lote: string } | null>(null)
+  const [motivoNovaPassagem, setMotivoNovaPassagem]                     = useState<'lote_completo' | 'ja_finalizado' | null>(null)
   const [showConfirmarSegundaPassagem, setShowConfirmarSegundaPassagem] = useState(false)
   const [showConfirmarFinalizarParcial1, setShowConfirmarFinalizarParcial1] = useState(false)
   const [showConfirmarFinalizarParcial2, setShowConfirmarFinalizarParcial2] = useState(false)
@@ -320,8 +321,13 @@ export function ApontamentoOperarioPage() {
       setFocoId(ap.id)
       setBarcode('')
     } catch (err) {
-      const data = (err as { response?: { data?: { loteCompleto?: boolean } } })?.response?.data
+      const data = (err as { response?: { data?: { loteCompleto?: boolean; apontamentoJaFinalizado?: boolean } } })?.response?.data
       if (data?.loteCompleto) {
+        setMotivoNovaPassagem('lote_completo')
+        setDadosNovaPassagem({ cod_peca: parsedBarcode.cod_peca, ordem_lote: parsedBarcode.ordem_lote })
+        setShowConfirmarNovaPassagem(true)
+      } else if (data?.apontamentoJaFinalizado) {
+        setMotivoNovaPassagem('ja_finalizado')
         setDadosNovaPassagem({ cod_peca: parsedBarcode.cod_peca, ordem_lote: parsedBarcode.ordem_lote })
         setShowConfirmarNovaPassagem(true)
       } else {
@@ -347,6 +353,7 @@ export function ApontamentoOperarioPage() {
     } finally {
       setAtualizando(false)
       setDadosNovaPassagem(null)
+      setMotivoNovaPassagem(null)
     }
   }
 
@@ -1287,11 +1294,13 @@ export function ApontamentoOperarioPage() {
             </div>
             <div className="p-5 space-y-4">
               <p className="text-sm text-slate-400 leading-relaxed">
-                Todas as pilhas deste lote já foram processadas. Deseja iniciar uma nova passagem?
+                {motivoNovaPassagem === 'ja_finalizado'
+                  ? 'Esta peça já teve um apontamento finalizado nesta etapa. Deseja iniciar uma nova passagem?'
+                  : 'Todas as pilhas deste lote já foram processadas. Deseja iniciar uma nova passagem?'}
               </p>
               <div className="flex gap-3">
                 <button
-                  onClick={() => { setShowConfirmarNovaPassagem(false); setDadosNovaPassagem(null); setBarcode('') }}
+                  onClick={() => { setShowConfirmarNovaPassagem(false); setDadosNovaPassagem(null); setMotivoNovaPassagem(null); setBarcode('') }}
                   className="flex-1 px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 text-sm font-medium text-slate-300 transition-all"
                 >
                   Cancelar

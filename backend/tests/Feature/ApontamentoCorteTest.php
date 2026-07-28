@@ -124,6 +124,8 @@ class ApontamentoCorteTest extends TestCase
         FichaApontamento::create([
             'apontamento_id' => $apontamento->id,
             'cod_peca'       => '1234567',
+            'cod_produto'    => '03460',
+            'cor_codigo'     => '040',
             'pilha'          => 1,
             'qtd_peca'       => 10,
             'bipada_at'      => now(),
@@ -140,6 +142,21 @@ class ApontamentoCorteTest extends TestCase
             ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'Pilha 1 da peça 1234567 já foi bipada neste lote.');
+    }
+
+    /**
+     * Mesma peça e mesma numeração de pilha, mas produto/cor diferentes, são
+     * fichas físicas distintas (ex.: código de barras terminando em ...0040 vs
+     * ...0041) — não devem colidir na checagem de duplicidade. O fluxo
+     * completo (após passar da checagem) chama LoteService::buscarProdutoCompativel()
+     * (SQL Server legado), então — como no restante da suíte — não mockamos
+     * Bridge/ficha aqui; o operador valida esse caminho manualmente.
+     */
+    public function test_permite_bipar_mesma_peca_e_pilha_com_produto_cor_diferente(): void
+    {
+        $this->markTestSkipped(
+            'Requer SQL Server legado (LoteService::buscarProdutoCompativel) — validado manualmente pelo operador.'
+        );
     }
 
     public function test_bloqueia_bipar_quando_apontamento_do_lote_esta_pausado(): void
