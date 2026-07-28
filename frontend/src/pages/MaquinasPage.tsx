@@ -69,6 +69,47 @@ const maquinaColumns: ResponsiveTableColumn<Maquina>[] = [
   },
 ]
 
+interface QrPrintItem {
+  nome: string
+  url: string
+  svg: SVGElement
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function buildQrPrintHtml(title: string, items: QrPrintItem[]): string {
+  const cards = items
+    .map(
+      item => `
+        <div class="qr-card">
+          <h2>${escapeHtml(item.nome)}</h2>
+          ${item.svg.outerHTML}
+          <p>${escapeHtml(item.url)}</p>
+        </div>
+      `
+    )
+    .join('')
+
+  return `
+    <html><head><title>${escapeHtml(title)}</title>
+    <style>
+      body { margin:0; font-family: sans-serif; background:#fff; }
+      .qr-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:24px; padding:24px; }
+      .qr-card { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; border:1px solid #ddd; border-radius:8px; page-break-inside: avoid; }
+      h2 { margin:0 0 12px; font-size:16px; color:#111; text-align:center; }
+      p { margin-top:12px; font-size:11px; color:#555; word-break:break-all; text-align:center; max-width:280px; }
+    </style></head>
+    <body><div class="qr-grid">${cards}</div></body></html>
+  `
+}
+
 export function MaquinasPage() {
   const { user }                        = useAuth()
   const [maquinas, setMaquinas]         = useState<Maquina[]>([])
@@ -84,6 +125,9 @@ export function MaquinasPage() {
 
   const [qrMaquina, setQrMaquina] = useState<Maquina | null>(null)
   const qrRef = useRef<HTMLDivElement>(null)
+
+  const [printBatch, setPrintBatch] = useState<Maquina[] | null>(null)
+  const batchRef = useRef<HTMLDivElement>(null)
 
   function openQr(m: Maquina) { setQrMaquina(m) }
   function closeQr() { setQrMaquina(null) }
@@ -110,23 +154,26 @@ export function MaquinasPage() {
     if (!qrMaquina || !qrRef.current) return
     const svg = qrRef.current.querySelector('svg')
     if (!svg) return
+    openPrintWindow(`QR - ${qrMaquina.nome}`, [{ nome: qrMaquina.nome, url: qrUrl(qrMaquina), svg }])
+  }
+
+  function openPrintWindow(title: string, items: QrPrintItem[]) {
     const win = window.open('', '_blank')
-    if (!win) return
-    win.document.write(`
-      <html><head><title>QR - ${qrMaquina.nome}</title>
-      <style>body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;background:#fff}
-      h2{margin-bottom:16px;font-size:18px;color:#111}
-      p{margin-top:12px;font-size:12px;color:#555;word-break:break-all;text-align:center;max-width:280px}
-      </style></head>
-      <body>
-        <h2>${qrMaquina.nome}</h2>
-        ${svg.outerHTML}
-        <p>${qrUrl(qrMaquina)}</p>
-      </body></html>
-    `)
+    if (!win) {
+      setError('Não foi possível abrir a janela de impressão. Verifique se o bloqueador de pop-ups está desativado.')
+      return
+    }
+    win.document.write(buildQrPrintHtml(title, items))
     win.document.close()
     win.focus()
     win.print()
+  }
+
+  function openBatchPrint() {
+    if (grupoId === '') return
+    const maquinasDoGrupo = maquinas.filter(m => m.etapa_fluxo_id === grupoId)
+    if (maquinasDoGrupo.length === 0) return
+    setPrintBatch(maquinasDoGrupo)
   }
 
   const load = useCallback((signal?: AbortSignal) => {
@@ -147,6 +194,27 @@ export function MaquinasPage() {
     load(controller.signal)
     return () => controller.abort()
   }, [load])
+
+  useEffect(() => {
+    if (!printBatch || printBatch.length === 0) return
+    const container = batchRef.current
+    if (!container) return
+
+    const items: QrPrintItem[] = []
+    printBatch.forEach(m => {
+      const card = container.querySelector<HTMLDivElement>(`[data-maquina-id="${m.id}"]`)
+      const svg = card?.querySelector('svg')
+      if (svg) items.push({ nome: m.nome, url: qrUrl(m), svg })
+    })
+
+    if (items.length > 0) {
+      const grupoNome = grupos.find(g => g.id === grupoId)?.nome ?? 'Grupo'
+      openPrintWindow(`QR Codes - ${grupoNome}`, items)
+    }
+
+    setPrintBatch(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printBatch])
 
   const grupos = useMemo(() => {
     const mapa = new Map<number, string>()
@@ -249,6 +317,16 @@ export function MaquinasPage() {
             <option key={g.id} value={g.id}>{g.nome}</option>
           ))}
         </select>
+
+        <button
+          onClick={openBatchPrint}
+          disabled={grupoId === ''}
+          title={grupoId === '' ? 'Selecione um grupo para imprimir todos os QR Codes' : 'Imprimir QR Codes de todas as máquinas do grupo'}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 rounded-lg transition-colors"
+        >
+          <Printer className="w-4 h-4" />
+          Imprimir QR Codes do Grupo
+        </button>
       </div>
 
       {/* tabela */}
@@ -341,6 +419,17 @@ export function MaquinasPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Renderização oculta para geração dos QR Codes em lote */}
+      {printBatch && (
+        <div ref={batchRef} style={{ position: 'fixed', left: -9999, top: -9999 }} aria-hidden="true">
+          {printBatch.map(m => (
+            <div key={m.id} data-maquina-id={m.id}>
+              <QRCodeSVG value={qrUrl(m)} size={220} level="M" />
+            </div>
+          ))}
         </div>
       )}
 
