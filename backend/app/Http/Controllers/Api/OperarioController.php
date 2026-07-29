@@ -69,9 +69,10 @@ class OperarioController extends Controller
     public function crachaPdf(Operario $operario): Response
     {
         $generator = new BarcodeGeneratorHTML();
-        $barcodeHtml = $generator->getBarcode($operario->matricula, $generator::TYPE_CODE_128, 3, 90);
+        $barcodeHtml = $generator->getBarcode($operario->matricula, $generator::TYPE_CODE_128, 2, 60);
 
         $pdf = Pdf::loadView('pdf.cracha-operario', [
+            'nome'         => $operario->user->name,
             'matricula'    => $operario->matricula,
             'barcodeHtml'  => $barcodeHtml,
         ]);

@@ -14,7 +14,14 @@
 
     .celula {
         text-align: center;
-        padding-top: 8mm;
+        padding-top: 3mm;
+    }
+
+    .nome {
+        font-family: 'DejaVu Sans', sans-serif;
+        font-size: 13px;
+        font-weight: bold;
+        margin-bottom: 3mm;
     }
 
     .barra-wrapper {
@@ -24,13 +31,14 @@
     .matricula {
         margin-top: 4px;
         font-family: 'DejaVu Sans Mono', monospace;
-        font-size: 14px;
+        font-size: 12px;
         letter-spacing: 2px;
     }
 </style>
 </head>
 <body>
     <div class="celula">
+        <div class="nome">{{ $nome }}</div>
         <div class="barra-wrapper">{!! $barcodeHtml !!}</div>
         <div class="matricula">{{ $matricula }}</div>
     </div>
