@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   Loader2, LogOut, CheckCircle2, RotateCcw,
   AlertCircle, Cpu, ScanLine, Timer, PackageCheck, QrCode,
-  Flag, Pause, Ban, Bell,
+  Flag, Pause, Play, Ban, Bell,
 } from 'lucide-react'
 import {
   getSessaoAtiva, encerrarSessao, getTurnoHoje, encerrarTurno,
-  pausarSessao, cancelarSessao, type Sessao, type TurnoHoje,
+  pausarSessao, cancelarSessao, pausarSessaoOciosa, retomarSessaoOciosa,
+  type Sessao, type TurnoHoje,
 } from '@/api/sessao'
 import {
   getApontamentosAtivos,
@@ -60,6 +61,9 @@ export function ApontamentoCorteOperarioPage() {
   const [suporteEnviado, setSuporteEnviado]     = useState(false)
   const [erroApi, setErroApi]               = useState<string | null>(null)
   const [showModalPausa, setShowModalPausa] = useState(false)
+  const [showModalPausaOciosa, setShowModalPausaOciosa] = useState(false)
+  const [pausandoOciosa, setPausandoOciosa] = useState(false)
+  const [retomandoOciosa, setRetomandoOciosa] = useState(false)
   const [saiuSemPausar, setSaiuSemPausar]   = useState(false)
   const [barcode, setBarcode]               = useState('')
   const barcodeRef                          = useRef<HTMLInputElement>(null)
@@ -201,6 +205,31 @@ export function ApontamentoCorteOperarioPage() {
     }
   }
 
+  async function handlePausarOciosa(motivoId: number) {
+    setPausandoOciosa(true); setErroApi(null)
+    try {
+      const s = await pausarSessaoOciosa(motivoId)
+      setSessao(s)
+      setShowModalPausaOciosa(false)
+    } catch (err) {
+      setErroApi(apiMsg(err))
+    } finally {
+      setPausandoOciosa(false)
+    }
+  }
+
+  async function handleRetomarOciosa() {
+    setRetomandoOciosa(true); setErroApi(null)
+    try {
+      const s = await retomarSessaoOciosa()
+      setSessao(s)
+    } catch (err) {
+      setErroApi(apiMsg(err))
+    } finally {
+      setRetomandoOciosa(false)
+    }
+  }
+
   async function handleChamarSuporte() {
     setChamandoSuporte(true)
     try {
@@ -337,7 +366,7 @@ export function ApontamentoCorteOperarioPage() {
   if (!sessao) return null
 
   const podeEncerrar = !apontamento || apontamento.status === 'finalizado'
-  const acoesSessaoDesabilitadas = atualizando || pausando || retomando || encerrando || finalizandoTurno || pausandoSessao || cancelando
+  const acoesSessaoDesabilitadas = atualizando || pausando || retomando || encerrando || finalizandoTurno || pausandoSessao || cancelando || pausandoOciosa || retomandoOciosa
 
   const horarioLiberacao   = turnoHoje ? horarioLiberacaoTurno(turnoHoje) : null
   const podeFinalizarTurno = !horarioLiberacao || now >= horarioLiberacao
@@ -412,7 +441,7 @@ export function ApontamentoCorteOperarioPage() {
       )}
 
       {/* FASE: aguardando */}
-      {fase === 'aguardando' && (
+      {fase === 'aguardando' && !sessao?.pausa_ociosa && (
         <>
           <BarcodeCard
             titulo="Bipar peça do lote"
@@ -426,8 +455,43 @@ export function ApontamentoCorteOperarioPage() {
             onChange={setBarcode}
             onSubmit={handleBipar}
           />
+          <BotaoPausar
+            label="Pausar"
+            disabled={atualizando}
+            onClick={() => setShowModalPausaOciosa(true)}
+          />
           <FichasRecentes fichas={fichasRecentes} />
         </>
+      )}
+
+      {/* FASE: aguardando, sessão ociosa pausada */}
+      {fase === 'aguardando' && sessao?.pausa_ociosa && (
+        <div className="bg-[#0f1923] border border-amber-500/30 rounded-xl overflow-hidden">
+          <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-amber-500/10">
+            <div className="p-2 rounded-lg bg-amber-500/10">
+              <Pause className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Sessão pausada</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Desde {fmtHoraDate(new Date(sessao.pausa_ociosa.inicio))}
+                {sessao.pausa_ociosa.motivo && ` · ${sessao.pausa_ociosa.motivo}`}
+              </p>
+            </div>
+          </div>
+          <div className="px-6 py-5">
+            <button
+              type="button"
+              onClick={handleRetomarOciosa}
+              disabled={retomandoOciosa}
+              className="w-full py-3 text-sm font-semibold text-white bg-[#00aa84] hover:bg-[#009973] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              {retomandoOciosa
+                ? <><Loader2 className="w-4 h-4 animate-spin" />Retomando…</>
+                : <><Play className="w-4 h-4" />Retomar</>}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* FASE: em_producao */}
@@ -716,6 +780,16 @@ export function ApontamentoCorteOperarioPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de motivo de pausa ociosa (sem apontamento) */}
+      {showModalPausaOciosa && (
+        <MotivoPausaModal
+          motivos={motivosPausa}
+          pausando={pausandoOciosa}
+          onSelect={handlePausarOciosa}
+          onClose={() => setShowModalPausaOciosa(false)}
+        />
       )}
 
       {/* Modal de motivo de pausa */}
