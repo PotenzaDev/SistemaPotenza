@@ -147,12 +147,15 @@ class LoteService implements LoteServiceInterface
         $ordemLote = ltrim($ordemLote, '0') ?: '0';
 
         try {
+            // Apontamento de corte só bipa peças de MDF/Aglomerado — outros
+            // materiais (ex.: MDP cru, vidro) não passam pela seccionadora e
+            // não devem aparecer no checklist nem contar no total do lote.
             $rows = $this->select(
-                'SELECT f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi,
+                "SELECT f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi,
                         SUM(f.Qtde_Total) AS qtde_total, COUNT(*) AS total_pilhas
                  FROM [db1Fabri].[dbo].[FbmLoteFichaTecnica] f
-                 WHERE f.Lote = ?
-                 GROUP BY f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi',
+                 WHERE f.Lote = ? AND UPPER(LTRIM(RTRIM(f.TipoMate))) IN ('MDF', 'AGLOM')
+                 GROUP BY f.CodiSemiAcabado, f.DenoSemiAcabado, f.Prod_Codi, f.Prod_CorCodi",
                 [$ordemLote]
             );
         } catch (BusinessException) {
