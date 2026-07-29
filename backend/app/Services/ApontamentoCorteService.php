@@ -130,12 +130,23 @@ class ApontamentoCorteService
 
         $pilha = (int) $dados['pilha'];
 
+        // Resolve antes de checar duplicidade: a Bridge normaliza cod_produto/cor_codigo
+        // (ex.: remove zeros à esquerda) de forma diferente do valor cru do código de
+        // barras, e é o valor resolvido que fica gravado na ficha. Comparar contra o
+        // valor cru faria a checagem nunca encontrar a ficha já bipada.
+        $produto = $this->loteService->buscarProdutoCompativel(
+            $dados['cod_peca'],
+            $apontamento->ordem_lote,
+            $dados['cod_produto'],
+            $dados['cor_codigo'],
+        );
+
         $vezesBipada = $this->fichaRepo->contarVezesPilhaBipadaNoApontamento(
             $apontamento->id,
             $dados['cod_peca'],
             $pilha,
-            $dados['cod_produto'],
-            $dados['cor_codigo'],
+            $produto['cod_produto'],
+            $produto['cor_codigo'],
         );
 
         if ($vezesBipada > 0) {
@@ -144,13 +155,6 @@ class ApontamentoCorteService
                 422,
             );
         }
-
-        $produto = $this->loteService->buscarProdutoCompativel(
-            $dados['cod_peca'],
-            $apontamento->ordem_lote,
-            $dados['cod_produto'],
-            $dados['cor_codigo'],
-        );
 
         $agora = Carbon::now();
 

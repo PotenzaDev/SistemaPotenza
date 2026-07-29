@@ -317,14 +317,25 @@ class ApontamentoService
 
         $pilha = (int) $dados['pilha'];
 
+        // Resolve antes de checar duplicidade: a Bridge normaliza cod_produto/cor_codigo
+        // (ex.: remove zeros à esquerda) de forma diferente do valor cru do código de
+        // barras, e é o valor resolvido que fica gravado na ficha. Comparar contra o
+        // valor cru faria as checagens abaixo nunca encontrarem a ficha já bipada.
+        $produto = $this->loteService->buscarProdutoCompativel(
+            $dados['cod_peca'],
+            $apontamento->ordem_lote,
+            $dados['cod_produto'],
+            $dados['cor_codigo'],
+        );
+
         // Bipagem duplicada acidental: mesma pilha já bipada NESTE apontamento.
         // Compara contra o total de fichas físicas esperadas (bridge) — limite rígido.
         $vezesBipadaAtual = $this->fichaRepo->contarVezesPilhaBipadaNoApontamento(
             $apontamento->id,
             $dados['cod_peca'],
             $pilha,
-            $dados['cod_produto'],
-            $dados['cor_codigo'],
+            $produto['cod_produto'],
+            $produto['cor_codigo'],
         );
 
         if ($vezesBipadaAtual > 0) {
@@ -358,8 +369,8 @@ class ApontamentoService
                 $apontamento->etapa_fluxo_id,
                 $pilha,
                 $apontamento->id,
-                $dados['cod_produto'],
-                $dados['cor_codigo'],
+                $produto['cod_produto'],
+                $produto['cor_codigo'],
             );
 
             if ($vezesBipadaAnterior > 0) {
@@ -370,13 +381,6 @@ class ApontamentoService
                 );
             }
         }
-
-        $produto = $this->loteService->buscarProdutoCompativel(
-            $dados['cod_peca'],
-            $apontamento->ordem_lote,
-            $dados['cod_produto'],
-            $dados['cor_codigo'],
-        );
 
         // Marco de tempo compartilhado: fim da ficha anterior = inicio desta
         $agora = Carbon::now();
