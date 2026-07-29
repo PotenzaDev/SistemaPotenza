@@ -85,13 +85,17 @@ function escapeHtml(value: string): string {
 }
 
 function buildQrPrintHtml(title: string, items: QrPrintItem[]): string {
-  const cards = items
+  const pages = items
     .map(
       item => `
-        <div class="qr-card">
-          <h2>${escapeHtml(item.nome)}</h2>
-          ${item.svg.outerHTML}
-          <p>${escapeHtml(item.url)}</p>
+        <div class="qr-page">
+          <div class="qr-card">
+            ${item.svg.outerHTML}
+            <div class="qr-info">
+              <h2>${escapeHtml(item.nome)}</h2>
+              <p>${escapeHtml(item.url)}</p>
+            </div>
+          </div>
         </div>
       `
     )
@@ -100,13 +104,21 @@ function buildQrPrintHtml(title: string, items: QrPrintItem[]): string {
   return `
     <html><head><title>${escapeHtml(title)}</title>
     <style>
+      @page { size: 100mm 50mm; margin: 0; }
       body { margin:0; font-family: sans-serif; background:#fff; }
-      .qr-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:24px; padding:24px; }
-      .qr-card { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; border:1px solid #ddd; border-radius:8px; page-break-inside: avoid; }
-      h2 { margin:0 0 12px; font-size:16px; color:#111; text-align:center; }
-      p { margin-top:12px; font-size:11px; color:#555; word-break:break-all; text-align:center; max-width:280px; }
+      .qr-page {
+        width: 100mm; height: 50mm; box-sizing: border-box;
+        display:flex; align-items:center; justify-content:center;
+        padding: 3mm; page-break-after: always;
+      }
+      .qr-page:last-child { page-break-after: auto; }
+      .qr-card { display:flex; align-items:center; gap:6mm; width:100%; height:100%; }
+      .qr-card svg { width:32mm; height:32mm; flex-shrink:0; }
+      .qr-info { display:flex; flex-direction:column; justify-content:center; overflow:hidden; }
+      h2 { margin:0 0 4px; font-size:14px; color:#111; }
+      p { margin:0; font-size:9px; color:#555; word-break:break-all; }
     </style></head>
-    <body><div class="qr-grid">${cards}</div></body></html>
+    <body>${pages}</body></html>
   `
 }
 

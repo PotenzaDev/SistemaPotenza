@@ -20,10 +20,10 @@ export function CrachaOperarioModal({ operario, onClose }: Props) {
     JsBarcode(svgRef.current, operario.matricula, {
       format: 'CODE128',
       displayValue: true,
-      width: 2,
-      height: 60,
-      fontSize: 14,
-      margin: 8,
+      width: 1.5,
+      height: 45,
+      fontSize: 12,
+      margin: 6,
     })
   }, [operario])
 
