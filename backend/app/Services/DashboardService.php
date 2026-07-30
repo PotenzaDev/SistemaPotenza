@@ -98,6 +98,7 @@ class DashboardService
             return [
                 'id'                   => $maquina->id,
                 'nome'                 => $maquina->nome,
+                'codigo'               => $maquina->codigo,
                 'status'               => $apontamento?->status ?? ($pausaOciosa ? 'pausa_ociosa' : 'livre'),
                 'operario'             => $sessao?->operario?->user?->name,
                 'lote'                 => $apontamento?->ordem_lote,

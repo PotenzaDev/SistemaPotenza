@@ -82,7 +82,7 @@ class RelatorioMaquinaController extends Controller
             'maquinas' => Maquina::query()
                 ->where('ativa', true)
                 ->orderBy('nome')
-                ->get(['id', 'nome', 'etapa_fluxo_id']),
+                ->get(['id', 'nome', 'codigo', 'etapa_fluxo_id']),
         ], 'Opções de filtro do relatório de máquinas.');
     }
 }

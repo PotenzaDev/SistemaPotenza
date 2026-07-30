@@ -38,6 +38,11 @@ class Maquina extends Model
         return $this->foto ? '/storage/' . $this->foto : null;
     }
 
+    public function getNomeComCodigoAttribute(): string
+    {
+        return $this->codigo ? "{$this->nome} - {$this->codigo}" : $this->nome;
+    }
+
     public function etapaFluxo(): BelongsTo
     {
         return $this->belongsTo(EtapaFluxo::class);

@@ -28,6 +28,7 @@ class SessaoTrabalhoResource extends JsonResource
             'maquina' => $this->whenLoaded('maquina', fn () => [
                 'id'          => $this->maquina->id,
                 'nome'        => $this->maquina->nome,
+                'codigo'      => $this->maquina->codigo,
                 'etapa_fluxo' => $this->when(
                     $this->maquina->relationLoaded('etapaFluxo'),
                     fn () => [

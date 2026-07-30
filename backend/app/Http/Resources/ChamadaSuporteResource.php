@@ -16,8 +16,9 @@ class ChamadaSuporteResource extends JsonResource
             'origem'    => $this->origem ?? 'operario',
             'criado_em' => $this->created_at->toISOString(),
             'maquina'   => $this->whenLoaded('maquina', fn () => $this->maquina ? [
-                'id'   => $this->maquina->id,
-                'nome' => $this->maquina->nome,
+                'id'     => $this->maquina->id,
+                'nome'   => $this->maquina->nome,
+                'codigo' => $this->maquina->codigo,
             ] : null),
             'operario'  => $this->whenLoaded('operario', fn () => $this->operario ? [
                 'id'   => $this->operario->id,

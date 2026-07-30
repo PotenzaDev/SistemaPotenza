@@ -120,7 +120,7 @@ class TimelineMaquinaService
 
             $resultado[] = [
                 'maquina_id' => $maquina->id,
-                'maquina' => $maquina->nome,
+                'maquina' => $maquina->nome_com_codigo,
                 'grupo' => $maquina->etapaFluxo
                     ? ['id' => $maquina->etapaFluxo->id, 'nome' => $maquina->etapaFluxo->nome]
                     : null,

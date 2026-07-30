@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Wrench, Loader2, AlertCircle, X, CalendarDays, ArrowUpDown, Headphones, CheckCircle2, Plus } from 'lucide-react'
+import { Wrench, Loader2, AlertCircle, X, Headphones, CheckCircle2, Plus } from 'lucide-react'
 import {
   getOrdensManutencao,
   type OrdemManutencao,
@@ -78,7 +78,6 @@ export function ManutencaoPainelPage() {
   const [filtroData, setFiltroData]       = useState<string>('')
   const [filtroMaquina, setFiltroMaquina] = useState<string>('')
   const [filtroSetor, setFiltroSetor]     = useState<string>('')
-  const [ordenacao, setOrdenacao]         = useState<'data' | 'prioridade'>('data')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -137,44 +136,21 @@ export function ManutencaoPainelPage() {
     return lista
   }, [ordens, filtroStatus, filtroMaquina, filtroSetor])
 
-  // Vista plana por data — mais recente primeiro (concluído_em ou solicitado_em)
-  const ordensPlanasPorData = useMemo(() => {
-    return [...ordensBase].sort((a, b) => {
-      const ta = a.concluido_em ?? a.solicitado_em
-      const tb = b.concluido_em ?? b.solicitado_em
-      return new Date(tb).getTime() - new Date(ta).getTime()
+  // Colunas do kanban: uma por prioridade, cards ordenados do mais antigo para o mais novo
+  const colunas = useMemo(() => {
+    return PRIORIDADE_ORDER.map(prioridade => {
+      const ordensDaColuna = [...ordensBase]
+        .filter(o => o.prioridade === prioridade)
+        .sort((a, b) => {
+          const ta = a.concluido_em ?? a.solicitado_em
+          const tb = b.concluido_em ?? b.solicitado_em
+          return new Date(ta).getTime() - new Date(tb).getTime()
+        })
+
+      return { prioridade, ordens: ordensDaColuna }
     })
   }, [ordensBase])
 
-  // Vista agrupada por prioridade → setor
-  const agrupado = useMemo(() => {
-    const result: Array<{
-      prioridade: Prioridade
-      setores: Array<{ nome: string; ordens: OrdemManutencao[] }>
-    }> = []
-
-    for (const prioridade of PRIORIDADE_ORDER) {
-      const destaP = ordensBase.filter(o => o.prioridade === prioridade)
-      if (destaP.length === 0) continue
-
-      const setorMap = new Map<string, OrdemManutencao[]>()
-      for (const o of destaP) {
-        const nome = o.maquina.etapa_fluxo?.nome ?? 'Sem setor'
-        const lista = setorMap.get(nome) ?? []
-        lista.push(o)
-        setorMap.set(nome, lista)
-      }
-
-      result.push({
-        prioridade,
-        setores: Array.from(setorMap.entries()).map(([nome, ordens]) => ({ nome, ordens })),
-      })
-    }
-
-    return result
-  }, [ordensBase])
-
-  const mostrarFlatData = filtroStatus === 'concluida' && ordenacao === 'data'
   const temFiltrosAtivos = filtroStatus !== null || filtroData !== '' || filtroMaquina !== '' || filtroSetor !== ''
 
   async function handleChamarSuporte() {
@@ -329,39 +305,6 @@ export function ManutencaoPainelPage() {
             </button>
           )}
         </div>
-
-        {/* Linha 3: Ordenação — só visível em Concluídas */}
-        {filtroStatus === 'concluida' && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">Ordenar por:</span>
-            <div className="flex rounded-lg border border-white/10 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setOrdenacao('data')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
-                  ordenacao === 'data'
-                    ? 'bg-[#00aa84]/20 text-[#00aa84]'
-                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                }`}
-              >
-                <CalendarDays className="w-3 h-3" />
-                Data
-              </button>
-              <button
-                type="button"
-                onClick={() => setOrdenacao('prioridade')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-l border-white/10 transition-colors ${
-                  ordenacao === 'prioridade'
-                    ? 'bg-[#00aa84]/20 text-[#00aa84]'
-                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                }`}
-              >
-                <ArrowUpDown className="w-3 h-3" />
-                Prioridade
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Erro */}
@@ -389,37 +332,32 @@ export function ManutencaoPainelPage() {
         </div>
       )}
 
-      {/* ── Vista plana: concluídas por data ──────────────────────────────── */}
-      {!loading && !erroApi && mostrarFlatData && ordensBase.length > 0 && (
-        <div className="space-y-2">
-          {ordensPlanasPorData.map(ordem => (
-            <OrdemCard key={ordem.id} ordem={ordem} onClick={() => setOrdemSelecionada(ordem)} />
-          ))}
-        </div>
-      )}
+      {/* ── Kanban: uma coluna por prioridade, mais antigo no topo ────────── */}
+      {!loading && !erroApi && ordensBase.length > 0 && (
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {colunas.map(coluna => (
+            <div key={coluna.prioridade} className="w-72 shrink-0 flex flex-col bg-white/[0.02] border border-white/5 rounded-xl">
+              <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/5 sticky top-0 bg-[#0b141c] rounded-t-xl">
+                <span className={['text-xs font-bold uppercase tracking-wider', PRIORIDADE_COLOR[coluna.prioridade]].join(' ')}>
+                  {PRIORIDADE_LABEL[coluna.prioridade]}
+                </span>
+                <span className="ml-auto text-xs font-medium text-slate-500 bg-white/5 rounded-full px-2 py-0.5">
+                  {coluna.ordens.length}
+                </span>
+              </div>
 
-      {/* ── Vista agrupada: por prioridade → setor ───────────────────────── */}
-      {!loading && !erroApi && !mostrarFlatData && agrupado.map(grupo => (
-        <div key={grupo.prioridade} className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className={['text-sm font-bold uppercase tracking-wider', PRIORIDADE_COLOR[grupo.prioridade]].join(' ')}>
-              {PRIORIDADE_LABEL[grupo.prioridade]}
-            </span>
-            <div className="flex-1 h-px bg-white/5" />
-          </div>
-
-          {grupo.setores.map(setor => (
-            <div key={setor.nome} className="space-y-2">
-              <p className="text-xs text-slate-500 font-medium pl-1">{setor.nome}</p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {setor.ordens.map(ordem => (
+              <div className="flex flex-col gap-2.5 p-2.5 overflow-y-auto max-h-[calc(100vh-320px)]">
+                {coluna.ordens.length === 0 && (
+                  <p className="text-xs text-slate-600 text-center py-6">Nenhuma ordem</p>
+                )}
+                {coluna.ordens.map(ordem => (
                   <OrdemCard key={ordem.id} ordem={ordem} onClick={() => setOrdemSelecionada(ordem)} />
                 ))}
               </div>
             </div>
           ))}
         </div>
-      ))}
+      )}
 
       {/* Modal de detalhe/edição */}
       {ordemSelecionada !== null && (

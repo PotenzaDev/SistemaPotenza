@@ -16,6 +16,7 @@ class OrdemManutencaoResource extends JsonResource
             'maquina' => [
                 'id' => $this->maquina->id,
                 'nome' => $this->maquina->nome,
+                'codigo' => $this->maquina->codigo,
                 'etapa_fluxo' => $this->maquina->etapaFluxo ? [
                     'id' => $this->maquina->etapaFluxo->id,
                     'nome' => $this->maquina->etapaFluxo->nome,
