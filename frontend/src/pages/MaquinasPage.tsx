@@ -183,9 +183,8 @@ export function MaquinasPage() {
 
   function openBatchPrint() {
     if (grupoId === '') return
-    const maquinasDoGrupo = maquinas.filter(m => m.etapa_fluxo_id === grupoId)
-    if (maquinasDoGrupo.length === 0) return
-    setPrintBatch(maquinasDoGrupo)
+    if (filtered.length === 0) return
+    setPrintBatch(filtered)
   }
 
   const load = useCallback((signal?: AbortSignal) => {

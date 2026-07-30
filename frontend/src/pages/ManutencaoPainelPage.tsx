@@ -10,6 +10,8 @@ import { chamarSuporteManutencao } from '@/api/suporte'
 import { OrdemManutencaoModal } from '@/components/manutencao/OrdemManutencaoModal'
 import { CriarOrdemManutencaoModal } from '@/components/manutencao/CriarOrdemManutencaoModal'
 
+const POLL_INTERVAL_MS = 15_000
+
 const PRIORIDADE_ORDER: Prioridade[] = ['critica', 'alta', 'normal', 'baixa']
 
 const PRIORIDADE_LABEL: Record<Prioridade, string> = {
@@ -80,22 +82,28 @@ export function ManutencaoPainelPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    setLoading(true)
-    setErroApi(null)
 
     const params: { status?: StatusOrdem; data?: string } = {}
     if (filtroStatus) params.status = filtroStatus
     if (filtroData) params.data = filtroData
 
-    getOrdensManutencao(params, controller.signal)
-      .then(data => { setOrdens(data); setLoading(false) })
-      .catch(err => {
-        if ((err as { name?: string }).name === 'CanceledError' || (err as { name?: string }).name === 'AbortError') return
-        setErroApi(apiMsg(err))
-        setLoading(false)
-      })
+    function carregar(mostrarLoading: boolean) {
+      if (mostrarLoading) setLoading(true)
+      setErroApi(null)
 
-    return () => { controller.abort() }
+      getOrdensManutencao(params, controller.signal)
+        .then(data => { setOrdens(data); if (mostrarLoading) setLoading(false) })
+        .catch(err => {
+          if ((err as { name?: string }).name === 'CanceledError' || (err as { name?: string }).name === 'AbortError') return
+          setErroApi(apiMsg(err))
+          if (mostrarLoading) setLoading(false)
+        })
+    }
+
+    carregar(true)
+    const id = window.setInterval(() => carregar(false), POLL_INTERVAL_MS)
+
+    return () => { controller.abort(); window.clearInterval(id) }
   }, [filtroStatus, filtroData])
 
   // Setores únicos derivados das ordens carregadas
