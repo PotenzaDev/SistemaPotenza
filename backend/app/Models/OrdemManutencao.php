@@ -47,4 +47,9 @@ class OrdemManutencao extends Model
     {
         return $this->hasMany(ServicoOrdemManutencao::class);
     }
+
+    public function fotos(): HasMany
+    {
+        return $this->hasMany(FotoOrdemManutencao::class);
+    }
 }

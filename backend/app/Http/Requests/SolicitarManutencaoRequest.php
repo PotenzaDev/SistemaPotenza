@@ -20,6 +20,8 @@ class SolicitarManutencaoRequest extends FormRequest
             'solicitante' => ['required', 'string', 'max:150'],
             'motivo' => ['required', 'string'],
             'prioridade' => ['required', 'in:baixa,normal,alta,critica'],
+            'fotos' => ['nullable', 'array', 'max:6'],
+            'fotos.*' => ['image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
         ];
     }
 }

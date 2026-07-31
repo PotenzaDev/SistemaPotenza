@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Wrench, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { getMaquinas, type Maquina } from '@/api/maquinas'
 import { criarOrdem, type Prioridade } from '@/api/manutencao'
+import { FotoUploadInput } from '@/components/manutencao/FotoUploadInput'
 
 const PRIORIDADES: Array<{ value: Prioridade; label: string }> = [
   { value: 'baixa', label: 'Baixa' },
@@ -18,6 +19,7 @@ export function ManutencaoSolicitarPage() {
   const [motivo, setMotivo]           = useState<string>('')
   const [prioridade, setPrioridade]   = useState<Prioridade>('normal')
   const [solicitante, setSolicitante] = useState<string>('')
+  const [fotos, setFotos]             = useState<File[]>([])
 
   const [enviando, setEnviando]       = useState(false)
   const [sucesso, setSucesso]         = useState(false)
@@ -48,12 +50,13 @@ export function ManutencaoSolicitarPage() {
         solicitante: solicitante.trim(),
         motivo: motivo.trim(),
         prioridade,
-      })
+      }, fotos)
       setSucesso(true)
       setMaquinaId('')
       setMotivo('')
       setPrioridade('normal')
       setSolicitante('')
+      setFotos([])
     } catch (err) {
       setErroApi(apiMsg(err))
     } finally {
@@ -152,6 +155,12 @@ export function ManutencaoSolicitarPage() {
             placeholder="Seu nome ou matrícula"
             className={[inputBase, 'h-12'].join(' ')}
           />
+        </div>
+
+        {/* Fotos */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-slate-300">Fotos (opcional)</label>
+          <FotoUploadInput fotos={fotos} onChange={setFotos} />
         </div>
 
         {/* Botão enviar */}

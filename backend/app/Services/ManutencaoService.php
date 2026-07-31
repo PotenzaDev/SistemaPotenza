@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\BusinessException;
+use App\Models\FotoOrdemManutencao;
 use App\Models\OrdemManutencao;
 use App\Models\PecaOrdemManutencao;
 use App\Models\ServicoOrdemManutencao;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 
 class ManutencaoService
 {
-    private const RELACOES = ['maquina.etapaFluxo', 'pecas', 'servicos'];
+    private const RELACOES = ['maquina.etapaFluxo', 'pecas', 'servicos', 'fotos'];
 
     /**
      * Lista ordens de manutenção para o admin, com filtros opcionais de
@@ -37,14 +39,27 @@ class ManutencaoService
 
     /**
      * Cria uma nova solicitação de manutenção (OS) com status inicial "aberta".
+     *
+     * @param array<int, UploadedFile> $fotos
      */
-    public function criarSolicitacao(array $data): OrdemManutencao
+    public function criarSolicitacao(array $data, array $fotos = []): OrdemManutencao
     {
-        return OrdemManutencao::create([
-            ...$data,
+        $ordem = OrdemManutencao::create([
+            ...collect($data)->except('fotos')->all(),
             'status' => 'aberta',
             'solicitado_em' => now(),
         ]);
+
+        foreach ($fotos as $foto) {
+            $path = $foto->store("manutencao-fotos/{$ordem->id}", 'public');
+
+            FotoOrdemManutencao::create([
+                'ordem_manutencao_id' => $ordem->id,
+                'path' => $path,
+            ]);
+        }
+
+        return $ordem;
     }
 
     /**

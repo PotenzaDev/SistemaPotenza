@@ -18,7 +18,7 @@ class ManutencaoAdminController extends Controller
 {
     use ApiResponseTrait;
 
-    private const RELACOES = ['maquina.etapaFluxo', 'pecas', 'servicos'];
+    private const RELACOES = ['maquina.etapaFluxo', 'pecas', 'servicos', 'fotos'];
 
     public function __construct(private readonly ManutencaoService $manutencaoService)
     {
@@ -33,7 +33,7 @@ class ManutencaoAdminController extends Controller
 
     public function store(SolicitarManutencaoRequest $request): JsonResponse
     {
-        $ordem = $this->manutencaoService->criarSolicitacao($request->validated());
+        $ordem = $this->manutencaoService->criarSolicitacao($request->validated(), $request->file('fotos', []));
 
         return $this->successResponse(
             new OrdemManutencaoResource($ordem->load(self::RELACOES)),

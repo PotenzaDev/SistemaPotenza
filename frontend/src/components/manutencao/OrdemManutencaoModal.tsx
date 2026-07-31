@@ -261,6 +261,26 @@ export function OrdemManutencaoModal({ ordem, onClose, onUpdate }: OrdemManutenc
               <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Motivo</span>
               <span className="text-sm text-slate-300">{ordem.motivo}</span>
             </div>
+            {ordem.fotos.length > 0 && (
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Fotos ({ordem.fotos.length})
+                </span>
+                <div className="flex gap-2 flex-wrap">
+                  {ordem.fotos.map(foto => (
+                    <a
+                      key={foto.id}
+                      href={foto.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-16 h-16 rounded-lg overflow-hidden border border-white/10 hover:border-[#00aa84]/50 transition-colors"
+                    >
+                      <img src={foto.url} alt="Foto da solicitação" className="w-full h-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             {ordem.atendido_em && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Atendido em</span>

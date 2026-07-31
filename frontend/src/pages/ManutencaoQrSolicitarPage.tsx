@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { Wrench, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import axios from 'axios'
 import { getMaquinaPublica, criarOrdemPublica, type MaquinaPublica, type PrioridadeQr } from '@/api/manutencao'
+import { FotoUploadInput } from '@/components/manutencao/FotoUploadInput'
 
 const PRIORIDADES: Array<{ value: PrioridadeQr; label: string; cor: string }> = [
   { value: 'baixa',   label: 'Baixa',   cor: 'border-slate-500 text-slate-300' },
@@ -21,6 +22,7 @@ export function ManutencaoQrSolicitarPage() {
   const [solicitante, setSolicitante] = useState('')
   const [motivo, setMotivo]           = useState('')
   const [prioridade, setPrioridade]   = useState<PrioridadeQr>('normal')
+  const [fotos, setFotos]             = useState<File[]>([])
 
   const [enviando, setEnviando]       = useState(false)
   const [sucesso, setSucesso]         = useState(false)
@@ -43,6 +45,7 @@ export function ManutencaoQrSolicitarPage() {
     setSolicitante('')
     setMotivo('')
     setPrioridade('normal')
+    setFotos([])
     setSucesso(false)
     setErroApi(null)
   }
@@ -59,7 +62,7 @@ export function ManutencaoQrSolicitarPage() {
         solicitante: solicitante.trim(),
         motivo: motivo.trim(),
         prioridade,
-      })
+      }, fotos)
       setSucesso(true)
     } catch (err) {
       setErroApi(
@@ -177,6 +180,12 @@ export function ManutencaoQrSolicitarPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Fotos */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-300">Fotos (opcional)</label>
+              <FotoUploadInput fotos={fotos} onChange={setFotos} />
             </div>
 
             {/* Botão enviar */}

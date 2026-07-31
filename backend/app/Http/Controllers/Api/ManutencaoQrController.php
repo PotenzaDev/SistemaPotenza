@@ -31,10 +31,10 @@ class ManutencaoQrController extends Controller
         $ordem = $this->manutencaoService->criarSolicitacao([
             ...$request->validated(),
             'maquina_id' => $maquinaId->id,
-        ]);
+        ], $request->file('fotos', []));
 
         return $this->successResponse(
-            new OrdemManutencaoResource($ordem->load(['maquina.etapaFluxo', 'pecas', 'servicos'])),
+            new OrdemManutencaoResource($ordem->load(['maquina.etapaFluxo', 'pecas', 'servicos', 'fotos'])),
             'Solicitação registrada com sucesso.',
             201
         );

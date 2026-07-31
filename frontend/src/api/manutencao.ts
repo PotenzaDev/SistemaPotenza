@@ -9,6 +9,17 @@ const publicClient = axios.create({
   headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
 })
 
+// Em axios v1.x, setContentType(undefined) é no-op — o default
+// 'application/json' vaza para requisições multipart, fazendo o
+// backend receber Content-Type errado e rejeitar o upload com 422.
+// Removemos explicitamente para o browser colocar o boundary correto.
+publicClient.interceptors.request.use((config) => {
+  if (config.data instanceof FormData) {
+    config.headers.delete('Content-Type')
+  }
+  return config
+})
+
 export type StatusOrdem = 'aberta' | 'em_atendimento' | 'pausada' | 'concluida' | 'cancelada'
 export type Prioridade = 'critica' | 'alta' | 'normal' | 'baixa'
 
@@ -40,6 +51,7 @@ export interface OrdemManutencao {
   concluido_em: string | null
   pecas: PecaOrdemManutencao[]
   servicos: ServicoOrdemManutencao[]
+  fotos: { id: number; url: string }[]
 }
 
 export interface CriarOrdemData {
@@ -62,9 +74,17 @@ export async function getOrdensAbertas(signal?: AbortSignal): Promise<OrdemManut
   return res.data.data
 }
 
-export async function criarOrdem(data: CriarOrdemData): Promise<OrdemManutencao> {
-  const res = await apiClient.post<ApiEnvelope<OrdemManutencao>>('/manutencao/solicitar', data)
+export async function criarOrdem(data: CriarOrdemData, fotos: File[] = []): Promise<OrdemManutencao> {
+  const payload = fotos.length > 0 ? paraFormData(data, fotos) : data
+  const res = await apiClient.post<ApiEnvelope<OrdemManutencao>>('/manutencao/solicitar', payload)
   return res.data.data
+}
+
+function paraFormData(data: object, fotos: File[]): FormData {
+  const formData = new FormData()
+  Object.entries(data).forEach(([key, value]) => formData.append(key, String(value)))
+  fotos.forEach(foto => formData.append('fotos[]', foto))
+  return formData
 }
 
 export async function criarOrdemAdmin(data: CriarOrdemData): Promise<OrdemManutencao> {
@@ -124,10 +144,12 @@ export async function getMaquinaPublica(id: number, signal?: AbortSignal): Promi
 export async function criarOrdemPublica(
   maquinaId: number,
   data: { solicitante: string; motivo: string; prioridade: PrioridadeQr },
+  fotos: File[] = [],
 ): Promise<OrdemManutencao> {
+  const payload = fotos.length > 0 ? paraFormData(data, fotos) : data
   const res = await publicClient.post<ApiEnvelope<OrdemManutencao>>(
     `/publica/manutencao/${maquinaId}/solicitar`,
-    data,
+    payload,
   )
   return res.data.data
 }
