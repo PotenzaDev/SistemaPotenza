@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-enable sqlsrv pdo_sqlsrv \
     && rm -rf /var/lib/apt/lists/*
 
+RUN printf 'upload_max_filesize=6M\npost_max_size=40M\nmax_file_uploads=10\n' > /usr/local/etc/php/conf.d/uploads.ini
+
 WORKDIR /var/www
 
 COPY composer.json composer.lock ./
