@@ -6,7 +6,6 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class OrdemManutencaoResource extends JsonResource
 {
@@ -46,7 +45,7 @@ class OrdemManutencaoResource extends JsonResource
             ]),
             'fotos' => $this->fotos->map(fn ($foto) => [
                 'id' => $foto->id,
-                'url' => Storage::disk('public')->url($foto->path),
+                'url' => '/storage/' . $foto->path,
             ]),
         ];
     }
