@@ -27,8 +27,11 @@ export interface RegraMaquina {
 export interface Maquina {
   id: number
   nome: string
+  marca: string | null
+  modelo: string | null
   codigo: string | null
   ano: number | null
+  nome_com_codigo?: string
   descricao: string | null
   ativa: boolean
   foto_url: string | null

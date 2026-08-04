@@ -13,6 +13,8 @@ interface Props {
 
 interface FormState {
   nome: string
+  marca: string
+  modelo: string
   codigo: string
   ano: string
   descricao: string
@@ -33,6 +35,8 @@ interface FormState {
 
 const EMPTY: FormState = {
   nome: '',
+  marca: '',
+  modelo: '',
   codigo: '',
   ano: '',
   descricao: '',
@@ -56,6 +60,8 @@ function fromMaquina(m: Maquina): FormState {
   const regras = m.regra_maquina
   return {
     nome:          m.nome,
+    marca:         m.marca ?? '',
+    modelo:        m.modelo ?? '',
     codigo:        m.codigo ?? '',
     ano:           m.ano ? String(m.ano) : '',
     descricao:     m.descricao ?? '',
@@ -139,7 +145,7 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
     e.preventDefault()
     setError(null)
 
-    if (!form.nome.trim())    { setError('O campo Modelo é obrigatório.'); return }
+    if (!form.nome.trim())    { setError('O campo Nome é obrigatório.'); return }
     if (!form.etapa_fluxo_id) { setError('Selecione um grupo.'); return }
     if (foto && !foto.type.startsWith('image/')) {
       setError('O arquivo selecionado não é uma imagem. Use PNG, JPG ou WEBP.')
@@ -154,6 +160,8 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
     data.append('nome',            form.nome.trim())
     data.append('etapa_fluxo_id',  form.etapa_fluxo_id)
     data.append('ativa',           form.ativa ? '1' : '0')
+    if (form.marca.trim())     data.append('marca',     form.marca.trim())
+    if (form.modelo.trim())    data.append('modelo',    form.modelo.trim())
     if (form.codigo.trim())    data.append('codigo',    form.codigo.trim())
     if (form.ano.trim())       data.append('ano',       form.ano.trim())
     if (form.descricao.trim()) data.append('descricao', form.descricao.trim())
@@ -297,10 +305,10 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
             )}
           </div>
 
-          {/* modelo */}
+          {/* nome */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              Modelo <span className="text-red-400">*</span>
+              Nome <span className="text-red-400">*</span>
             </label>
             <input
               name="nome"
@@ -309,6 +317,30 @@ export function MaquinaFormModal({ open, onClose, onSuccess, initialData }: Prop
               placeholder="Ex: CNC Romi"
               className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors"
             />
+          </div>
+
+          {/* marca + modelo */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Marca</label>
+              <input
+                name="marca"
+                value={form.marca}
+                onChange={handleField}
+                placeholder="Ex: Romi"
+                className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Modelo</label>
+              <input
+                name="modelo"
+                value={form.modelo}
+                onChange={handleField}
+                placeholder="Ex: GL 240M"
+                className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00aa84]/60 focus:bg-[#00aa84]/5 transition-colors"
+              />
+            </div>
           </div>
 
           {/* codigo + ano */}

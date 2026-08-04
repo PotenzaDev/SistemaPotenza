@@ -20,6 +20,8 @@ class UpdateMaquinaRequest extends FormRequest
         return [
             'etapa_fluxo_id' => ['sometimes', 'integer', 'exists:etapas_fluxo,id'],
             'nome' => ['sometimes', 'string', 'max:100'],
+            'marca' => ['nullable', 'string', 'max:100'],
+            'modelo' => ['nullable', 'string', 'max:100'],
             'codigo' => ['nullable', 'string', 'max:50', 'unique:maquinas,codigo,' . $id],
             'ano' => ['nullable', 'integer', 'min:1900', 'max:2100'],
             'descricao' => ['nullable', 'string'],

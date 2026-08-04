@@ -40,10 +40,12 @@ const maquinaColumns: ResponsiveTableColumn<Maquina>[] = [
   },
   {
     key: 'nome',
-    header: 'Modelo',
+    header: 'Nome',
     render: (m) => m.nome,
     cellClassName: 'px-4 py-3 font-medium text-white',
   },
+  { key: 'marca', header: 'Marca', render: (m) => m.marca ?? '—' },
+  { key: 'modelo', header: 'Modelo', render: (m) => m.modelo ?? '—' },
   {
     key: 'codigo',
     header: 'Código',

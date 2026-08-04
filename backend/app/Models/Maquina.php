@@ -18,6 +18,8 @@ class Maquina extends Model
     protected $fillable = [
         'etapa_fluxo_id',
         'nome',
+        'marca',
+        'modelo',
         'codigo',
         'ano',
         'descricao',
@@ -40,7 +42,9 @@ class Maquina extends Model
 
     public function getNomeComCodigoAttribute(): string
     {
-        return $this->codigo ? "{$this->nome} - {$this->codigo}" : $this->nome;
+        $partes = array_filter([$this->nome, $this->marca, $this->modelo, $this->codigo]);
+
+        return implode(' - ', $partes);
     }
 
     public function etapaFluxo(): BelongsTo

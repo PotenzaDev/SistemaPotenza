@@ -18,6 +18,8 @@ class StoreMaquinaRequest extends FormRequest
         return [
             'etapa_fluxo_id' => ['required', 'integer', 'exists:etapas_fluxo,id'],
             'nome' => ['required', 'string', 'max:100'],
+            'marca' => ['nullable', 'string', 'max:100'],
+            'modelo' => ['nullable', 'string', 'max:100'],
             'codigo' => ['nullable', 'string', 'max:50', 'unique:maquinas,codigo'],
             'ano' => ['nullable', 'integer', 'min:1900', 'max:2100'],
             'descricao' => ['nullable', 'string'],
