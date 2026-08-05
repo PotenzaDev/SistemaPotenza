@@ -130,6 +130,42 @@ class RelatorioTimelineMaquinaTest extends TestCase
         $this->assertFalse(collect($timeline['maquinas'])->contains('maquina_id', $maquinaSem->id));
     }
 
+    public function test_maquina_com_sessao_cancelada_mas_apontamento_finalizado_continua_na_timeline(): void
+    {
+        // Regressão: cancelar uma sessão (soft delete) não pode fazer a
+        // máquina sumir da timeline de um dia em que ela teve produção real
+        // e finalizada antes do cancelamento.
+        $segunda = Carbon::parse('2026-06-08 00:00:00'); // turno 08:00-17:00
+        Carbon::setTestNow($segunda->copy()->setTime(12, 0));
+
+        $etapa = EtapaFluxo::factory()->create(['ativa' => true]);
+        $maquina = Maquina::factory()->create(['etapa_fluxo_id' => $etapa->id, 'ativa' => true]);
+
+        $sessao = $this->criarSessao($maquina, $segunda->copy()->setTime(7, 30));
+
+        Apontamento::create([
+            'sessao_trabalho_id' => $sessao->id,
+            'etapa_fluxo_id' => $etapa->id,
+            'cod_peca' => '1234567',
+            'ordem_lote' => '00001',
+            'desc_peca' => 'Peça Teste',
+            'cod_produto' => 'PROD-0001',
+            'qtde_total' => 100,
+            'status' => Apontamento::STATUS_FINALIZADO,
+            'setup_inicio' => $segunda->copy()->setTime(8, 0),
+            'setup_fim' => $segunda->copy()->setTime(8, 30),
+            'producao_inicio' => $segunda->copy()->setTime(8, 30),
+            'producao_fim' => $segunda->copy()->setTime(10, 0),
+        ]);
+
+        $sessao->delete(); // soft delete, equivalente a SessaoTrabalhoService::cancelar()
+
+        $timeline = app(TimelineMaquinaService::class)->timelineDoDia($segunda, $maquina->id);
+
+        $this->assertCount(1, $timeline['maquinas']);
+        $this->assertSame($maquina->id, $timeline['maquinas'][0]['maquina_id']);
+    }
+
     public function test_dia_sem_turno_configurado_retorna_turno_nulo_e_sem_maquinas(): void
     {
         $sabado = Carbon::parse('2026-06-13 00:00:00'); // seeder não cadastra sábado

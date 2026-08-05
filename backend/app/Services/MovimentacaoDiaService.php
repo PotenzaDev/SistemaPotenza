@@ -65,7 +65,11 @@ class MovimentacaoDiaService
         return $this->apontamentosNoDia($inicioDia, $fimDia, function (Builder $query) use ($ids) {
             $query->withTrashed()->whereIn('maquina_id', $ids);
         })
-            ->with('sessaoTrabalho:id,maquina_id')
+            // withTrashed() aqui também: sem isso, apontamentos cuja sessão
+            // foi cancelada (soft-deleted) carregam a relação como null e
+            // pluck('sessaoTrabalho.maquina_id') abaixo perde o maquina_id
+            // real — fazendo a máquina inteira sumir da timeline do dia.
+            ->with(['sessaoTrabalho' => fn ($q) => $q->withTrashed()->select('id', 'maquina_id')])
             ->get()
             ->pluck('sessaoTrabalho.maquina_id')
             ->unique()
