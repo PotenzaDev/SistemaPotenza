@@ -184,7 +184,6 @@ export function MaquinasPage() {
   }
 
   function openBatchPrint() {
-    if (grupoId === '') return
     if (filtered.length === 0) return
     setPrintBatch(filtered)
   }
@@ -221,7 +220,7 @@ export function MaquinasPage() {
     })
 
     if (items.length > 0) {
-      const grupoNome = grupos.find(g => g.id === grupoId)?.nome ?? 'Grupo'
+      const grupoNome = grupoId === '' ? 'Todas as Máquinas' : (grupos.find(g => g.id === grupoId)?.nome ?? 'Grupo')
       openPrintWindow(`QR Codes - ${grupoNome}`, items)
     }
 
@@ -333,12 +332,12 @@ export function MaquinasPage() {
 
         <button
           onClick={openBatchPrint}
-          disabled={grupoId === ''}
-          title={grupoId === '' ? 'Selecione um grupo para imprimir todos os QR Codes' : 'Imprimir QR Codes de todas as máquinas do grupo'}
+          disabled={filtered.length === 0}
+          title={filtered.length === 0 ? 'Nenhuma máquina para imprimir' : grupoId === '' ? 'Imprimir QR Codes de todas as máquinas' : 'Imprimir QR Codes de todas as máquinas do grupo'}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 rounded-lg transition-colors"
         >
           <Printer className="w-4 h-4" />
-          Imprimir QR Codes do Grupo
+          {grupoId === '' ? 'Imprimir Todos os QR Codes' : 'Imprimir QR Codes do Grupo'}
         </button>
       </div>
 
