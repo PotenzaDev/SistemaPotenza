@@ -20,6 +20,8 @@ export interface FichaApontamento {
   cor_codigo: string | null
   pilha: number
   qtd_peca: number
+  /** Metros lineares de fita de borda desta ficha — só preenchido no fluxo de Coladeira. */
+  metros_lineares_borda: number | null
   qtd_produzida: number | null
   total_pilhas: number
   bipada_at: string
@@ -36,6 +38,12 @@ export interface Apontamento {
   desc_peca: string | null
   cod_produto: string | null
   qtde_total: number | null
+  /** Dimensões da ficha técnica do lote — só preenchidas no fluxo de Coladeira. */
+  comprimento: number | null
+  largura: number | null
+  espessura: number | null
+  qtd_bor_comp: number | null
+  qtd_bor_larg: number | null
   numero_passagem: number
   apontamento_origem_id: number | null
   status:

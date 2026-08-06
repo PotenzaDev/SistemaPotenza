@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\ApontamentoController;
+use App\Http\Controllers\Api\ApontamentoColadeiraController;
 use App\Http\Controllers\Api\ApontamentoCorteController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BrocaController;
@@ -99,6 +100,14 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:operario'])->g
         Route::post('/bipar', [ApontamentoCorteController::class, 'bipar']);
         Route::get('/{apontamento}/checklist', [ApontamentoCorteController::class, 'checklist']);
         Route::post('/{apontamento}/finalizar', [ApontamentoCorteController::class, 'finalizar']);
+    });
+
+    // Apontamento de coladeira: setup + bipagem por ficha/pilha igual ao fluxo
+    // genérico, mas grava metros lineares de borda por ficha. Pausar/retomar/
+    // finalizar-setup/finalizar reaproveitam as rotas de /apontamento/* acima.
+    Route::prefix('apontamento-coladeira')->group(function () {
+        Route::post('/bipar', [ApontamentoColadeiraController::class, 'bipar']);
+        Route::post('/{apontamento}/bipar-ficha', [ApontamentoColadeiraController::class, 'biparFicha']);
     });
 
     Route::get('/manutencao', [ManutencaoPublicoController::class, 'index']);

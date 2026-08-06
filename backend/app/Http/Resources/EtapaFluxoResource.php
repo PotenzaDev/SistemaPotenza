@@ -18,6 +18,7 @@ class EtapaFluxoResource extends JsonResource
             'ativa' => (bool) $this->ativa,
             'requer_config_cabecote' => (bool) $this->requer_config_cabecote,
             'apontamento_por_lote' => (bool) $this->apontamento_por_lote,
+            'calcula_metragem_borda' => (bool) $this->calcula_metragem_borda,
         ];
     }
 }

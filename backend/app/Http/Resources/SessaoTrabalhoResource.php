@@ -36,6 +36,7 @@ class SessaoTrabalhoResource extends JsonResource
                         'nome'                 => $this->maquina->etapaFluxo->nome,
                         'ordem'                => $this->maquina->etapaFluxo->ordem,
                         'apontamento_por_lote' => (bool) $this->maquina->etapaFluxo->apontamento_por_lote,
+                        'calcula_metragem_borda' => (bool) $this->maquina->etapaFluxo->calcula_metragem_borda,
                     ]
                 ),
                 'regra_maquina' => $this->when(

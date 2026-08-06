@@ -20,12 +20,14 @@ class EtapaFluxo extends Model
         'ativa',
         'requer_config_cabecote',
         'apontamento_por_lote',
+        'calcula_metragem_borda',
     ];
 
     protected $casts = [
         'ativa' => 'boolean',
         'requer_config_cabecote' => 'boolean',
         'apontamento_por_lote' => 'boolean',
+        'calcula_metragem_borda' => 'boolean',
     ];
 
     public function maquinas(): HasMany

@@ -18,6 +18,7 @@ class FichaApontamentoResource extends JsonResource
             'cor_codigo'       => $this->cor_codigo,
             'pilha'            => $this->pilha,
             'qtd_peca'         => $this->qtd_peca,
+            'metros_lineares_borda' => $this->metros_lineares_borda,
             'qtd_produzida'    => $this->qtd_produzida,
             'total_pilhas'     => $this->total_pilhas,
             'bipada_at'        => $this->bipada_at?->toIso8601String(),

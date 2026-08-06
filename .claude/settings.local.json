@@ -98,7 +98,9 @@
       "Bash(vendor/bin/phpunit --filter=ApontamentoMultiplasPecasLoteTest)",
       "Bash(gh pr *)",
       "Read(//c/Gustavo/Potenza/**)",
-      "Bash(vendor/bin/phpunit --filter=ApontamentoCorteTest)"
+      "Bash(vendor/bin/phpunit --filter=ApontamentoCorteTest)",
+      "Bash(powershell -NoProfile -Command \"Get-Content 'C:\\\\Gustavo\\\\Potenza\\\\SistemaApontamento\\\\backend\\\\app\\\\Services\\\\Produto\\\\ProdutoPecaLookupService.php'\")",
+      "Bash(Select-Object -First 60)"
     ]
   }
 }

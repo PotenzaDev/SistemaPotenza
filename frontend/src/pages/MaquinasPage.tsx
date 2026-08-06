@@ -117,7 +117,7 @@ function buildQrPrintHtml(title: string, items: QrPrintItem[]): string {
       .qr-card { display:flex; align-items:center; gap:6mm; width:100%; height:100%; }
       .qr-card svg { width:32mm; height:32mm; flex-shrink:0; }
       .qr-info { display:flex; flex-direction:column; justify-content:center; overflow:hidden; }
-      h2 { margin:0 0 4px; font-size:14px; color:#111; }
+      h2 { margin:0 0 4px; font-size:26px; font-weight:700; line-height:1.15; color:#111; overflow-wrap:break-word; }
       p { margin:0; font-size:9px; color:#555; word-break:break-all; }
     </style></head>
     <body>${pages}</body></html>

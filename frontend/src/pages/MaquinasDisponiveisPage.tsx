@@ -9,11 +9,14 @@ import { EscolherSessaoModal } from '@/components/EscolherSessaoModal'
 import { InformarTurnoModal } from '@/components/InformarTurnoModal'
 import { useAuth } from '@/hooks/useAuth'
 
-/** Máquinas de corte (por lote) têm uma tela de apontamento própria, sem etapa de setup. */
+/**
+ * Máquinas de corte (por lote) e de coladeira (metragem de borda) têm telas
+ * de apontamento próprias; as demais usam a tela genérica.
+ */
 function destinoApontamento(sessao: Sessao): string {
-  return sessao.maquina.etapa_fluxo?.apontamento_por_lote
-    ? '/operario/apontamento-corte'
-    : '/operario/apontamento'
+  if (sessao.maquina.etapa_fluxo?.apontamento_por_lote) return '/operario/apontamento-corte'
+  if (sessao.maquina.etapa_fluxo?.calcula_metragem_borda) return '/operario/apontamento-coladeira'
+  return '/operario/apontamento'
 }
 
 export function MaquinasDisponiveisPage() {
