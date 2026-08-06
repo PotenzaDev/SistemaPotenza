@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Dimensões da ficha técnica do lote (Espess/Comp/Larg/QtdBorComp/QtdBorLarg,
  * vindas de FbmLoteFichaTecnica) capturadas uma vez ao bipar — mesmo padrão
- * de qtde_total. Usadas hoje só pelo fluxo de Coladeira para calcular metros
- * lineares de borda por ficha; ficam nullable para as demais etapas.
+ * de qtde_total. Comprimento/largura já vêm em metro (espessura em milímetro,
+ * mas não é usada na conta). Usadas hoje só pelo fluxo de Coladeira para
+ * calcular metros lineares de borda por ficha; ficam nullable para as demais
+ * etapas.
  */
 return new class extends Migration
 {

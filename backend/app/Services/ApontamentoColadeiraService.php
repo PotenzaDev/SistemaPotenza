@@ -293,6 +293,12 @@ class ApontamentoColadeiraService
         return $apontamento->load(['etapaFluxo', 'fichas', 'pausas.motivoPausa']);
     }
 
+    /**
+     * comprimento/largura vêm de FbmLoteFichaTecnica já em metro (confirmado
+     * com dado real: Comp=0.4820/Larg=0.3010 para uma peça de porta de
+     * 48,2x30,1cm — só espessura vem em milímetro, e não entra nesta conta).
+     * Sem conversão de unidade aqui.
+     */
     private function calcularMetrosLinearesBorda(Apontamento $apontamento, int $qtdPeca): float
     {
         $comprimento = (float) ($apontamento->comprimento ?? 0);

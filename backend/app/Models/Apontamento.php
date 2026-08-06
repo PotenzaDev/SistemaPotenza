@@ -44,9 +44,9 @@ class Apontamento extends Model
     protected $casts = [
         'qtde_total'                => 'integer',
         'ftec_peca_pilha'           => 'integer',
-        'comprimento'               => 'decimal:4',
-        'largura'                   => 'decimal:4',
-        'espessura'                 => 'decimal:4',
+        'comprimento'               => 'float',
+        'largura'                   => 'float',
+        'espessura'                 => 'float',
         'qtd_bor_comp'              => 'integer',
         'qtd_bor_larg'              => 'integer',
         'setup_inicio'              => 'datetime',

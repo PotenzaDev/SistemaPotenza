@@ -30,7 +30,7 @@ class FichaApontamento extends Model
         'bipada_at'        => 'datetime',
         'fim_producao'     => 'datetime',
         'qtd_peca'         => 'integer',
-        'metros_lineares_borda' => 'decimal:4',
+        'metros_lineares_borda' => 'float',
         'pilha'            => 'integer',
         'qtd_produzida'    => 'integer',
         'total_pilhas'     => 'integer',
