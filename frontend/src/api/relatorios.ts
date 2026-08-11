@@ -127,9 +127,13 @@ export interface LinhaRelatorioApontamento {
   data: string
   maquina_id: number
   maquina: string
+  setor: string | null
+  user_id: number | null
   operario_id: number
   usuario: string
   lote: string
+  qtd_total_produzida: number
+  fichas: string
   tipo: TipoSegmentoApontamento
   motivo_pausa: string | null
   inicio: string

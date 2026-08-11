@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Apontamento;
+use App\Models\FichaApontamento;
 use App\Models\Maquina;
+use App\Models\Produto;
 use App\Models\SessaoTrabalho;
 use App\Models\Turno;
 use Carbon\Carbon;
@@ -401,7 +403,7 @@ class RelatorioProducaoService
         // restar algum apontamento (necessariamente finalizado) — mesmo
         // critério usado nos demais relatórios desta classe.
         $sessoes = SessaoTrabalho::withTrashed()
-            ->with(['operario.user', 'maquina', 'apontamentos.pausas.motivoPausa'])
+            ->with(['operario.user', 'maquina.etapaFluxo', 'apontamentos.pausas.motivoPausa', 'apontamentos.fichas'])
             ->where('inicio', '<=', $periodoFim)
             ->where(function ($query) use ($periodoInicio) {
                 $query->whereNull('fim')->orWhere('fim', '>=', $periodoInicio);
@@ -413,6 +415,22 @@ class RelatorioProducaoService
             ->when($operarioId, fn ($query) => $query->where('operario_id', $operarioId))
             ->get();
 
+        $codsProduto = $sessoes
+            ->flatMap(fn (SessaoTrabalho $sessao) => $sessao->apontamentos)
+            ->flatMap(fn (Apontamento $apontamento) => $apontamento->fichas)
+            ->pluck('cod_produto')
+            ->filter()
+            ->unique();
+
+        // Resolvido em lote (1 query + pecas eager) para não fazer N+1 por
+        // ficha — mesma convenção de match (numero == cod_peca) usada em
+        // ProdutoPecaLookupService::resolver().
+        $produtosPorCodigo = Produto::query()
+            ->whereIn('cod_produto', $codsProduto)
+            ->with('pecas')
+            ->get()
+            ->keyBy('cod_produto');
+
         $linhas = [];
 
         foreach ($sessoes as $sessao) {
@@ -420,25 +438,32 @@ class RelatorioProducaoService
             $operario = $sessao->operario?->user?->name;
 
             foreach ($sessao->apontamentos as $apontamento) {
+                $qtdTotalProduzida = $apontamento->fichas->sum('qtd_produzida');
+                $fichas            = $this->resumoFichas($apontamento->fichas, $produtosPorCodigo);
+
                 foreach ($this->calculo->segmentosApontamento($apontamento, $agora) as $segmento) {
                     if ($segmento['inicio']->lessThan($periodoInicio) || $segmento['inicio']->greaterThan($periodoFim)) {
                         continue;
                     }
 
                     $linhas[] = [
-                        'data'             => $segmento['inicio']->toDateString(),
-                        'maquina_id'       => $sessao->maquina_id,
-                        'maquina'          => $maquina,
-                        'operario_id'      => $sessao->operario_id,
-                        'usuario'          => $operario,
-                        'lote'             => $apontamento->ordem_lote,
-                        'tipo'             => $segmento['tipo'],
-                        'motivo_pausa'     => $segmento['motivo'] ?? null,
+                        'data'                => $segmento['inicio']->toDateString(),
+                        'maquina_id'          => $sessao->maquina_id,
+                        'maquina'             => $maquina,
+                        'setor'               => $sessao->maquina?->etapaFluxo?->nome,
+                        'user_id'             => $sessao->operario?->user_id,
+                        'operario_id'         => $sessao->operario_id,
+                        'usuario'             => $operario,
+                        'lote'                => $apontamento->ordem_lote,
+                        'qtd_total_produzida' => $qtdTotalProduzida,
+                        'fichas'              => $fichas,
+                        'tipo'                => $segmento['tipo'],
+                        'motivo_pausa'        => $segmento['motivo'] ?? null,
                         // format(), não toISOString(): a exportação precisa do horário
                         // local (relógio do turno), não do instante em UTC.
-                        'inicio'           => $segmento['inicio']->format('Y-m-d H:i:s'),
-                        'fim'              => $segmento['fim']->format('Y-m-d H:i:s'),
-                        'duracao_segundos' => (int) $segmento['inicio']->diffInSeconds($segmento['fim']),
+                        'inicio'              => $segmento['inicio']->format('Y-m-d H:i:s'),
+                        'fim'                 => $segmento['fim']->format('Y-m-d H:i:s'),
+                        'duracao_segundos'    => (int) $segmento['inicio']->diffInSeconds($segmento['fim']),
                     ];
                 }
             }
@@ -448,6 +473,33 @@ class RelatorioProducaoService
             <=> [$b['data'], $b['maquina'], $b['usuario'], $b['inicio']]);
 
         return $linhas;
+    }
+
+    /**
+     * Resumo textual de todas as fichas (pilhas) de um apontamento, com nome
+     * da peça e do produto resolvidos a partir do cadastro local (quando
+     * importado) — mesma convenção de match (numero == cod_peca) usada em
+     * ProdutoPecaLookupService::resolver(). Ficha sem produto cadastrado
+     * localmente cai no código bruto.
+     *
+     * @param  Collection<int, FichaApontamento>  $fichas
+     * @param  Collection<string, Produto>  $produtosPorCodigo
+     */
+    private function resumoFichas(Collection $fichas, Collection $produtosPorCodigo): string
+    {
+        return $fichas->map(function (FichaApontamento $ficha) use ($produtosPorCodigo) {
+            $produto = $produtosPorCodigo->get($ficha->cod_produto);
+            $codPeca = trim($ficha->cod_peca);
+
+            $peca = ($produto && is_numeric($codPeca))
+                ? $produto->pecas->firstWhere('numero', (int) (float) $codPeca)
+                : null;
+
+            $nomeProduto = $produto?->nome ?? $ficha->cod_produto;
+            $nomePeca    = $peca?->nome ?? $ficha->cod_peca;
+
+            return "Pilha {$ficha->pilha}: {$nomePeca} ({$nomeProduto}) {$ficha->qtd_produzida}/{$ficha->qtd_peca}";
+        })->implode('; ');
     }
 
     /**

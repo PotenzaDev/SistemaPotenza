@@ -6,10 +6,13 @@ namespace Tests\Feature;
 
 use App\Models\Apontamento;
 use App\Models\EtapaFluxo;
+use App\Models\FichaApontamento;
 use App\Models\Maquina;
 use App\Models\MotivoPausa;
 use App\Models\Operario;
 use App\Models\Pausa;
+use App\Models\Produto;
+use App\Models\ProdutoPeca;
 use App\Models\SessaoTrabalho;
 use App\Models\User;
 use App\Services\RelatorioProducaoService;
@@ -99,6 +102,54 @@ class RelatorioApontamentoTest extends TestCase
         $this->assertSame($maquina->nome_com_codigo, $relatorio[0]['maquina']);
         $this->assertSame($operario->user->name, $relatorio[0]['usuario']);
         $this->assertSame(7200, $relatorio[0]['duracao_segundos']); // 07:00-09:00
+    }
+
+    public function test_relatorio_inclui_ids_setor_qtd_produzida_e_resumo_de_fichas_com_nomes(): void
+    {
+        $segunda = Carbon::parse('2026-06-08 00:00:00');
+
+        [$operario, $maquina, $sessao] = $this->criarSessao($segunda->copy()->setTime(7, 0));
+
+        $produto = Produto::factory()->create(['cod_produto' => 'PROD-0001', 'nome' => 'Guarda-Roupa Duna']);
+        $peca    = ProdutoPeca::factory()->create(['produto_id' => $produto->id, 'numero' => 12, 'nome' => 'Porta Lateral']);
+
+        $apontamento = $this->criarApontamentoSimples($sessao, $segunda->copy()->setTime(8, 0), $segunda->copy()->setTime(9, 0));
+        $apontamento->update(['cod_produto' => 'PROD-0001']);
+
+        FichaApontamento::create([
+            'apontamento_id' => $apontamento->id,
+            'cod_peca'       => (string) $peca->numero,
+            'cod_produto'    => 'PROD-0001',
+            'pilha'          => 1,
+            'qtd_peca'       => 50,
+            'qtd_produzida'  => 50,
+            'bipada_at'      => $segunda->copy()->setTime(9, 0),
+        ]);
+
+        FichaApontamento::create([
+            'apontamento_id' => $apontamento->id,
+            'cod_peca'       => '9999', // sem ProdutoPeca cadastrada com esse número
+            'cod_produto'    => 'PROD-0001',
+            'pilha'          => 2,
+            'qtd_peca'       => 30,
+            'qtd_produzida'  => 20,
+            'bipada_at'      => $segunda->copy()->setTime(9, 5),
+        ]);
+
+        $relatorio = app(RelatorioProducaoService::class)->relatorioApontamentosPorPeriodo($segunda, $segunda);
+
+        $this->assertCount(1, $relatorio);
+        $linha = $relatorio[0];
+
+        $this->assertSame($maquina->id, $linha['maquina_id']);
+        $this->assertSame($operario->user_id, $linha['user_id']);
+        $this->assertSame($maquina->etapaFluxo->nome, $linha['setor']);
+        $this->assertSame(70, $linha['qtd_total_produzida']); // 50 + 20
+
+        $this->assertSame(
+            'Pilha 1: Porta Lateral (Guarda-Roupa Duna) 50/50; Pilha 2: 9999 (Guarda-Roupa Duna) 20/30',
+            $linha['fichas']
+        );
     }
 
     public function test_pausa_fim_de_turno_nao_gera_linha_mas_divide_o_segmento_entre_os_dias(): void
