@@ -16,6 +16,7 @@ import { TurnosPage }              from '@/pages/TurnosPage'
 import { RelatoriosPage }          from '@/pages/RelatoriosPage'
 import { RelatorioProducaoMaquinasPage } from '@/pages/RelatorioProducaoMaquinasPage'
 import { RelatorioTimelineMaquinasPage } from '@/pages/RelatorioTimelineMaquinasPage'
+import { RelatorioApontamentosPage } from '@/pages/RelatorioApontamentosPage'
 import { AdminPerfilPage }          from '@/pages/AdminPerfilPage'
 import { ActivityLogPage }          from '@/pages/ActivityLogPage'
 import { UsuariosSistemaPage }      from '@/pages/UsuariosSistemaPage'
@@ -106,6 +107,9 @@ function App() {
           } />
           <Route path="relatorios/timeline-maquinas" element={
             <ProtectedRoute requiredRotina="relatorios"><RelatorioTimelineMaquinasPage /></ProtectedRoute>
+          } />
+          <Route path="relatorios/apontamentos" element={
+            <ProtectedRoute requiredRotina="relatorios"><RelatorioApontamentosPage /></ProtectedRoute>
           } />
           <Route path="logs" element={
             <ProtectedRoute requiredRotina="logs"><ActivityLogPage /></ProtectedRoute>

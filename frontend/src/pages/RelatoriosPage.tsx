@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { FileBarChart, Cpu, Clock, type LucideIcon } from 'lucide-react'
+import { FileBarChart, Cpu, Clock, ClipboardList, type LucideIcon } from 'lucide-react'
 
 interface RelatorioInfo {
   to: string
@@ -20,6 +20,12 @@ const RELATORIOS: RelatorioInfo[] = [
     title: 'Linha do Tempo de Máquinas',
     description: 'Setup, produção, pausa e parado de cada máquina ao longo do turno, minuto a minuto.',
     icon: Clock,
+  },
+  {
+    to: '/admin/relatorios/apontamentos',
+    title: 'Apontamentos',
+    description: 'Setup, produção e pausas de cada apontamento em ordem cronológica, com opção de baixar em Excel.',
+    icon: ClipboardList,
   },
 ]
 

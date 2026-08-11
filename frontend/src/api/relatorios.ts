@@ -120,3 +120,71 @@ export async function getTimelineMaquinas(
   })
   return res.data.data
 }
+
+export type TipoSegmentoApontamento = 'setup' | 'producao' | 'pausa'
+
+export interface LinhaRelatorioApontamento {
+  data: string
+  maquina_id: number
+  maquina: string
+  operario_id: number
+  usuario: string
+  tipo: TipoSegmentoApontamento
+  motivo_pausa: string | null
+  inicio: string
+  fim: string
+  duracao_segundos: number
+}
+
+export interface OperarioFiltro {
+  id: number
+  nome: string
+}
+
+export interface FiltrosRelatorioApontamentos {
+  grupos: GrupoRelatorio[]
+  maquinas: MaquinaFiltro[]
+  operarios: OperarioFiltro[]
+}
+
+export interface RelatorioApontamentosFiltros {
+  dataInicio: string
+  dataFim: string
+  grupoId?: number
+  maquinaId?: number
+  operarioId?: number
+}
+
+function paramsRelatorioApontamentos(filtros: RelatorioApontamentosFiltros) {
+  return {
+    data_inicio: filtros.dataInicio,
+    data_fim:    filtros.dataFim,
+    grupo_id:    filtros.grupoId,
+    maquina_id:  filtros.maquinaId,
+    operario_id: filtros.operarioId,
+  }
+}
+
+export async function getRelatorioApontamentos(
+  filtros: RelatorioApontamentosFiltros,
+  signal?: AbortSignal,
+): Promise<LinhaRelatorioApontamento[]> {
+  const res = await apiClient.get<ApiEnvelope<LinhaRelatorioApontamento[]>>('/admin/relatorio-apontamentos', {
+    signal,
+    params: paramsRelatorioApontamentos(filtros),
+  })
+  return res.data.data
+}
+
+export async function getFiltrosRelatorioApontamentos(signal?: AbortSignal): Promise<FiltrosRelatorioApontamentos> {
+  const res = await apiClient.get<ApiEnvelope<FiltrosRelatorioApontamentos>>('/admin/relatorio-apontamentos/filtros', { signal })
+  return res.data.data
+}
+
+export async function baixarRelatorioApontamentosXlsx(filtros: RelatorioApontamentosFiltros): Promise<Blob> {
+  const res = await apiClient.get('/admin/relatorio-apontamentos/export', {
+    params: paramsRelatorioApontamentos(filtros),
+    responseType: 'blob',
+  })
+  return res.data
+}

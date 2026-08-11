@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\MaquinaController;
 use App\Http\Controllers\Api\MotivoPausaController;
 use App\Http\Controllers\Api\OperarioController;
 use App\Http\Controllers\Api\ProdutoController;
+use App\Http\Controllers\Api\RelatorioApontamentoController;
 use App\Http\Controllers\Api\RelatorioMaquinaController;
 use App\Http\Controllers\Api\RelatorioTurnoController;
 use App\Http\Controllers\Api\RotinaController;
@@ -126,6 +127,9 @@ Route::middleware(['auth:sanctum', 'check_password_change', 'role:gestor,admin,f
     Route::get('/admin/relatorio-maquinas', [RelatorioMaquinaController::class, 'index'])->middleware('module:relatorios');
     Route::get('/admin/relatorio-maquinas/filtros', [RelatorioMaquinaController::class, 'filtros'])->middleware('module:relatorios');
     Route::get('/admin/relatorio-timeline-maquinas', [RelatorioMaquinaController::class, 'timeline'])->middleware('module:relatorios');
+    Route::get('/admin/relatorio-apontamentos', [RelatorioApontamentoController::class, 'index'])->middleware('module:relatorios');
+    Route::get('/admin/relatorio-apontamentos/filtros', [RelatorioApontamentoController::class, 'filtros'])->middleware('module:relatorios');
+    Route::get('/admin/relatorio-apontamentos/export', [RelatorioApontamentoController::class, 'export'])->middleware('module:relatorios');
     Route::get('/apontamentos/hoje', [ApontamentoController::class, 'doDia'])->middleware('module:apontamentos');
     Route::get('/apontamentos/{apontamento}', [ApontamentoController::class, 'show'])->middleware('module:apontamentos');
 

@@ -184,6 +184,61 @@ class TurnoCalculoService
     }
 
     /**
+     * Segmentos completos (setup, produção e todas as pausas) de um
+     * apontamento, em ordem cronológica, sem recorte pelas janelas úteis do
+     * turno — usado na exportação do relatório de apontamentos, que precisa
+     * dos horários reais gravados, e não da fatia que caiu dentro do turno
+     * do dia (ver RelatorioProducaoService::relatorioApontamentosPorPeriodo).
+     *
+     * "Fim de Turno" é excluído por ser pausa automática de fechamento (mesmo
+     * critério de calcularPausasAvulsas()), não uma pausa real do operário.
+     *
+     * @return array<int, array{tipo: string, inicio: Carbon, fim: Carbon, motivo?: string|null}>
+     */
+    public function segmentosApontamento(Apontamento $apontamento, Carbon $agora): array
+    {
+        $segmentos = [];
+
+        foreach (['setup', 'producao'] as $fase) {
+            $inicio = $fase === 'setup' ? $apontamento->setup_inicio : $apontamento->producao_inicio;
+
+            if (! $inicio) {
+                continue;
+            }
+
+            $fim = ($fase === 'setup' ? $apontamento->setup_fim : $apontamento->producao_fim) ?? $agora;
+            $pausasFase = $apontamento->pausas->where('fase', $fase);
+
+            foreach ($this->subtrairIntervalos($inicio, $fim, $pausasFase, $agora) as $intervalo) {
+                $segmentos[] = ['tipo' => $fase, 'inicio' => $intervalo['inicio'], 'fim' => $intervalo['fim']];
+            }
+        }
+
+        foreach ($apontamento->pausas as $pausa) {
+            if ($pausa->motivoPausa?->nome === 'Fim de Turno') {
+                continue;
+            }
+
+            $fim = $pausa->fim ?? $agora;
+
+            if ($fim->lessThanOrEqualTo($pausa->inicio)) {
+                continue;
+            }
+
+            $segmentos[] = [
+                'tipo'   => 'pausa',
+                'inicio' => $pausa->inicio->copy(),
+                'fim'    => $fim->copy(),
+                'motivo' => $pausa->motivoPausa?->nome,
+            ];
+        }
+
+        usort($segmentos, fn (array $a, array $b) => $a['inicio']->timestamp <=> $b['inicio']->timestamp);
+
+        return $segmentos;
+    }
+
+    /**
      * Recorta [inicio, fim] pelas janelas úteis do turno, podendo produzir
      * mais de um pedaço quando o intervalo atravessa uma janela (ex.: um
      * apontamento que começou antes do almoço e terminou depois).

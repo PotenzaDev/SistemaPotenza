@@ -362,6 +362,94 @@ class RelatorioProducaoService
     }
 
     /**
+     * Relatório de apontamentos por período: uma linha por segmento (setup,
+     * produção ou pausa) de cada apontamento, na ordem em que aconteceram,
+     * com máquina, operário e — para pausas — o motivo. Usado na exportação
+     * em Excel (ver RelatorioApontamentoController::export).
+     *
+     * Ao contrário de relatorioPorDia()/relatorioMaquinasPorPeriodo(), os
+     * horários aqui não são recortados pela janela do turno: são os horários
+     * reais gravados no apontamento, já que o objetivo é reconstruir a
+     * sequência real do dia, não medir tempo de turno. Gaps de "aguardando"
+     * sem pausa registrada (entre fim do setup e início da produção) não
+     * geram linha — só entram trechos com tempo efetivamente atribuído
+     * (setup, produção ou pausa).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function relatorioApontamentosPorPeriodo(
+        Carbon $dataInicio,
+        Carbon $dataFim,
+        ?int $maquinaId = null,
+        ?int $grupoId = null,
+        ?int $operarioId = null,
+    ): array {
+        $periodoInicio = $dataInicio->copy()->startOfDay();
+        $periodoFim    = $dataFim->copy()->endOfDay();
+        $agora         = Carbon::now();
+
+        $maquinaIds = null;
+
+        if ($maquinaId || $grupoId) {
+            $maquinaIds = Maquina::query()
+                ->when($maquinaId, fn ($query) => $query->where('id', $maquinaId))
+                ->when($grupoId, fn ($query) => $query->where('etapa_fluxo_id', $grupoId))
+                ->pluck('id');
+        }
+
+        // withTrashed(): sessões canceladas (soft-deleted) só entram se ainda
+        // restar algum apontamento (necessariamente finalizado) — mesmo
+        // critério usado nos demais relatórios desta classe.
+        $sessoes = SessaoTrabalho::withTrashed()
+            ->with(['operario.user', 'maquina', 'apontamentos.pausas.motivoPausa'])
+            ->where('inicio', '<=', $periodoFim)
+            ->where(function ($query) use ($periodoInicio) {
+                $query->whereNull('fim')->orWhere('fim', '>=', $periodoInicio);
+            })
+            ->where(function ($query) {
+                $query->whereNull('deleted_at')->orWhereHas('apontamentos');
+            })
+            ->when($maquinaIds !== null, fn ($query) => $query->whereIn('maquina_id', $maquinaIds))
+            ->when($operarioId, fn ($query) => $query->where('operario_id', $operarioId))
+            ->get();
+
+        $linhas = [];
+
+        foreach ($sessoes as $sessao) {
+            $maquina  = $sessao->maquina?->nome_com_codigo;
+            $operario = $sessao->operario?->user?->name;
+
+            foreach ($sessao->apontamentos as $apontamento) {
+                foreach ($this->calculo->segmentosApontamento($apontamento, $agora) as $segmento) {
+                    if ($segmento['inicio']->lessThan($periodoInicio) || $segmento['inicio']->greaterThan($periodoFim)) {
+                        continue;
+                    }
+
+                    $linhas[] = [
+                        'data'             => $segmento['inicio']->toDateString(),
+                        'maquina_id'       => $sessao->maquina_id,
+                        'maquina'          => $maquina,
+                        'operario_id'      => $sessao->operario_id,
+                        'usuario'          => $operario,
+                        'tipo'             => $segmento['tipo'],
+                        'motivo_pausa'     => $segmento['motivo'] ?? null,
+                        // format(), não toISOString(): a exportação precisa do horário
+                        // local (relógio do turno), não do instante em UTC.
+                        'inicio'           => $segmento['inicio']->format('Y-m-d H:i:s'),
+                        'fim'              => $segmento['fim']->format('Y-m-d H:i:s'),
+                        'duracao_segundos' => (int) $segmento['inicio']->diffInSeconds($segmento['fim']),
+                    ];
+                }
+            }
+        }
+
+        usort($linhas, fn (array $a, array $b) => [$a['data'], $a['maquina'], $a['usuario'], $a['inicio']]
+            <=> [$b['data'], $b['maquina'], $b['usuario'], $b['inicio']]);
+
+        return $linhas;
+    }
+
+    /**
      * Existe alguma movimentação (setup, produção ou ficha bipada) das
      * sessões informadas sobrepondo [inicioDia, fimDia]? Verificação em
      * memória (as sessões/apontamentos/fichas já vêm eager-loaded do
