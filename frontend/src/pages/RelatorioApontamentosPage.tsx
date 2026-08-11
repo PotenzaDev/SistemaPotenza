@@ -136,6 +136,13 @@ export function RelatorioApontamentosPage() {
       cellClassName: 'px-4 py-3 text-slate-300',
     },
     {
+      key: 'lote',
+      header: 'Lote',
+      render: (l) => l.lote,
+      headerClassName: HEADER_CLASS,
+      cellClassName: 'px-4 py-3 text-slate-300',
+    },
+    {
       key: 'tipo',
       header: 'Tipo',
       render: (l) => <span className={TIPO_LABEL[l.tipo].color}>{TIPO_LABEL[l.tipo].label}</span>,

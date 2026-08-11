@@ -28,7 +28,7 @@ class RelatorioApontamentosExport implements FromArray, ShouldAutoSize, WithHead
 
     public function headings(): array
     {
-        return ['Data', 'Máquina', 'Usuário', 'Tipo', 'Motivo Pausa', 'Início', 'Fim', 'Duração'];
+        return ['Data', 'Máquina', 'Usuário', 'Lote', 'Tipo', 'Motivo Pausa', 'Início', 'Fim', 'Duração'];
     }
 
     /** @param array<string, mixed> $linha */
@@ -38,6 +38,7 @@ class RelatorioApontamentosExport implements FromArray, ShouldAutoSize, WithHead
             Carbon::parse($linha['data'])->format('d/m/Y'),
             $linha['maquina'],
             $linha['usuario'],
+            $linha['lote'],
             self::ROTULOS_TIPO[$linha['tipo']] ?? $linha['tipo'],
             $linha['motivo_pausa'] ?? '',
             Carbon::parse($linha['inicio'])->format('H:i'),

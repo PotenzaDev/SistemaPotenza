@@ -431,6 +431,7 @@ class RelatorioProducaoService
                         'maquina'          => $maquina,
                         'operario_id'      => $sessao->operario_id,
                         'usuario'          => $operario,
+                        'lote'             => $apontamento->ordem_lote,
                         'tipo'             => $segmento['tipo'],
                         'motivo_pausa'     => $segmento['motivo'] ?? null,
                         // format(), não toISOString(): a exportação precisa do horário
